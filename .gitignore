@@ -1,4 +1,4 @@
-# Workspace
+# Workspace VSCode
 *.code-workspace
 # Секреты
 .env
