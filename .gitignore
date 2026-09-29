@@ -1,0 +1,15 @@
+# Workspace
+.code-workspace
+# Секреты
+.env
+# Логи и приватные данные хаба
+/data/*
+!/data/.gitkeep
+# Контейнер репозиториев других проектов
+/projects/
+# Логи и служебные файлы
+*.log
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
