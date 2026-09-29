@@ -2,8 +2,8 @@
 # gitflic-sync.sh — сверка и синхронизация проектов контейнера projects/ с GitFlic.
 #
 # Модель публикации: локальная ветка -> её upstream-ветка на GitFlic.
-#   visual-novel-engine: qwen (локально) -> master (на GitFlic), настраивается один раз:
-#   git branch --set-upstream-to=origin/master qwen
+#   visual-novel-engine: master (локально) -> master (на GitFlic), настраивается один раз:
+#   git branch --set-upstream-to=origin/master master
 #   Без upstream публикуется одноимённая ветка с установкой -u.
 #
 # Вызовы:
@@ -96,7 +96,7 @@ cmd_fix() {
         if is_local_repo "$dir"; then
             echo "   локальный git: да"
         else
-            git -C "$dir" init -b main && echo "   локальный git: инициализирован (main)"
+            git -C "$dir" init -b master && echo "   локальный git: инициализирован (main)"
         fi
         if ! git -C "$dir" remote get-url origin >/dev/null 2>&1; then
             git -C "$dir" remote add origin "https://gitflic.ru/project/${GITFLIC_USER}/${slug}.git"
