@@ -1,5 +1,5 @@
 # Workspace VSCode
-.code-workspace
+*.code-workspace
 # Секреты
 .env
 # Логи и приватные данные хаба
