@@ -4,6 +4,11 @@
 #   gitflic-sync.sh     -> проекты контейнера projects/<slug>
 #   gitflic-sync-hub.sh -> репозиторий хаба (router.php, index.php, bin/, assets/, docs)
 #
+# ФАКТ 2026-09-24: фактический slug репозитория хаба на GitFlic — gitflicproject (нижний
+# регистр); git-транспорт GitFlic регистрозависим, Web-UI открывает оба написания.
+# Поэтому базовый URL строится с нижним регистром, а при настроенном origin
+# используется именно URL origin (единственный источник истины по регистру).
+#
 # Вызовы:
 #   gitflic-sync-hub.sh [-m "сообщение коммита"] — полный цикл: fetch, сверка
 #       ahead/behind с upstream, коммит локальных изменений (защита запрещённых путей),
@@ -24,23 +29,32 @@ set -uo pipefail
 
 HUB="$HOME/gitflicProject"
 ENV_FILE="$HUB/.env"
+HUB_SLUG="gitflicproject"   # фактический slug на GitFlic (нижний регистр), факт 2026-09-24
 
 GITFLIC_USER=""
-REMOTE_URL=""
 
 load_env_soft() {
     GITFLIC_USER="$(sed -n 's/^GITFLIC_USER=//p' "$ENV_FILE" 2>/dev/null | tail -n 1 | tr -d '\r')"
     GITFLIC_USER="${GITFLIC_USER:-sokol491}"
-    REMOTE_URL="https://gitflic.ru/project/${GITFLIC_USER}/gitflicProject.git"
+}
+
+# URL репозитория хаба: настроенный origin приоритетен, иначе конструируется с нижним slug
+remote_url() {
+    local u
+    if [ -d "$HUB/.git" ] && u="$(git -C "$HUB" remote get-url origin 2>/dev/null)" && [ -n "$u" ]; then
+        printf '%s' "$u"
+    else
+        printf 'https://gitflic.ru/project/%s/%s.git' "$GITFLIC_USER" "$HUB_SLUG"
+    fi
 }
 
 is_local_repo() { [ -d "$HUB/.git" ] && git -C "$HUB" rev-parse --is-inside-work-tree >/dev/null 2>&1; }
 
 # Репозиторий на GitFlic существует: парсим вывод ls-remote (GitFlic отвечает
-# HTTP 500 на несуществующие репозитории — трактуем как "нет", guide раздел 11)
+# HTTP 500 на несуществующие/недоступные репозитории — трактуем как "нет", guide раздел 11)
 remote_repo_exists() {
     local output
-    output="$(git ls-remote "$REMOTE_URL" 2>&1)"
+    output="$(git ls-remote "$(remote_url)" 2>&1)"
     [[ ! "$output" =~ "Repository not found" && ! "$output" =~ "fatal:" && ! "$output" =~ "error:" ]]
 }
 
@@ -74,7 +88,7 @@ cmd_fix() {
         echo "ВНИМАНИЕ: не настроена идентичность git (guide раздел 4)"
     fi
     if ! git -C "$HUB" remote get-url origin >/dev/null 2>&1; then
-        git -C "$HUB" remote add origin "$REMOTE_URL" && echo "origin: добавлен ($REMOTE_URL)"
+        git -C "$HUB" remote add origin "$(remote_url)" && echo "origin: добавлен ($(remote_url))"
     else
         echo "origin: $(git -C "$HUB" remote get-url origin)"
     fi
@@ -87,9 +101,9 @@ cmd_fix() {
     mkdir -p "$HUB/data"
     [ -f "$HUB/data/.gitkeep" ] || touch "$HUB/data/.gitkeep"
     if remote_repo_exists; then
-        echo "GitFlic: репозиторий gitflicProject существует, remote доступен"
+        echo "GitFlic: репозиторий хаба существует, remote доступен"
     else
-        echo "GitFlic: репозитория gitflicProject нет — создайте через Web-UI (guide раздел 7):"
+        echo "GitFlic: репозитория хаба нет — создайте через Web-UI (guide раздел 7):"
         echo "        имя gitflicProject, пустой, без README"
     fi
 }
@@ -114,9 +128,9 @@ cmd_status() {
     echo "ahead/behind:   $ahead/$behind (по последнему fetch)"
     echo "грязных файлов: $dirty"
     if remote_repo_exists; then
-        echo "GitFlic:        репозиторий gitflicProject существует"
+        echo "GitFlic:        репозиторий хаба существует ($(remote_url))"
     else
-        echo "GitFlic:        репозитория gitflicProject нет"
+        echo "GitFlic:        репозитория хаба нет ($(remote_url))"
     fi
 }
 
@@ -150,7 +164,7 @@ cmd_sync() {
     echo "== СВЕРКА: gitflicProject (локально $branch -> GitFlic $remote_branch) =="
 
     if ! remote_repo_exists; then
-        echo "ОШИБКА: репозиторий gitflicProject на GitFlic отсутствует." >&2
+        echo "ОШИБКА: репозиторий хаба на GitFlic отсутствует ($(remote_url))." >&2
         echo "Создайте через Web-UI (guide раздел 7): имя gitflicProject, пустой, без README." >&2
         exit 2
     fi
