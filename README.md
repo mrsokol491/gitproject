@@ -29,7 +29,6 @@ credential helper.
 
 - 8000 — хаб (systemd: gitflic-workspace.service; ручной запуск:
   php -S 0.0.0.0:8000 -t ~/gitflicProject ~/gitflicProject/router.php)
-- 8080 — занят сторонним проектом: не трогать и не занимать
 - http://127.0.0.1:8000/ — хаб; http://127.0.0.1:8000/<slug>/ — проект
 
 ## Контейнер projects/ и состояние проектов
