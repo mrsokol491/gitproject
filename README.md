@@ -1,9 +1,11 @@
 # GitFlic Dev Workspace (gitflicProject)
 
 Владелец: Александр (@sokol491).
+
 Назначение: оболочка-хаб для работы с репозиториями GitFlic: индекс проектов,
 прокси-роутер в docroot проектов, скрипты синхронизации/публикации и аудита,
 credential helper.
+
 Правила разработки: STANDARD.md (приоритетный документ).
 Эксплуатация: gitflic-workspace-guide.md (порты, systemd, git-доступ, changelog).
 
