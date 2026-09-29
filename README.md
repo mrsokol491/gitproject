@@ -31,7 +31,7 @@ credential helper.
 
 - 8000 — хаб (systemd: gitflic-workspace.service; ручной запуск:
   php -S 0.0.0.0:8000 -t ~/gitflicProject ~/gitflicProject/router.php)
-- http://127.0.0.1:8000/ — хаб; http://127.0.0.1:8000/<slug>/ — проект
+- http://127.0.0.1:8000/ — хаб; http://127.0.0.1:8000/< slug >/ — проект
 
 ## Контейнер projects/ и состояние проектов
 
@@ -79,7 +79,7 @@ credential helper; в выводе команд маскируется ([скр�
 
 ### 2. Синхронизация проектов контейнера (bin/gitflic-sync.sh)
 
-Полный цикл для репозиториев в projects/<slug>: тот же принцип, что и у хаба.
+Полный цикл для репозиториев в projects/< slug >: тот же принцип, что и у хаба.
 Цель публикации = upstream локальной ветки; без upstream — одноимённая ветка с -u.
 
     # 2.1 Публикация проекта с сообщением
@@ -170,4 +170,3 @@ credential helper; в выводе команд маскируется ([скр�
 ## Логи
 
 data/workspace.log, data/workspace-error.log — в репозиторий не попадают.
-README_EOF
