@@ -7,7 +7,6 @@
 /data/*
 # Assets
 !/assets/.gitkeep
-/assets/*
 # Контейнер репозиториев других проектов
 !/projects/.gitkeep
 /projects/*
