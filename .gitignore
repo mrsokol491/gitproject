@@ -7,9 +7,10 @@
 /data/*
 # Assets
 !/assets/.gitkeep
+/assets/*
 # Контейнер репозиториев других проектов
 !/projects/.gitkeep
-
+/projects/*
 # Логи и служебные файлы
 *.log
 *.sqlite
