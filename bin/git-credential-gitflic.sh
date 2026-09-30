@@ -1,26 +1,28 @@
 #!/usr/bin/env bash
-# git-credential-gitflic.sh — credential helper для GitFlic.
-# Читает GITFLIC_USER и GITFLIC_TOKEN из .env workspace и отдаёт их git.
-# Подключение: git config --global credential.https://gitflic.ru.helper '<путь к файлу>'
-
+# git-credential-gitflic.sh — маршрутизация учётных данных GitFlic из .env
 set -u
-
-# Операция от git (get/store/erase). Токен выдаём только на get.
 op="${1:-}"
 
-# Запрос git приходит на stdin — читаем и игнорируем, чтобы не заблокировать канал
-cat >/dev/null 2>&1 || true
+host=""
+path=""
+while IFS='=' read -r key value; do
+    [ "$key" = "host" ] && host="$value"
+    [ "$key" = "path" ] && path="$value"
+done
+
 [ "$op" = "get" ] || exit 0
 
 env_file="${HOME}/gitflicProject/.env"
 [ -r "$env_file" ] || exit 0
 
-# Читаем значения из .env (последняя найденная строка), убираем CR для файлов из Windows
-token="$(sed -n 's/^GITFLIC_TOKEN=//p' "$env_file" | tail -n 1 | tr -d '\r')"
-user="$(sed -n 's/^GITFLIC_USER=//p' "$env_file" | tail -n 1 | tr -d '\r')"
+# Маршрутизация: хаб строго sokol491, проекты — любой пользователь из .env
+if [[ "$path" == *"sokol491/gitflicproject"* ]]; then
+    user="$(sed -n 's/^GITFLIC_HUB_USER=//p' "$env_file" | tail -n 1 | tr -d '\r')"
+    token="$(sed -n 's/^GITFLIC_HUB_TOKEN=//p' "$env_file" | tail -n 1 | tr -d '\r')"
+else
+    user="$(sed -n 's/^GITFLIC_PROJECT_USER=//p' "$env_file" | tail -n 1 | tr -d '\r')"
+    token="$(sed -n 's/^GITFLIC_PROJECT_TOKEN=//p' "$env_file" | tail -n 1 | tr -d '\r')"
+fi
 
-# Без токена молча выходим — git покажет обычный запрос пароля
 [ -n "$token" ] || exit 0
-
-# Ответ по протоколу git-credential
 printf 'username=%s\npassword=%s\n' "${user:-sokol491}" "$token"
