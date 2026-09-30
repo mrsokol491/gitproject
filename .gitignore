@@ -6,7 +6,8 @@
 /data/*
 !/data/.gitkeep
 # Контейнер репозиториев других проектов
-/projects/
+/projects/*
+!/projects/.gitkeep
 # Логи и служебные файлы
 *.log
 *.sqlite
