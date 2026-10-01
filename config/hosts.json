@@ -1,8 +1,32 @@
 {
-  "gitflic":   {"host": "gitflic.ru",   "status": "ready",       "env_prefix": "GITFLIC"},
-  "github":    {"host": "github.com",   "status": "ready",       "env_prefix": "GITHUB"},
-  "gitlab":    {"host": "gitlab.com",   "status": "ready",       "env_prefix": "GITLAB"},
-  "gitverse":  {"host": "gitverse.ru",  "status": "ready",       "env_prefix": "GITVERSE"},
-  "bitbucket": {"host": "bitbucket.org","status": "integrating", "env_prefix": "BITBUCKET"},
-  "gitea":     {"host": "gitea.com",    "status": "integrating", "env_prefix": "GITEA"}
+  "gitflic": {
+    "host": "gitflic.ru",
+    "status": "ready",
+    "env_prefix": "GITFLIC"
+  },
+  "gitverse": {
+    "host": "gitverse.ru",
+    "status": "ready",
+    "env_prefix": "GITVERSE"
+  },
+  "github": {
+    "host": "github.com",
+    "status": "integrating",
+    "env_prefix": "GITHUB"
+  },
+  "gitlab": {
+    "host": "gitlab.com",
+    "status": "integrating",
+    "env_prefix": "GITLAB"
+  },
+  "bitbucket": {
+    "host": "bitbucket.org",
+    "status": "integrating",
+    "env_prefix": "BITBUCKET"
+  },
+  "gitea": {
+    "host": "gitea.com",
+    "status": "integrating",
+    "env_prefix": "GITEA"
+  }
 }
