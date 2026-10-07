@@ -24,7 +24,7 @@ cmd_list() {
     print_header ""
     print_header "Remote проекта: $slug (ветка: $branch)"
     print_header "=============================================================="
-    printf "${BLUE}${BOLD}  %-12s %-44s %-9s %-17s %s${RESET}\n" "REMOTE" "URL" "SHA" "ДАТА" "СТАТУС"
+    printf "${BLUE}${BOLD}  %-18s %-44s %-9s %-17s %s${RESET}\n" "СЕРВЕР" "URL" "SHA" "ДАТА" "СТАТУС"
     print_header "--------------------------------------------------------------"
 
     local -a names=() shas=() dates=() urls=()
@@ -32,11 +32,13 @@ cmd_list() {
     while read -r remote; do
         [ -n "$remote" ] || continue
         url="$(git -C "$repo" remote get-url "$remote" 2>/dev/null || echo '')"
-        sha="$(git -C "$repo" rev-parse "refs/remotes/$remote/$branch" 2>/dev/null || echo '')"
-        if [ -n "$sha" ]; then
-            date="$(git -C "$repo" log -1 --format='%ci' "$sha" 2>/dev/null | cut -d' ' -f1,2 | tr ' ' 'T' || echo '')"
-        else
-            date=""
+        sha=""
+        date=""
+        if git -C "$repo" show-ref --verify --quiet "refs/remotes/$remote/$branch" 2>/dev/null; then
+            sha="$(git -C "$repo" rev-parse "refs/remotes/$remote/$branch" 2>/dev/null || echo '')"
+            if [ -n "$sha" ]; then
+                date="$(git -C "$repo" log -1 --format='%ci' "$sha" 2>/dev/null | cut -d' ' -f1,2 | tr ' ' 'T' || echo '')"
+            fi
         fi
         names+=("$remote")
         urls+=("$url")
@@ -64,12 +66,12 @@ cmd_list() {
             printf "  ${BOLD}%-12s${RESET} %-44s %-9s %-17s %b\n" "${names[$i]}" "${urls[$i]}" "—" "—" "$status"
         elif [ "$sha" = "$latest_sha" ]; then
             status="${GREEN}✅ актуален${RESET}"
-            printf "  ${BOLD}%-12s${RESET} %-44s %-9s %-17s %b\n" "${names[$i]}" "${urls[$i]}" "${sha:0:7}" "$date" "$status"
+            printf "  ${BOLD}%-18s${RESET} %-44s %-9s %-17s %b\n" "$(remote_display_name "$slug" "${names[$i]}")" "${urls[$i]}" "${sha:0:7}" "$date" "$status"
         else
             local behind
             behind="$(git -C "$repo" rev-list --count "$sha".."$latest_sha" 2>/dev/null || echo '?')"
             status="${YELLOW}⚠ отстаёт на $behind${RESET}"
-            printf "  ${BOLD}%-12s${RESET} %-44s %-9s %-17s %b\n" "${names[$i]}" "${urls[$i]}" "${sha:0:7}" "$date" "$status"
+            printf "  ${BOLD}%-18s${RESET} %-44s %-9s %-17s %b\n" "$(remote_display_name "$slug" "${names[$i]}")" "${urls[$i]}" "${sha:0:7}" "$date" "$status"
         fi
     done
     print_header "--------------------------------------------------------------"

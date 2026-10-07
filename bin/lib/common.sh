@@ -118,3 +118,38 @@ get_project_remotes() {
     [ -d "$repo/.git" ] || return 1
     git -C "$repo" remote 2>/dev/null | sort
 }
+
+# Человекочитаемое имя хоста по домену: из description берём слово до "—" или первый токен
+# gitflic.ru -> "GitFlic", gitverse.ru -> "GitVerse", github.com -> "GitHub"
+host_display_name() {
+    local domain="$1" id desc name
+    id="$(host_id_by_domain "$domain")"
+    if [ -n "$id" ]; then
+        desc="$(host_field "$id" description)"
+        if [ -n "$desc" ]; then
+            # Берём ПЕРВОЕ СЛОВО до "—" или пробела, сохраняя регистр
+            name="$(echo "$desc" | sed -E 's/ —.*//; s/[[:space:]].*//')"
+            # Убираем не-буквы, но сохраняем регистр (без глобальной очистки)
+            name="$(echo "$name" | tr -cd 'A-Za-zА-Яа-яЁё0-9_-')"
+            [ -n "$name" ] && { echo "$name"; return 0; }
+        fi
+        echo "$id"
+    else
+        echo "$domain"
+    fi
+}
+
+# Человекочитаемое имя для remote:
+#   origin -> "GitFlic (главный)", gitverse -> "GitVerse", github -> "GitHub"
+remote_display_name() {
+    local slug="$1" remote="$2" url domain name
+    url="$(git -C "$PROJECTS_DIR/$slug" remote get-url "$remote" 2>/dev/null || echo '')"
+    [ -n "$url" ] || { echo "$remote"; return 0; }
+    domain="$(echo "$url" | sed -E 's|https?://([^/]+)/.*|\1|')"
+    name="$(host_display_name "$domain")"
+    if [ "$remote" = "origin" ]; then
+        echo "$name (главный)"
+    else
+        echo "$name"
+    fi
+}
