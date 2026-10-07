@@ -63,6 +63,12 @@ remote = id хоста из hosts.json. Мульти-push (--all, --remote) — 
 (фиксировано: HUB_UPDATE_* в .env); проекты — из любых владельцев и готовых хостов.
 
 ### Репозиторий хаба на GitFlic
+
+### Репозиторий хаба на GitVerse (зеркало)
+Опубликован: https://gitverse.ru/Sokol491/gitproject
+Зеркало основного репозитория для резервирования и тестирования мульти-хост синхронизации.
+Владелец: Sokol491 (регистр учитывается!).
+Переименован 2026-10-07: gitflicProject → gitproject (единообразие с GitFlic).
 Опубликован: https://gitflic.ru/project/sokol491/gitproject
 ФАКТ 2026-09-29: фактический slug — gitflicproject (нижний регистр); git-транспорт GitFlic
 регистрозависим, Web-UI открывает оба написания. URL origin локального хаба — только нижний регистр.
@@ -477,3 +483,5 @@ commitHash брать из: GET /project/<user>/<slug>/branch/<ветка>
 gitproject-workspace.service; репозиторий на GitFlic sokol491/gitflicproject → sokol491/gitproject;
 все пути в документации обновлены; критерий HUB-области в helper: *gitproject*;
 симлинки gitflic-*.sh сохранены для обратной совместимости.
+2026-10-07: v2.2.1 — зеркало хаба на GitVerse переименовано: Sokol491/gitflicProject →
+Sokol491/gitproject для единообразия с основным репозиторием на GitFlic.
