@@ -1,9 +1,8 @@
 # GitProject Workspace Hub — Руководство по работе
 
-Версия 2.2 от 2026-10-07. Владелец: Александр (@sokol491).
+Версия 2.3 от 2026-10-07. Владелец: Александр (@sokol491).
 Назначение: постоянный контекст ИИ-ассистента для работы с проектами на нескольких Git-хостах.
-Расположение: ~/gitproject/gitflic-workspace-guide.md
-Прежнее имя: GitFlic Dev Workspace (переименован по ТЗ-001 v2, этап 0; путь и slug сохранены).
+Расположение: ~/gitproject/gitproject-workspace-guide.md
 
 Изменения 2.1:
 - раздел 1: состав мульти-хост системы (git-project-clone.sh, git-project-remote.sh,
@@ -33,13 +32,9 @@
 │   ├── git-project-remote.sh        <- управление remote (add/remove/list + актуальность)
 │   ├── audit-project.sh             <- аудит проекта перед паспортом
 │   ├── lib/common.sh                <- общие функции мульти-хост (цвета, hosts.json, .env)
-│   ├── git-credential-gitflic.sh    -> git-credential-multi.sh   (симлинк совместимости)
-│   ├── gitflic-sync.sh              -> git-project-sync.sh       (симлинк совместимости)
-│   ├── gitflic-sync-hub.sh          -> git-project-update.sh     (симлинк совместимости)
-│   └── gitflic-update.sh            -> git-project-pull.sh       (симлинк совместимости)
 ├── config/
 │   └── hosts.json                   <- каталог хостов: статус, env_prefix, url_template
-├── gitflic-workspace-guide.md       <- этот файл
+├── gitproject-workspace-guide.md       <- этот файл
 ├── STANDARD.md                      <- стандарт разработки (приоритетнее этого файла)
 ├── projects/                        <- контейнер репозиториев (изолирован, в репозиторий хаба не входит)
 ├── assets/                          <- общие ассеты хаба
@@ -82,7 +77,6 @@ remote = id хоста из hosts.json. Мульти-push (--all, --remote) — 
 
 ### Порты
 8000 — GitProject Workspace Hub (хаб проектов)
-8080 — занят сторонним проектом, НЕ трогать и не занимать
 
 ### URL-схема
 http://192.168.31.119:8000/                          — хаб, список проектов
@@ -490,3 +484,6 @@ Sokol491/gitproject для единообразия с основным репо
 GitFlic допускает любой регистр (sokol491 = Sokol491), GitVerse требует точное совпадение
 (Sokol491 с заглавной буквы). Переменная GITVERSE_PROJECT_USER в .env должна содержать
 точное написание из профиля GitVerse.
+2026-10-07: v2.3 — файл переименован в gitproject-workspace-guide.md; симлинки gitflic-*.sh
+удалены (рабочие имена — только git-project-*.sh); строка про порт 8080 удалена;
+упоминания «Прежнее имя» удалены; router.php: forbidden-список обновлён на новое имя файла.

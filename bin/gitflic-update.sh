@@ -1,1 +1,0 @@
-git-project-pull.sh

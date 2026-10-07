@@ -1,1 +1,0 @@
-git-project-sync-no-learn.sh

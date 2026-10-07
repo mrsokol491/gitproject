@@ -83,7 +83,7 @@ if ($uri === '/assets' || str_starts_with($uri, '/assets/')) {
 $forbidden = [
     '.env', '.git', '.gitignore',
     'bin', 'data', 'projects',
-    'STANDARD.md', 'gitflic-workspace-guide.md',
+    'STANDARD.md', 'gitproject-workspace-guide.md',
 ];
 foreach ($forbidden as $blocked) {
     if ($uri === '/' . $blocked || str_starts_with($uri, '/' . $blocked . '/')) {

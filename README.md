@@ -7,10 +7,9 @@ Git-хостах (GitFlic, GitVerse и др.): индекс проектов, п
 
 Репозиторий: https://gitflic.ru/project/sokol491/gitproject
 Локальный путь: ~/gitproject
-Прежнее имя: GitFlic Dev Workspace (переименован 2026-10-07)
 
 Правила разработки: STANDARD.md (приоритетный документ).
-Эксплуатация: gitflic-workspace-guide.md (порты, systemd, git-доступ, changelog).
+Эксплуатация: gitproject-workspace-guide.md (порты, systemd, git-доступ, changelog).
 
 ## Структура
 
@@ -29,14 +28,13 @@ Git-хостах (GitFlic, GitVerse и др.): индекс проектов, п
     │   ├── git-project-remote.sh   # управление remote (add/remove/list + актуальность)
     │   ├── audit-project.sh        # аудит проекта перед паспортом
     │   ├── lib/common.sh           # общие функции мульти-хост системы
-    │   └── gitflic-*.sh            # симлинки для обратной совместимости
     ├── config/
     │   └── hosts.json              # каталог хостов (ready/integrating/disabled)
     ├── projects/                   # контейнер репозиториев (в репозиторий хаба не входит)
     ├── assets/                     # ассеты хаба (css, img)
     ├── data/                       # логи: workspace.log, workspace-error.log, <host>.log
     ├── STANDARD.md                 # стандарт разработки
-    └── gitflic-workspace-guide.md  # руководство по эксплуатации
+    └── gitproject-workspace-guide.md  # руководство по эксплуатации
 
 ## Установка (новое устройство / новый пользователь)
 
@@ -80,14 +78,12 @@ Git-хостах (GitFlic, GitVerse и др.): индекс проектов, п
 ## Порты и URL
 
 - 8000 — хаб (systemd: gitproject-workspace.service)
-- 8080 — занят сторонним проектом, НЕ трогать и не занимать
 - http://127.0.0.1:8000/ — хаб; http://127.0.0.1:8000/<slug>/ — проект
 
 ## Команды управления
 
 Все скрипты в bin/ требуют права 700. Токены подставляются из .env через
 credential helper; в выводе команд маскируются ([скрыто]).
-Старые имена (gitflic-sync.sh и др.) работают через симлинки.
 
 ### Интерактивная синхронизация проектов (bin/git-project-sync.sh)
 

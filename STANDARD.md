@@ -10,7 +10,7 @@ GitFlic: прямое скачивание архивов и репозитор�
 рабочая схема — пользователь вставляет, ассистент правит.
 Допускается web-scraping содержимого отдельных файлов публичных репозиториев через
 blob/tree URL с query-параметрами для аудита структуры и ключевых файлов
-(детали — gitflic-workspace-guide.md §13). Поддерживается /blob/raw для чистого текста
+(детали — gitproject-workspace-guide.md §13). Поддерживается /blob/raw для чистого текста
 (требует commit hash). GitHub-формат /blob/<ветка>/<путь> не работает.
 Токены и секреты: только с ограниченными правами и сроком жизни; никогда в коде, репозитории и ответах.
 
@@ -193,8 +193,8 @@ php -v; ls -la data/; [ -f composer.json ] && cat composer.json
 Changelog:
 2026-09-23: v1.0 принят по итогам аудитов; правки ревью (.gitignore, require-dev, SQLite ≥ 3.27) вошли до загрузки.
 2026-09-23: v1.1 — файл универсализирован (без ссылок на проекты и память); добавлен раздел 4 (имена файлов и папок), раздел 11 (готовые модули kit), каталог migrations/ в каркасе.
-2026-09-29: v1.2 — раздел 1: допустимость web-scraping blob/tree GitFlic для аудита публичных репозиториев (детали в gitflic-workspace-guide.md §13).
-2026-09-29: v1.3 — раздел 1: добавлено упоминание /blob/raw для чистого текста файла (детали в gitflic-workspace-guide.md §13).
+2026-09-29: v1.2 — раздел 1: допустимость web-scraping blob/tree GitFlic для аудита публичных репозиториев (детали в gitproject-workspace-guide.md §13).
+2026-09-29: v1.3 — раздел 1: добавлено упоминание /blob/raw для чистого текста файла (детали в gitproject-workspace-guide.md §13).
 ## Changelog
 - 2026-10-01: v1.4 — рабочее пространство переименовано: GitProject Workspace Hub
   (прежнее имя GitFlic Dev Workspace, ТЗ-001 v2, этап 0). Путь ~/gitproject,
@@ -209,3 +209,7 @@ Changelog:
 gitproject-workspace.service; репозиторий на GitFlic sokol491/gitflicproject → sokol491/gitproject;
 все упоминания в документации обновлены; симлинки gitflic-*.sh в bin/ сохранены для
 обратной совместимости.
+2026-10-07: v1.6 — симлинки gitflic-*.sh в bin/ удалены (обратная совместимость имён
+завершена, рабочие имена — только git-project-*.sh); руководство переименовано:
+gitflic-workspace-guide.md → gitproject-workspace-guide.md; строка про порт 8080
+и строки «Прежнее имя» удалены из документации; forbidden-список router.php обновлён.
