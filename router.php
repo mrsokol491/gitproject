@@ -79,9 +79,22 @@ if ($uri === '/assets' || str_starts_with($uri, '/assets/')) {
     return false; // статика хаба: assets/css/, assets/img/
 }
 
-// --- 1.5) API и админ-панель хаба -------------------------------------------
-if ($uri === '/admin.php' || str_starts_with($uri, '/api/')) {
-    return false; // php -S исполнит файлы напрямую из корня хаба (public/api/, admin.php)
+// --- 1.5) API и админ-панель хаба (из папки public/) ------------------------
+if ($uri === '/admin.php') {
+    $file = __DIR__ . '/public/admin.php';
+    if (is_file($file)) {
+        $_SERVER['SCRIPT_FILENAME'] = $file;
+        require $file;
+        return true;
+    }
+}
+if (str_starts_with($uri, '/api/')) {
+    $file = __DIR__ . '/public' . $uri;
+    if (is_file($file)) {
+        $_SERVER['SCRIPT_FILENAME'] = $file;
+        require $file;
+        return true;
+    }
 }
 
 // --- 2) Запрет прямого доступа к служебным файлам хаба ----------------------
