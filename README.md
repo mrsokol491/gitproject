@@ -4,14 +4,15 @@
 
 Владелец: Александр (@sokol491).
 Назначение: универсальная оболочка-хаб для работы с репозиториями на нескольких Git-хостах:
-+ ✅ GitFlic
-+ ✅ GitVerse
-+ ✅ SourceCraft
-+ ⚠️ GitHub
-+ ⚠️ GitLab
-+ ⚠️ Bitbucket
-+ ⚠️ Gitea
-+ ⚠️ CodeBase
++ ✅ GitFlic (gitflic.ru) — российский Git-хостинг (реестр ПО РФ)
++ ✅ GitVerse (gitverse.ru) — российский Git-хостинг от Сбера (реестр ПО РФ)
++ ✅ SourceCraft (sourcecraft.dev) — платформа от Яндекса (Yandex B2B Tech)
++ ⚠️ GitHub (github.com) — международный Git-хостинг
++ ⚠️ GitLab (gitlab.com) — международный Git-хостинг
++ ⚠️ Bitbucket (bitbucket.org) — международный Git-хостинг от Atlassian
++ ⚠️ Gitea (gitea.com) — международный Git-хостинг
++ ⚠️ CodeBase (codebase.mos.ru) — московская платформа разработки (реестр ПО РФ)
+
 
     + ✅ - Интегрирован
     + ⚠️ - В процессе интеграции
