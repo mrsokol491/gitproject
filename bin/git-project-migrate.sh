@@ -204,6 +204,8 @@ do_migrate() {
         git -C "$REPO" push "$tgt" "$src_sha:refs/heads/$BRANCH" || { print_error "    push не удался"; return 4; }
         git -C "$REPO" fetch "$tgt" >/dev/null 2>&1 || true
         print_success "    ✓ УСПЕХ: $tgt обновлён до ${src_sha:0:7}"
+        # Обновляем кеш remote после push
+        git -C "$REPO" fetch "$tgt" >/dev/null 2>&1 || true
         return 0
     fi
 

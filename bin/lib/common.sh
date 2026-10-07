@@ -25,9 +25,10 @@ load_env() {
 # Значение поля хоста из config/hosts.json по его id (gitflic|gitverse|...)
 host_field() {
     local id="$1" field="$2"
-    [ -f "$CONFIG_FILE" ] || return 1
-    sed -n "/\"${id}\": *{/,/}/p" "$CONFIG_FILE" \
-        | sed -n "s/.*\"${field}\": *\"\([^\"]*\)\".*/\1/p" | head -n 1
+    # Используем jq для безопасного извлечения поля из JSON
+    local value
+    value="$(jq -r --arg id "$id" --arg field "$field" '.[$id][$field] // empty' "$CONFIG_FILE" 2>/dev/null)"
+    echo "$value"
 }
 
 # Id хоста по домену (gitverse.ru -> gitverse)
@@ -119,7 +120,7 @@ get_project_remotes() {
     git -C "$repo" remote 2>/dev/null | sort
 }
 
-# Человекочитаемое имя хоста по домену: из description берём слово до "—" или первый токен
+# Человекочитаемое имя хоста по домену: из description берём первое слово до "—"
 # gitflic.ru -> "GitFlic", gitverse.ru -> "GitVerse", github.com -> "GitHub"
 host_display_name() {
     local domain="$1" id desc name
@@ -127,11 +128,18 @@ host_display_name() {
     if [ -n "$id" ]; then
         desc="$(host_field "$id" description)"
         if [ -n "$desc" ]; then
-            # Берём ПЕРВОЕ СЛОВО до "—" или пробела, сохраняя регистр
-            name="$(echo "$desc" | sed -E 's/ —.*//; s/[[:space:]].*//')"
-            # Убираем не-буквы, но сохраняем регистр (без глобальной очистки)
+            # Берём всё до первого " — " (тире с пробелами)
+            name="${desc%% — *}"
+            # Если тире не было, берём всё до первого пробела
+            if [ "$name" = "$desc" ]; then
+                name="${desc%% *}"
+            fi
+            # Убираем не-буквы/цифры, но сохраняем регистр
             name="$(echo "$name" | tr -cd 'A-Za-zА-Яа-яЁё0-9_-')"
-            [ -n "$name" ] && { echo "$name"; return 0; }
+            if [ -n "$name" ]; then
+                echo "$name"
+                return 0
+            fi
         fi
         echo "$id"
     else
