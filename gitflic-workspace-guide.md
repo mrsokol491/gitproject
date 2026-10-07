@@ -1,6 +1,6 @@
 # GitProject Workspace Hub — Руководство по работе
 
-Версия 2.1 от 2026-10-02. Владелец: Александр (@sokol491).
+Версия 2.2 от 2026-10-07. Владелец: Александр (@sokol491).
 Назначение: постоянный контекст ИИ-ассистента для работы с проектами на нескольких Git-хостах.
 Расположение: ~/gitproject/gitflic-workspace-guide.md
 Прежнее имя: GitFlic Dev Workspace (переименован по ТЗ-001 v2, этап 0; путь и slug сохранены).
@@ -59,11 +59,11 @@ searchengine, pdf, visual-novel-engine, virtual-cloud, test.
 integrating — github, gitlab, bitbucket, gitea.
 Каждый проект может иметь несколько remote (origin + дополнительные); имя дополнительного
 remote = id хоста из hosts.json. Мульти-push (--all, --remote) — этапы 1-2 ТЗ-001 v2.
-Окружение хаба обновляется ТОЛЬКО из репозитория sokol491/gitflicproject на GitFlic
+Окружение хаба обновляется ТОЛЬКО из репозитория sokol491/gitproject на GitFlic
 (фиксировано: HUB_UPDATE_* в .env); проекты — из любых владельцев и готовых хостов.
 
 ### Репозиторий хаба на GitFlic
-Опубликован: https://gitflic.ru/project/sokol491/gitflicproject
+Опубликован: https://gitflic.ru/project/sokol491/gitproject
 ФАКТ 2026-09-29: фактический slug — gitflicproject (нижний регистр); git-транспорт GitFlic
 регистрозависим, Web-UI открывает оба написания. URL origin локального хаба — только нижний регистр.
 В коммит хаба никогда не попадают: .env, data/ (кроме .gitkeep), projects/ (контейнер),
@@ -148,7 +148,7 @@ git clone git@gitflic.ru:sokol491/archive.git ~/gitproject/projects/archive
 1) читает запрос git из stdin ЦЕЛИКОМ до разбора (protocol/host/path);
 2) префикс по домену: gitflic.ru -> GITFLIC, gitverse.ru -> GITVERSE,
    github.com -> GITHUB, gitlab.com -> GITLAB; неизвестный домен — молчаливый выход;
-3) область: HUB — путь репозитория содержит gitflicproject (регистронезависимо, на ЛЮБОМ хосте),
+3) область: HUB — путь репозитория содержит gitproject (регистронезависимо, на ЛЮБОМ хосте),
    иначе PROJECT;
 4) токен <PREFIX>_<SCOPE>_TOKEN, пользователь <PREFIX>_<SCOPE>_USER; fallback PROJECT -> HUB;
 5) placeholder или пустой токен — молчаливый выход с подсказкой в stderr:
@@ -164,7 +164,7 @@ git config --global user.email "<почта аккаунта GitFlic>"
 git config --global --get user.name && git config --global --get user.email   # проверка
 
 Проверка помощника БЕЗ вывода токена:
-printf 'protocol=https\nhost=gitflic.ru\npath=sokol491/gitflicproject.git\n\n' \
+printf 'protocol=https\nhost=gitflic.ru\npath=sokol491/gitproject.git\n\n' \
   | ~/gitproject/bin/git-credential-multi.sh get \
   | sed -E 's/^(password=).*/\1[скрыто]/'
 
@@ -185,14 +185,14 @@ git ls-remote origin "$(git branch --show-current)"
 
 ## 5. Сервис systemd хаба
 
-Файл: ~/.config/systemd/user/gitflic-workspace.service
+Файл: ~/.config/systemd/user/gitproject-workspace.service
 Ключевые строки ExecStart: php -S 0.0.0.0:8000 -t %h/gitproject %h/gitproject/router.php
 Логи: StandardOutput/StandardError append в ~/gitproject/data/
 
 Команды:
-systemctl --user status gitflic-workspace.service --no-pager
-systemctl --user restart gitflic-workspace.service
-systemctl --user enable gitflic-workspace.service
+systemctl --user status gitproject-workspace.service --no-pager
+systemctl --user restart gitproject-workspace.service
+systemctl --user enable gitproject-workspace.service
 sudo loginctl enable-linger $USER        # автозапуск при загрузке, до входа в сеанс
 ss -tlnp | grep :8000
 tail -f ~/gitproject/data/workspace.log
@@ -249,13 +249,13 @@ merge upstream с приоритетом локальной версии (merge 
 ~/gitproject/bin/git-project-update.sh [-m "сообщение"]
 ~/gitproject/bin/git-project-update.sh status
 ~/gitproject/bin/git-project-update.sh fix
-URL origin хаба — только нижний регистр slug: https://gitflic.ru/project/sokol491/gitflicproject.git
+URL origin хаба — только нижний регистр slug: https://gitflic.ru/project/sokol491/gitproject.git
 Если у origin/master есть посторонняя история (например gitflic-cl.yaml, см. раздел 11),
 связать без force-push: git merge origin/master --allow-unrelated-histories -X ours
 
 ### Обновление хаба и проектов
 ~/gitproject/bin/git-project-pull.sh
-Хаб — только из HUB_UPDATE_* (GitFlic, sokol491/gitflicproject); проекты — из их origin.
+Хаб — только из HUB_UPDATE_* (GitFlic, sokol491/gitproject); проекты — из их origin.
 
 ### Аудит перед паспортом (раздел 13 STANDARD.md), секреты не присылать:
 for proj in archive searchengine pdf visual-novel-engine; do
@@ -307,7 +307,7 @@ kit-модули, аудит. Этот файл — эксплуатация wor
 
 Общее:
 git config --global --get user.name                             # идентичность настроена?
-systemctl --user restart gitflic-workspace.service
+systemctl --user restart gitproject-workspace.service
 ss -tlnp | grep :8000
 curl -sI http://127.0.0.1:8000/ | head -n 1
 tail -f ~/gitproject/data/workspace-error.log
@@ -365,7 +365,7 @@ GitVerse (ФАКТЫ 2026-10-01):
 
 - Профиль GitFlic: https://gitflic.ru/user/sokol491
 - Профиль GitVerse: https://gitverse.ru/Sokol491
-- Репозиторий хаба: https://gitflic.ru/project/sokol491/gitflicproject
+- Репозиторий хаба: https://gitflic.ru/project/sokol491/gitproject
 - Хаб: http://192.168.31.119:8000/
 - Локально: http://127.0.0.1:8000/
 
@@ -467,3 +467,8 @@ commitHash брать из: GET /project/<user>/<slug>/branch/<ветка>
 - 2026-10-02: v2.1 — раздел 1: мульти-хост состав (мастера clone/remote, lib, hosts.json); раздел 2: итоговая схема .env (HUB/PROJECT на хост, placeholder); раздел 4: логика helper (HUB по пути gitflicproject на любом хосте); раздел 7: мастер клонирования в 4 шага, remote с актуальностью, логи по хостам; раздел 11: факты GitVerse, баги stdin и sed ERE, факт мульти-push; раздел 12: профиль GitVerse.
 
 Конец документа.
+- 2026-10-07: v2.2 — полное переименование рабочего пространства (Фаза 2 ТЗ-001 v2):
+  локальный путь ~/gitflicProject → ~/gitproject; systemd unit gitflic-workspace.service →
+  gitproject-workspace.service; репозиторий на GitFlic sokol491/gitflicproject → sokol491/gitproject;
+  credential helper: область HUB определяется по пути *gitproject*; все внутренние пути
+  скриптов обновлены; симлинки gitflic-*.sh сохранены для обратной совместимости.

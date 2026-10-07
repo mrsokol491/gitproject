@@ -198,5 +198,9 @@ Changelog:
 ## Changelog
 - 2026-10-01: v1.4 — рабочее пространство переименовано: GitProject Workspace Hub
   (прежнее имя GitFlic Dev Workspace, ТЗ-001 v2, этап 0). Путь ~/gitproject,
-  slug репозитория на GitFlic (gitflicproject) и URL хаба сохранены для совместимости;
+  slug репозитория на GitFlic (gitproject) и URL хаба сохранены для совместимости;
   старые имена скриптов bin/ работают через симлинки.
+2026-10-07: v1.5 — локальный путь обновлён: ~/gitflicProject → ~/gitproject (завершение
+переименования, Фаза 2 ТЗ-001 v2). Репозиторий на GitFlic переименован в gitproject;
+все скрипты bin/, systemd-unit (gitproject-workspace.service) и внутренние пути
+обновлены. Симлинки gitflic-*.sh в bin/ сохранены для обратной совместимости.
