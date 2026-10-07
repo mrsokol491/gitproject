@@ -36,7 +36,7 @@ esac
 
 # HUB: путь репозитория хаба (gitflicproject, регистронезависимо) на ЛЮБОМ хосте
 path_lc="${path,,}"
-if [[ "$path_lc" == *gitflicproject* ]]; then
+if [[ "$path_lc" == *gitproject* ]]; then
     scope="HUB"
 else
     scope="PROJECT"
