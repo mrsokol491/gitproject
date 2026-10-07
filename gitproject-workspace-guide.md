@@ -539,3 +539,12 @@ remote исключаются из списка wizard.
 - Git-сервер: git.sourcecraft.dev (HTTPS clone/push)
 - SSH: ssh://ssh.sourcecraft.dev/<org>/<repo>.git
 - Статус: integrating (требует получения PAT для полного тестирования)
+
+2026-10-07: v2.8 — SourceCraft (git.sourcecraft.dev) полностью интегрирован:
+- Credential helper успешно получает токен из .env (SOURCECRAFT_PROJECT_TOKEN)
+- Push на SourceCraft проходит без интерактивного запроса пароля
+- Мульти-хост синхронизация хаба работает на 3 хоста: GitFlic, GitVerse, SourceCraft
+- URL клонирования: https://git.sourcecraft.dev/{owner}/{slug}.git
+- Raw-файлы: https://raw.sourcecraft.tech/raw/<org>/<repo>/<commit>/<path>
+- REST API: https://api.sourcecraft.tech/repos/{org}/{repo}/trees
+- Статус: ready (полная интеграция подтверждена тестом push)
