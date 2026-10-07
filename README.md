@@ -6,7 +6,7 @@
 Назначение: универсальная оболочка-хаб для работы с репозиториями на нескольких Git-хостах:
 + ✅ GitFlic (gitflic.ru) — российский Git-хостинг (реестр ПО РФ)
 + ✅ GitVerse (gitverse.ru) — российский Git-хостинг от Сбера (реестр ПО РФ)
-+ ✅ SourceCraft (sourcecraft.dev) — платформа от Яндекса (Yandex B2B Tech)
++ ✅ SourceCraft (sourcecraft.dev) — платформа от Яндекса (Yandex B2B Tech) (реестр ПО РФ)
 + ⚠️ GitHub (github.com) — международный Git-хостинг
 + ⚠️ GitLab (gitlab.com) — международный Git-хостинг
 + ⚠️ Bitbucket (bitbucket.org) — международный Git-хостинг от Atlassian

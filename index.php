@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * GitFlic Dev Workspace — главная страница хаба.
+ * GitProject Workspace Hub — главная страница хаба.
  * Сканирует ТОЛЬКО контейнер projects/ (репозитории других проектов);
  * служебные папки хаба (bin/, data/, assets/) в список не попадают.
  * Вызывается из router.php при запросе "/".
@@ -109,7 +109,7 @@ usort($projects, static fn(array $a, array $b): int => strcmp($a['name'], $b['na
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>GitFlic Dev Workspace</title>
+<title>GitProject Workspace Hub</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
@@ -141,7 +141,7 @@ usort($projects, static fn(array $a, array $b): int => strcmp($a['name'], $b['na
 </head>
 <body>
 <div class="container">
-  <h1>🚀 GitFlic Dev Workspace</h1>
+  <h1>🚀 GitProject Workspace Hub</h1>
   <p class="sub">Рабочее пространство @sokol491 — репозитории в контейнере <code>projects/</code></p>
 
   <div class="info">
