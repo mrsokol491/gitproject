@@ -5,7 +5,7 @@
     "env_prefix": "GITFLIC",
     "url_template": "https://gitflic.ru/project/{owner}/{slug}.git",
     "registry": "rf",
-    "description": "GitFlic — российский Git-хостинг (реестр ПО РФ №12345)"
+    "description": "GitFlic — российский Git-хостинг (реестр ПО РФ)"
   },
   "gitverse": {
     "host": "gitverse.ru",
@@ -14,6 +14,14 @@
     "url_template": "https://gitverse.ru/{owner}/{slug}.git",
     "registry": "rf",
     "description": "GitVerse — российский Git-хостинг от Сбера (реестр ПО РФ)"
+  },
+  "sourcecraft": {
+    "host": "sourcecraft.dev",
+    "status": "integrating",
+    "env_prefix": "SOURCECRAFT",
+    "url_template": "https://sourcecraft.dev/{owner}/{slug}.git",
+    "registry": "rf",
+    "description": "SourceCraft — платформа от Яндекса (Yandex B2B Tech). Git, code review, CI/CD, встроенный ИИ-помощник, интеграция с Yandex Cloud. Только облачная версия (без on-premise)."
   },
   "github": {
     "host": "github.com",
@@ -53,14 +61,6 @@
     "env_prefix": "CODEBASE",
     "url_template": "https://codebase.mos.ru/{owner}/{slug}.git",
     "registry": "rf",
-    "description": "CodeBase — московская платформа разработки (реестр ПО РФ)"
-  },
-  "yandex_code": {
-    "host": "code.yandex.ru",
-    "status": "integrating",
-    "env_prefix": "YANDEX_CODE",
-    "url_template": "https://code.yandex.ru/{owner}/{slug}.git",
-    "registry": "rf",
-    "description": "Yandex Code — платформа разработки от Яндекса (реестр ПО РФ)"
+    "description": "CodeBase — московская платформа разработки (реестр ПО РФ, в процессе интеграции)"
   }
 }
