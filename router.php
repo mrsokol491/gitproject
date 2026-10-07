@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * Роутер хаба GitFlic Workspace (корень workspace).
+ * Роутер хаба GitProject Workspace (корень workspace).
  * Версия 2.1 от 2026-09-24.
  *
  * Обязанности:
