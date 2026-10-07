@@ -19,6 +19,11 @@ set -uo pipefail
 
 source "$HOME/gitproject/bin/lib/common.sh"
 
+print_hint() {
+    echo -e "${GRAY}   💡 $1${RESET}" >&2
+}
+
+
 REPO=""
 BRANCH=""
 NAMES=(); DOMAINS=(); SHAS=(); DATES=(); STATES=()
@@ -29,7 +34,11 @@ collect() {
     BRANCH="$(git -C "$REPO" branch --show-current 2>/dev/null)"
     [ -n "$BRANCH" ] || { print_error "Не определена текущая ветка"; exit 2; }
 
-    NAMES=("local"); DOMAINS=("локально"); SHAS=("$(git -C "$REPO" rev-parse HEAD 2>/dev/null)")
+    # Обновляем кеш всех remote
+    local r; for r in $(git -C "$REPO" remote 2>/dev/null); do
+        git -C "$REPO" fetch "$r" >/dev/null 2>&1 || true
+    done
+    NAMES=("local"); DOMAINS=("💻 на компьютере"); SHAS=("$(git -C "$REPO" rev-parse HEAD 2>/dev/null)")
     DATES=("$(git -C "$REPO" log -1 --format='%ci' HEAD 2>/dev/null | cut -d' ' -f1,2 | tr ' ' 'T')")
 
     local remote url sha date
@@ -41,7 +50,7 @@ collect() {
             sha="$(git -C "$REPO" rev-parse "refs/remotes/$remote/$BRANCH" 2>/dev/null)"
             [ -n "$sha" ] && date="$(git -C "$REPO" log -1 --format='%ci' "$sha" 2>/dev/null | cut -d' ' -f1,2 | tr ' ' 'T')"
         fi
-        NAMES+=("$remote"); DOMAINS+=("$url"); SHAS+=("$sha"); DATES+=("$date")
+        NAMES+=("$(remote_display_name "$slug" "$remote")"); DOMAINS+=("$url"); SHAS+=("$sha"); DATES+=("$date")
     done < <(git -C "$REPO" remote 2>/dev/null | sort)
 
     # Самый свежий по дате коммитера
@@ -77,7 +86,7 @@ show_table() {
     print_header ""
     print_header "Актуальность версий: $1 (ветка: $BRANCH)"
     print_header "=============================================================="
-    printf "${BLUE}${BOLD}  %-3s %-12s %-9s %-17s %s${RESET}\n" "N" "ИСТОЧНИК" "SHA" "ДАТА" "СОСТОЯНИЕ"
+    printf "${BLUE}${BOLD}  %-3s %-18s %-9s %-17s %s${RESET}\n" "N" "ВЕРСИЯ" "SHA" "ДАТА" "СОСТОЯНИЕ"
     print_header "--------------------------------------------------------------"
     local i
     for i in "${!NAMES[@]}"; do
@@ -89,11 +98,11 @@ show_table() {
             diverged)     disp="${RED}🔴 расходится${RESET}" ;;
             empty)        disp="${GRAY}⚪ не инициализирован${RESET}"; sha7="—" ;;
         esac
-        printf "  ${CYAN}${BOLD}%-3s${RESET} ${BOLD}%-12s${RESET} %-9s %-17s %b\n" \
+        printf "  ${CYAN}${BOLD}%-3s${RESET} ${BOLD}%-18s${RESET} %-9s %-17s %b\n" \
             "$n" "${NAMES[$i]}" "$sha7" "${DATES[$i]:-—}" "$disp"
     done
     print_header "--------------------------------------------------------------"
-    print_gray "  1 = локальная версия; остальные — remote проекта"
+    print_gray "  1 = версия на вашем компьютере; остальные — копии на серверах"
 }
 
 read_num() {
@@ -118,6 +127,56 @@ do_migrate() {
     print_header ""
     print_header "==> Миграция: $src -> $tgt"
 
+    # SPECIAL CASE: приёмник — локальный рабочий каталог (не remote)
+    if [ "$tgt" = "💻 на компьютере" ] || [ "$tgt" = "local" ]; then
+        print_info "    Обновление локальной версии..."
+        
+        # Локальный каталог не может быть remote для git push
+        # Используем git reset --hard для fast-forward или merge для расхождения
+        
+        local local_sha
+        local_sha="$(git -C "$REPO" rev-parse HEAD 2>/dev/null || echo '')"
+        
+        if [ -z "$local_sha" ]; then
+            print_error "    Не удалось получить локальный SHA"
+            return 3
+        fi
+        
+        # Fast-forward: локальная версия отстаёт
+        local mb
+        mb="$(git -C "$REPO" merge-base "$src_sha" "$local_sha" 2>/dev/null || echo '')"
+        
+        if [ "$mb" = "$local_sha" ]; then
+            # Локальная версия — предок источника, можно fast-forward
+            print_info "    Fast-forward: локальная ${local_sha:0:7} -> ${src_sha:0:7}"
+            if git -C "$REPO" reset --hard "$src_sha" >/dev/null 2>&1; then
+                print_success "    ✓ УСПЕХ: локальная версия обновлена до ${src_sha:0:7}"
+                return 0
+            else
+                print_error "    ✗ reset --hard не удался"
+                return 4
+            fi
+        elif [ "$mb" = "$src_sha" ]; then
+            # Источник отстаёт от локальной — блокировка
+            print_error "    Ваша версия ОТСТАЁТ от локальной — миграция заблокирована"
+            print_info "    Рекомендация: выберите другое направление или обновите локальную версию"
+            return 3
+        else
+            # Расхождение: merge с приоритетом источника
+            print_warn "    Истории расходятся: слияние с приоритетом источника"
+            print_info "    Будет создан merge-коммит с приоритетом источника"
+            
+            if ! git -C "$REPO" merge --allow-unrelated-histories -X theirs "$src_sha"                 -m "merge: миграция $src -> локальная версия, приоритет источника"; then
+                print_error "    Слияние остановилось — выполняю abort"
+                git -C "$REPO" merge --abort 2>/dev/null || true
+                return 3
+            fi
+            
+            print_success "    ✓ УСПЕХ: локальная версия получила слияние с приоритетом источника"
+            return 0
+        fi
+    fi
+
     # Приёмник пуст: публикация истории источника
     if [ -z "$tgt_sha" ]; then
         print_info "    Приёмник пуст: публикация истории $src"
@@ -134,8 +193,8 @@ do_migrate() {
 
     # Источник отстаёт: блокировка
     if [ "$mb" = "$src_sha" ]; then
-        print_error "    Источник $src ОТСТАЁТ от приёмника $tgt — миграция заблокирована"
-        print_info "    Рекомендация: обратное направление ($tgt -> $src) или синхронизация источника"
+        print_error "    Ваша версия ОТСТАЁТ от $tgt — миграция заблокирована"
+        print_info "    Рекомендация: обновите свою версию из $tgt или выберите другое направление"
         return 3
     fi
 
@@ -149,17 +208,18 @@ do_migrate() {
     fi
 
     # Расхождение: merge с приоритетом источника, без force-push
-    print_warn "    Истории расходятся: слияние с приоритетом источника"
-    print_info "    Будет создан merge-коммит на вершине $src и опубликован в $tgt"
+    print_warn "    Истории расходятся: слияние с приоритетом вашей версии"
+    print_info "    Будет создан merge-коммит с приоритетом вашей версии и опубликован на $tgt"
     local orig_branch="$BRANCH"
     git -C "$REPO" checkout --detach "$src_sha" -- 2>/dev/null || git -C "$REPO" checkout --detach "$src_sha" || { print_error "    checkout не удался"; return 3; }
-    if ! git -C "$REPO" merge -X ours "$tgt_sha" -m "merge: миграция $src -> $tgt, приоритет источника"; then
-        print_error "    Слияние остановилось — разрешите вручную"
+    if ! git -C "$REPO" merge --allow-unrelated-histories -X ours "$tgt_sha" -m "merge: миграция $src -> $tgt, приоритет источника"; then
+        print_error "    Слияние остановилось — выполняю abort и возврат на $orig_branch"
+        git -C "$REPO" merge --abort 2>/dev/null || true
         git -C "$REPO" checkout "$orig_branch" 2>/dev/null || true
         return 3
     fi
     if ! git -C "$REPO" push "$tgt" "HEAD:refs/heads/$BRANCH"; then
-        print_error "    push не удался"
+        print_error "    push не удался — возврат на $orig_branch"
         git -C "$REPO" checkout "$orig_branch" 2>/dev/null || true
         return 4
     fi
@@ -201,25 +261,28 @@ main() {
         [ $si -ge 0 ] || { print_error "Источник $src_arg не найден"; exit 2; }
     else
         print_header ""
-        print_info "  Выберите ИСТОЧНИК миграции (рекомендуется 🟢 самый свежий)"
-        si=$(( $(read_num "${#NAMES[@]}" "Источник") - 1 ))
+        print_info "  Выберите, ОТКУДА брать версию (рекомендуется 🟢 самая свежая)"
+        si=$(( $(read_num "${#NAMES[@]}" "Откуда") - 1 ))
     fi
     if [ -n "$tgt_arg" ]; then
         ti=-1; local j
         for j in "${!NAMES[@]}"; do [ "${NAMES[$j]}" = "$tgt_arg" ] && ti=$j; done
         [ $ti -ge 0 ] || { print_error "Приёмник $tgt_arg не найден"; exit 2; }
     else
-        print_info "  Выберите ПРИЁМНИК миграции"
-        ti=$(( $(read_num "${#NAMES[@]}" "Приёмник") - 1 ))
+        print_info "  Выберите, КУДА опубликовать"
+        ti=$(( $(read_num "${#NAMES[@]}" "Куда") - 1 ))
     fi
 
-    local code="MIGRATE-$(echo "${NAMES[$si]}" | tr '[:lower:]' '[:upper:]')-TO-$(echo "${NAMES[$ti]}" | tr '[:lower:]' '[:upper:]')"
     print_header ""
-    print_warn "  Будет изменён remote: ${NAMES[$ti]} (${DOMAINS[$ti]})"
-    print_hint "Введите код подтверждения: $code"
+    print_warn "  Внимание: будет опубликована версия на ${NAMES[$ti]}"
+    print_info "    Откуда: ${NAMES[$si]} (${SHAS[$si]:0:7})"
+    print_info "    Куда:   ${NAMES[$ti]} (${SHAS[$ti]:0:7})"
+    print_info "    ${DOMAINS[$ti]}"
+    echo ""
+    print_hint "Подтвердить миграцию? (Д — да, Н — нет)"
     local confirm
-    read -r -p "$(echo -e "  ${CYAN}➤ Подтверждение: ${RESET}")" confirm
-    if [ "$confirm" != "$code" ]; then
+    read -r -p "$(echo -e "  ${CYAN}➤ Ваш выбор: ${RESET}")" confirm
+    if ! [[ "$confirm" =~ ^[ДдYy]$ ]]; then
         print_info "  Отмена миграции"
         exit 0
     fi
