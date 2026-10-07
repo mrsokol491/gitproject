@@ -148,3 +148,4 @@ credential helper; в выводе команд маскируются ([скр�
 ## Логи
 
 data/workspace.log, data/workspace-error.log, data/<host>.log — в репозиторий не попадают.
+Test credential helper
