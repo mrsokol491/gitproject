@@ -108,6 +108,7 @@ credential helper; в выводе команд маскируются ([скр�
     ~/gitproject/bin/git-project-clone.sh                # мастер клонирования с выбором хоста
     ~/gitproject/bin/git-project-remote.sh <slug> --list # remote + актуальность
     ~/gitproject/bin/git-project-remote.sh <slug> --add <domain>
+    ~/gitproject/bin/git-project-migrate.sh <slug>           # миграция между хостами с подсветкой актуальности
 
 ### Credential helper (bin/git-credential-multi.sh)
 

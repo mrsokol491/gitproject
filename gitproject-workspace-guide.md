@@ -496,3 +496,8 @@ GitFlic допускает любой регистр (sokol491 = Sokol491), GitV
 - Статус: integrating (в процессе интеграции)
 - Реестр ПО РФ: да
 - Удалён несуществующий хост yandex_code (code.yandex.ru)
+2026-10-07: v2.4 — Этап 2 ТЗ-001 v2 завершён: git-project-add-host.sh (wizard, реестр ПО РФ),
+git-project-remove.sh (local/host/all с кодами подтверждения); начат Этап 3:
+git-project-migrate.sh (таблица актуальности, fast-forward/merge -X ours, без force-push,
+код подтверждения MIGRATE-<SRC>-TO-<TGT>); clone.sh: интерактив в stderr, уже добавленные
+remote исключаются из списка wizard.

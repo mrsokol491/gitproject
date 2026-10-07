@@ -233,7 +233,7 @@ add_remote_interactive() {
     
     for i in "${!HOST_IDS[@]}"; do
         local domain="${HOST_DOMAINS[$i]}"
-        if [ "$domain" != "$exclude_domain" ] && [ "${HOST_STATUSES[$i]}" = "ready" ]; then
+        if [ "$domain" != "$exclude_domain" ] && [ "${HOST_STATUSES[$i]}" = "ready" ] && ! git -C "$repo" remote get-url "${HOST_IDS[$i]}" >/dev/null 2>&1; then
             ((count++))
             available_ids+=("${HOST_IDS[$i]}")
             available_domains+=("$domain")
