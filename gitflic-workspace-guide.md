@@ -485,3 +485,8 @@ gitproject-workspace.service; репозиторий на GitFlic sokol491/gitfl
 симлинки gitflic-*.sh сохранены для обратной совместимости.
 2026-10-07: v2.2.1 — зеркало хаба на GitVerse переименовано: Sokol491/gitflicProject →
 Sokol491/gitproject для единообразия с основным репозиторием на GitFlic.
+
+2026-10-07: v2.2.2 — добавлен раздел о регистрозависимости owner на разных Git-хостах.
+GitFlic допускает любой регистр (sokol491 = Sokol491), GitVerse требует точное совпадение
+(Sokol491 с заглавной буквы). Переменная GITVERSE_PROJECT_USER в .env должна содержать
+точное написание из профиля GitVerse.
