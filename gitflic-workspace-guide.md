@@ -472,3 +472,8 @@ commitHash брать из: GET /project/<user>/<slug>/branch/<ветка>
   gitproject-workspace.service; репозиторий на GitFlic sokol491/gitflicproject → sokol491/gitproject;
   credential helper: область HUB определяется по пути *gitproject*; все внутренние пути
   скриптов обновлены; симлинки gitflic-*.sh сохранены для обратной совместимости.
+2026-10-07: v2.2 — полное переименование рабочего пространства (Фаза 2 ТЗ-001 v2):
+локальный путь ~/gitflicProject → ~/gitproject; systemd unit gitflic-workspace.service →
+gitproject-workspace.service; репозиторий на GitFlic sokol491/gitflicproject → sokol491/gitproject;
+все пути в документации обновлены; критерий HUB-области в helper: *gitproject*;
+симлинки gitflic-*.sh сохранены для обратной совместимости.
