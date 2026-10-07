@@ -15,6 +15,58 @@ set -uo pipefail
 source "$HOME/gitproject/bin/lib/common.sh"
 
 # ============================================================================
+# Автоматическое добавление remote проекта из .env
+# ============================================================================
+ensure_project_remotes_from_env() {
+    local repo="$1" slug="$2"
+    local added=0
+    local env_file="$HOME/gitproject/.env"
+    
+    while IFS='=' read -r key value; do
+        [[ "$key" =~ ^#.*$ || -z "$key" ]] && continue
+        
+        if [[ "$key" =~ ^([A-Z_]+)_PROJECT_TOKEN=(.+)$ ]]; then
+            local prefix="${BASH_REMATCH[1]}"
+            local token="${BASH_REMATCH[2]}"
+            
+            [[ "$token" == "placeholder" || -z "$token" ]] && continue
+            
+            local host_id domain url_template owner_var owner
+            host_id="$(echo "$prefix" | tr '[:upper:]' '[:lower:]' | sed 's/_$//')"
+            
+            if [ -f "$HOME/gitproject/config/hosts.json" ]; then
+                domain="$(jq -r --arg id "$host_id" '.[$id].host // empty' "$HOME/gitproject/config/hosts.json" 2>/dev/null)"
+                url_template="$(jq -r --arg id "$host_id" '.[$id].url_template // empty' "$HOME/gitproject/config/hosts.json" 2>/dev/null)"
+            fi
+            
+            [ -z "$domain" ] && continue
+            
+            owner_var="${prefix}_PROJECT_USER"
+            owner="$(sed -n "s/^${owner_var}=//p" "$env_file" 2>/dev/null | tail -n 1 | tr -d '')"
+            [ -z "$owner" ] && owner="sokol491"
+            
+            local url="${url_template//\{owner\}/$owner}"
+            url="${url//\{slug\}/$slug}"
+            
+            local remote_name="$host_id"
+            if ! git -C "$repo" remote get-url "$remote_name" >/dev/null 2>&1; then
+                print_info "    Добавляю remote: $remote_name ($url)"
+                if git -C "$repo" remote add "$remote_name" "$url" 2>/dev/null; then
+                    ((added++))
+                else
+                    print_warn "    ⚠ Не удалось добавить $remote_name"
+                fi
+            fi
+        fi
+    done < "$env_file"
+    
+    if [ $added -gt 0 ]; then
+        print_success "    ✓ Добавлено remote: $added"
+    fi
+}
+
+
+# ============================================================================
 # Умная синхронизация всех remote (Этап 3 ТЗ-001 v2)
 # ============================================================================
 
@@ -43,6 +95,15 @@ sync_project_all_remotes() {
         return 1
     fi
     print_info "    Remote: ${remotes[*]}"
+    
+    # Автоматически добавляем missing remote из .env
+    ensure_project_remotes_from_env "$repo" "$slug"
+    
+    # Пересчитываем список remote после возможного добавления
+    remotes=()
+    while read -r remote; do
+        [ -n "$remote" ] && remotes+=("$remote")
+    done < <(get_project_remotes "$slug")
 
     # 1. Коммит локальных изменений
     if [ -n "$(git -C "$repo" status --porcelain)" ]; then
