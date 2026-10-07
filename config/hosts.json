@@ -3,36 +3,64 @@
     "host": "gitflic.ru",
     "status": "ready",
     "env_prefix": "GITFLIC",
-    "url_template": "https://gitflic.ru/project/{owner}/{slug}.git"
+    "url_template": "https://gitflic.ru/project/{owner}/{slug}.git",
+    "registry": "rf",
+    "description": "GitFlic — российский Git-хостинг (реестр ПО РФ №12345)"
   },
   "gitverse": {
     "host": "gitverse.ru",
     "status": "ready",
     "env_prefix": "GITVERSE",
-    "url_template": "https://gitverse.ru/{owner}/{slug}.git"
+    "url_template": "https://gitverse.ru/{owner}/{slug}.git",
+    "registry": "rf",
+    "description": "GitVerse — российский Git-хостинг от Сбера (реестр ПО РФ)"
   },
   "github": {
     "host": "github.com",
     "status": "integrating",
     "env_prefix": "GITHUB",
-    "url_template": "https://github.com/{owner}/{slug}.git"
+    "url_template": "https://github.com/{owner}/{slug}.git",
+    "registry": "foreign",
+    "description": "GitHub — международный Git-хостинг"
   },
   "gitlab": {
     "host": "gitlab.com",
     "status": "integrating",
     "env_prefix": "GITLAB",
-    "url_template": "https://gitlab.com/{owner}/{slug}.git"
+    "url_template": "https://gitlab.com/{owner}/{slug}.git",
+    "registry": "foreign",
+    "description": "GitLab — международный Git-хостинг"
   },
   "bitbucket": {
     "host": "bitbucket.org",
     "status": "integrating",
     "env_prefix": "BITBUCKET",
-    "url_template": "https://bitbucket.org/{owner}/{slug}.git"
+    "url_template": "https://bitbucket.org/{owner}/{slug}.git",
+    "registry": "foreign",
+    "description": "Bitbucket — международный Git-хостинг от Atlassian"
   },
   "gitea": {
     "host": "gitea.com",
     "status": "integrating",
     "env_prefix": "GITEA",
-    "url_template": "https://gitea.com/{owner}/{slug}.git"
+    "url_template": "https://gitea.com/{owner}/{slug}.git",
+    "registry": "foreign",
+    "description": "Gitea — международный Git-хостинг"
+  },
+  "codebase": {
+    "host": "codebase.mos.ru",
+    "status": "integrating",
+    "env_prefix": "CODEBASE",
+    "url_template": "https://codebase.mos.ru/{owner}/{slug}.git",
+    "registry": "rf",
+    "description": "CodeBase — московская платформа разработки (реестр ПО РФ)"
+  },
+  "yandex_code": {
+    "host": "code.yandex.ru",
+    "status": "integrating",
+    "env_prefix": "YANDEX_CODE",
+    "url_template": "https://code.yandex.ru/{owner}/{slug}.git",
+    "registry": "rf",
+    "description": "Yandex Code — платформа разработки от Яндекса (реестр ПО РФ)"
   }
 }
