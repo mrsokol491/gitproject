@@ -501,3 +501,29 @@ git-project-remove.sh (local/host/all с кодами подтверждения
 git-project-migrate.sh (таблица актуальности, fast-forward/merge -X ours, без force-push,
 код подтверждения MIGRATE-<SRC>-TO-<TGT>); clone.sh: интерактив в stderr, уже добавленные
 remote исключаются из списка wizard.
+
+2026-10-07: v2.5 — начата интеграция SourceCraft (git.sourcecraft.dev):
+- URL клонирования: https://git.sourcecraft.dev/<org>/<repo>.git
+- REST API: api.sourcecraft.tech (заголовок Authorization: Bearer <PAT>)
+- Raw файлы: raw.sourcecraft.tech/raw/<org>/<repo>/<commit>/<path>
+- Дерево файлов: GET https://api.sourcecraft.tech/repos/{org}/{repo}/trees
+- Credential helper: добавлен git.sourcecraft.dev → SOURCECRAFT
+- hosts.json: обновлён url_template для sourcecraft
+- .env.example: добавлен блок SOURCECRAFT_HUB_*/PROJECT_*
+- Статус: integrating (требует получения PAT и тестирования)
+
+2026-10-07: v2.5 — интеграция SourceCraft (git.sourcecraft.dev):
+- URL клонирования: https://git.sourcecraft.dev/<org>/<repo>.git
+- SSH: ssh://ssh.sourcecraft.dev/<org>/<repo>.git
+- REST API: api.sourcecraft.tech (заголовок Authorization: Bearer <PAT>)
+  * GET /repos/{org}/{repo}/trees — дерево файлов
+  * Параметры: revision, path, recursive, page_size, page_token
+- Raw файлы: raw.sourcecraft.tech/raw/<org>/<repo>/<commit>/<path>
+  * Публичные: без токена
+  * Приватные: ?token=<короткоживущий_токен>
+- Credential helper: добавлен git.sourcecraft.dev → SOURCECRAFT
+- hosts.json: обновлён url_template для sourcecraft
+- .env.example: добавлен блок SOURCECRAFT_HUB_*/PROJECT_*
+- Тест: клонирование пустого репозитория sokol491/test прошло успешно
+- Ветка: main → master (STANDARD.md §7)
+- Статус: integrating (требует получения PAT и тестирования REST API)

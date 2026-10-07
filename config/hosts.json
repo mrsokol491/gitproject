@@ -16,10 +16,10 @@
     "description": "GitVerse — российский Git-хостинг от Сбера (реестр ПО РФ)"
   },
   "sourcecraft": {
-    "host": "sourcecraft.dev",
+    "host": "git.sourcecraft.dev",
     "status": "integrating",
     "env_prefix": "SOURCECRAFT",
-    "url_template": "https://sourcecraft.dev/{owner}/{slug}.git",
+    "url_template": "https://git.sourcecraft.dev/{owner}/{slug}.git",
     "registry": "rf",
     "description": "SourceCraft — платформа от Яндекса (Yandex B2B Tech). Git, code review, CI/CD, встроенный ИИ-помощник, интеграция с Yandex Cloud. Только облачная версия (без on-premise)."
   },
