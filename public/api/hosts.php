@@ -18,8 +18,6 @@ $envContent = file_get_contents($envFile);
 $result = [];
 foreach ($hosts as $id => $config) {
     $prefix = $config['env_prefix'] ?? strtoupper($id);
-    
-    // Проверяем наличие реального токена (не пустого и не placeholder)
     $hasHubToken = (bool) preg_match("/^{$prefix}_HUB_TOKEN=(?!placeholder$).+/m", $envContent);
     $hasProjectToken = (bool) preg_match("/^{$prefix}_PROJECT_TOKEN=(?!placeholder$).+/m", $envContent);
     
