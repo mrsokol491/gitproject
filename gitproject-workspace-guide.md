@@ -527,3 +527,15 @@ remote исключаются из списка wizard.
 - Тест: клонирование пустого репозитория sokol491/test прошло успешно
 - Ветка: main → master (STANDARD.md §7)
 - Статус: integrating (требует получения PAT и тестирования REST API)
+
+2026-10-07: v2.6 — SourceCraft (git.sourcecraft.dev) — интеграция подтверждена:
+- Raw-контент работает: https://raw.sourcecraft.tech/raw/<org>/<repo>/<commit_sha>/<file_path>
+  * Публичные репозитории: без токена
+  * Приватные: ?token=<короткоживущий_токен>
+  * Подтверждено: получение README.md из sokol491/test (commit 798c2ff)
+- REST API: api.sourcecraft.tech
+  * Дерево файлов: GET /repos/{org}/{repo}/trees (параметры: revision, path, recursive, page_size, page_token)
+  * Заголовок: Authorization: Bearer <PAT>
+- Git-сервер: git.sourcecraft.dev (HTTPS clone/push)
+- SSH: ssh://ssh.sourcecraft.dev/<org>/<repo>.git
+- Статус: integrating (требует получения PAT для полного тестирования)
