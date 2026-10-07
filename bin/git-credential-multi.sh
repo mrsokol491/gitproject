@@ -31,6 +31,7 @@ case "$host" in
     gitverse.ru) prefix="GITVERSE" ;;
     github.com)  prefix="GITHUB" ;;
     gitlab.com)  prefix="GITLAB" ;;
+    git.sourcecraft.dev)  prefix="SOURCECRAFT" ;;
     *) exit 0 ;;
 esac
 
