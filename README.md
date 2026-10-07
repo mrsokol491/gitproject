@@ -7,6 +7,14 @@
 + ✅ GitFlic
 + ✅ GitVerse
 + ✅ SourceCraft
++ ⚠️ GitHub
++ ⚠️ GitLab
++ ⚠️ Bitbucket
++ ⚠️ Gitea
++ ⚠️ CodeBase
+
+    + ✅ - Интегрирован
+    + ⚠️ - В процессе интеграции
 
 - индекс проектов, прокси-роутер в docroot проектов, скрипты синхронизации/публикации/аудита, credential helper.
 
