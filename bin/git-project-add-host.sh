@@ -117,9 +117,7 @@ show_hosts_menu() {
             configured_display="${GRAY}❌ нет${RESET}"
         fi
         
-        printf "  ${CYAN}${BOLD}%-3s${RESET}  ${BOLD}%-12s${RESET}  %-20s  " "$num" "$id" "$domain" >&2
-        echo -e "$status_display  " >&2 | tr -d '\n'
-        echo -e "$configured_display" >&2
+        echo -ne "  ${CYAN}${BOLD}%-3s${RESET}  ${BOLD}%-12s${RESET}  %-20s  %-14s  %s\n" "$num" "$id" "$domain" "$status_display" "$configured_display" >&2
     done
     
     echo "" >&2
@@ -425,10 +423,27 @@ main() {
     
     local host_idx=-1
     for i in "${!HOSTS_IDS[@]}"; do
-        if [ "${HOSTS_IDS[$i]}" = "$selected_host" ]; then
-            host_idx=$i
-            break
+        local num=$((i + 1))
+        local id="${HOSTS_IDS[$i]}"
+        local domain="${HOSTS_DOMAINS[$i]}"
+        local status="${HOSTS_STATUSES[$i]}"
+        local prefix="${HOSTS_PREFIXES[$i]}"
+        local status_display configured_display
+        
+        case "$status" in
+            ready)       status_display="${GREEN}✅ готов${RESET}" ;;
+            integrating) status_display="${YELLOW}🚧 интеграция${RESET}" ;;
+            disabled)    status_display="${GRAY}❌ отключён${RESET}" ;;
+            *)           status_display="${GRAY}❓ неизвестно${RESET}" ;;
+        esac
+        
+        if host_exists_in_env "$prefix"; then
+            configured_display="${GREEN}✅ да${RESET}"
+        else
+            configured_display="${GRAY}❌ нет${RESET}"
         fi
+        
+        echo -ne "  ${CYAN}${BOLD}%-3s${RESET}  ${BOLD}%-12s${RESET}  %-20s  %-14s  %s\n" "$num" "$id" "$domain" "$status_display" "$configured_display" >&2
     done
     
     if [ $host_idx -eq -1 ]; then
