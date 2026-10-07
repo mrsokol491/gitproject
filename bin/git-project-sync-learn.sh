@@ -40,7 +40,7 @@ usage() {
   GITVERSE_PROJECT_USER   владелец проектов на GitVerse
 
 Пример:
-  ~/gitflicProject/bin/git-project-sync-learn.sh visual-novel-engine \
+  ~/gitproject/bin/git-project-sync-learn.sh visual-novel-engine \
     -m "fix: исправлены ошибки перед публикацией" \
     --lesson "Ошибка была в нарушении JSON-контракта." \
     --rule "Все API-ответы должны соответствовать {ok,data}/{ok,error,error_code}." \

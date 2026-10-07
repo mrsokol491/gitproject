@@ -26,8 +26,8 @@ print_warn()    { echo -e "${YELLOW}$1${RESET}"; }
 print_info()    { echo -e "${CYAN}$1${RESET}"; }
 print_gray()    { echo -e "${GRAY}$1${RESET}"; }
 
-WORKSPACE="$HOME/gitflicProject/projects"
-ENV_FILE="$HOME/gitflicProject/.env"
+WORKSPACE="$HOME/gitproject/projects"
+ENV_FILE="$HOME/gitproject/.env"
 
 GIT_HOST=""; GITFLIC_USER=""; GITFLIC_TOKEN=""
 API_CODE=""; API_REDIRECT=""

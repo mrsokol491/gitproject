@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# gitflic-sync-hub.sh — синхронизация и публикация репозитория workspace (хаба) ~/gitflicProject.
+# gitflic-sync-hub.sh — синхронизация и публикация репозитория workspace (хаба) ~/gitproject.
 # Аналог bin/gitflic-sync.sh, но для репозитория самой оболочки.
 #
 # Вызовы:
@@ -25,7 +25,7 @@ print_warn()    { echo -e "${YELLOW}$1${RESET}"; }
 print_info()    { echo -e "${CYAN}$1${RESET}"; }
 print_gray()    { echo -e "${GRAY}$1${RESET}"; }
 
-HUB="$HOME/gitflicProject"
+HUB="$HOME/gitproject"
 ENV_FILE="$HUB/.env"
 HUB_SLUG="gitflicproject"   # фактический slug на GitFlic (нижний регистр), факт 2026-09-29
 

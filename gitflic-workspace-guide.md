@@ -2,7 +2,7 @@
 
 Версия 2.1 от 2026-10-02. Владелец: Александр (@sokol491).
 Назначение: постоянный контекст ИИ-ассистента для работы с проектами на нескольких Git-хостах.
-Расположение: ~/gitflicProject/gitflic-workspace-guide.md
+Расположение: ~/gitproject/gitflic-workspace-guide.md
 Прежнее имя: GitFlic Dev Workspace (переименован по ТЗ-001 v2, этап 0; путь и slug сохранены).
 
 Изменения 2.1:
@@ -18,7 +18,7 @@
 ## 1. Архитектура системы
 
 ### Рабочее пространство
-~/gitflicProject/                    <- корень workspace (порт 8000), он же git-репозиторий
+~/gitproject/                    <- корень workspace (порт 8000), он же git-репозиторий
 ├── router.php                       <- роутер хаба: /<slug>/... -> projects/<slug>/<docroot>/...
 ├── index.php                        <- главная страница хаба со списком проектов (сканирует projects/)
 ├── .env                             <- секреты (600): схема раздела 2
@@ -84,12 +84,12 @@ http://192.168.31.119:8000/<slug>/                   — проект
 
 ## 2. Секреты и файл .env
 
-Путь: ~/gitflicProject/.env, права 600.
+Путь: ~/gitproject/.env, права 600.
 Формат ОБЯЗАТЕЛЬНЫЙ: одна переменная на строку, без пробелов вокруг "=",
 в конце файла — перевод строки (иначе значения склеиваются, известный баг).
 
 Автоисправление отсутствующего перевода строки (дописывает \n, только если его нет):
-[ -n "$(tail -c 1 ~/gitflicProject/.env)" ] && printf '\n' >> ~/gitflicProject/.env
+[ -n "$(tail -c 1 ~/gitproject/.env)" ] && printf '\n' >> ~/gitproject/.env
 
 ### Схема переменных (v2.0+, мульти-хост)
 
@@ -107,10 +107,10 @@ http://192.168.31.119:8000/<slug>/                   — проект
 Значение "placeholder" равносильно отсутствию токена (helper и скрипты его игнорируют).
 Owner на разных хостах может отличаться регистром (ФАКТ: GitFlic — sokol491, GitVerse — Sokol491).
 
-Шаблон для новых устройств: ~/gitflicProject/.env.example (в репозитории хаба).
+Шаблон для новых устройств: ~/gitproject/.env.example (в репозитории хаба).
 
 Просмотр .env ТОЛЬКО в маскированном виде (структура без значений):
-sed -E 's/=(.+)$/=[скрыто]/' ~/gitflicProject/.env
+sed -E 's/=(.+)$/=[скрыто]/' ~/gitproject/.env
 
 Запрещены: cat .env, echo значений переменных, токены в URL команд,
 немаскированные выводы и скриншоты с секретами.
@@ -139,11 +139,11 @@ ssh -T git@gitflic.ru
 # shell запрещён, git-операции работают. Это норма.
 
 Клонирование по SSH (slug регистрозависим! сверять с диалогом "Клонировать"):
-git clone git@gitflic.ru:sokol491/archive.git ~/gitflicProject/projects/archive
+git clone git@gitflic.ru:sokol491/archive.git ~/gitproject/projects/archive
 
 ## 4. Мульти-хост credential helper (основной канал)
 
-Помощник: ~/gitflicProject/bin/git-credential-multi.sh, права 700.
+Помощник: ~/gitproject/bin/git-credential-multi.sh, права 700.
 Логика:
 1) читает запрос git из stdin ЦЕЛИКОМ до разбора (protocol/host/path);
 2) префикс по домену: gitflic.ru -> GITFLIC, gitverse.ru -> GITVERSE,
@@ -156,7 +156,7 @@ git clone git@gitflic.ru:sokol491/archive.git ~/gitflicProject/projects/archive
 
 Подключение (выполнено один раз):
 git config --global --unset-all credential.helper
-git config --global credential.helper '/home/sokol491/gitflicProject/bin/git-credential-multi.sh'
+git config --global credential.helper '/home/sokol491/gitproject/bin/git-credential-multi.sh'
 
 Однократная настройка идентичности (без неё commit падает с Author identity unknown):
 git config --global user.name "Alexander Sokolyuk"
@@ -165,14 +165,14 @@ git config --global --get user.name && git config --global --get user.email   # 
 
 Проверка помощника БЕЗ вывода токена:
 printf 'protocol=https\nhost=gitflic.ru\npath=sokol491/gitflicproject.git\n\n' \
-  | ~/gitflicProject/bin/git-credential-multi.sh get \
+  | ~/gitproject/bin/git-credential-multi.sh get \
   | sed -E 's/^(password=).*/\1[скрыто]/'
 
 Клонирование и push по HTTPS идут без ввода пароля:
-git clone https://gitflic.ru/project/sokol491/searchengine.git ~/gitflicProject/projects/searchengine
+git clone https://gitflic.ru/project/sokol491/searchengine.git ~/gitproject/projects/searchengine
 
 Сквозной тест канала (правка -> коммит -> push -> сверка):
-cd ~/gitflicProject/projects/archive
+cd ~/gitproject/projects/archive
 printf '\nТест push: %s, канал HTTPS + credential helper.\n' "$(date +%Y-%m-%d_%H:%M)" >> README.md
 git add README.md
 git commit -m "docs: тест push через credential helper, токен из .env"
@@ -186,8 +186,8 @@ git ls-remote origin "$(git branch --show-current)"
 ## 5. Сервис systemd хаба
 
 Файл: ~/.config/systemd/user/gitflic-workspace.service
-Ключевые строки ExecStart: php -S 0.0.0.0:8000 -t %h/gitflicProject %h/gitflicProject/router.php
-Логи: StandardOutput/StandardError append в ~/gitflicProject/data/
+Ключевые строки ExecStart: php -S 0.0.0.0:8000 -t %h/gitproject %h/gitproject/router.php
+Логи: StandardOutput/StandardError append в ~/gitproject/data/
 
 Команды:
 systemctl --user status gitflic-workspace.service --no-pager
@@ -195,8 +195,8 @@ systemctl --user restart gitflic-workspace.service
 systemctl --user enable gitflic-workspace.service
 sudo loginctl enable-linger $USER        # автозапуск при загрузке, до входа в сеанс
 ss -tlnp | grep :8000
-tail -f ~/gitflicProject/data/workspace.log
-tail -f ~/gitflicProject/data/workspace-error.log
+tail -f ~/gitproject/data/workspace.log
+tail -f ~/gitproject/data/workspace-error.log
 
 ## 6. Интеграция проекта в хаб (BASE_PATH)
 
@@ -216,7 +216,7 @@ tail -f ~/gitflicProject/data/workspace-error.log
 Ветки только master: локально и на хостах. Все публикации — напрямую в master.
 
 ### Интерактивное клонирование (мульти-хост мастер)
-~/gitflicProject/bin/git-project-clone.sh
+~/gitproject/bin/git-project-clone.sh
 Четыре шага с пояснениями, подсказками и сводкой перед выполнением:
 1) выбор хоста-источника (ОТКУДА) — список только ready-хостов со статусами;
 2) параметры проекта (owner, slug на этом хосте);
@@ -228,9 +228,9 @@ tail -f ~/gitflicProject/data/workspace-error.log
 Неинтерактивный режим: --host <domain> --owner <owner> --slug <slug> [--as-origin].
 
 ### Управление remote и актуальность
-~/gitflicProject/bin/git-project-remote.sh <slug> --list     # таблица: remote, URL, SHA, дата, статус
-~/gitflicProject/bin/git-project-remote.sh <slug> --add <domain> [--owner <owner>]
-~/gitflicProject/bin/git-project-remote.sh <slug> --remove <remote>
+~/gitproject/bin/git-project-remote.sh <slug> --list     # таблица: remote, URL, SHA, дата, статус
+~/gitproject/bin/git-project-remote.sh <slug> --add <domain> [--owner <owner>]
+~/gitproject/bin/git-project-remote.sh <slug> --remove <remote>
 Подсветка актуальности в --list: зелёный — самый свежий коммит среди remote;
 жёлтый — отстаёт на N коммитов; серый — не инициализирован (нет refs).
 --add: проверка статуса хоста (только ready), URL из url_template hosts.json, проверка
@@ -238,29 +238,29 @@ tail -f ~/gitflicProject/data/workspace-error.log
 --remove: origin не удаляется; подтверждение y/N; репозиторий на хосте НЕ удаляется.
 
 ### Синхронизация и публикация проекта
-~/gitflicProject/bin/git-project-sync.sh                  # интерактивное меню проектов (цвет, all, q)
-~/gitflicProject/bin/git-project-sync.sh <slug> [-m "сообщение"]
+~/gitproject/bin/git-project-sync.sh                  # интерактивное меню проектов (цвет, all, q)
+~/gitproject/bin/git-project-sync.sh <slug> [-m "сообщение"]
 Режимы: status [slug], fix [slug], probe.
 Полный цикл: fetch, сверка ahead/behind, коммит локальных изменений (защита запрещённых путей),
 merge upstream с приоритетом локальной версии (merge -X ours), push, сверка хэшей.
 Мульти-push (--all, --remote <имя>) — этапы 1-2 ТЗ-001 v2, в реализации.
 
 ### Публикация репозитория хаба
-~/gitflicProject/bin/git-project-update.sh [-m "сообщение"]
-~/gitflicProject/bin/git-project-update.sh status
-~/gitflicProject/bin/git-project-update.sh fix
+~/gitproject/bin/git-project-update.sh [-m "сообщение"]
+~/gitproject/bin/git-project-update.sh status
+~/gitproject/bin/git-project-update.sh fix
 URL origin хаба — только нижний регистр slug: https://gitflic.ru/project/sokol491/gitflicproject.git
 Если у origin/master есть посторонняя история (например gitflic-cl.yaml, см. раздел 11),
 связать без force-push: git merge origin/master --allow-unrelated-histories -X ours
 
 ### Обновление хаба и проектов
-~/gitflicProject/bin/git-project-pull.sh
+~/gitproject/bin/git-project-pull.sh
 Хаб — только из HUB_UPDATE_* (GitFlic, sokol491/gitflicproject); проекты — из их origin.
 
 ### Аудит перед паспортом (раздел 13 STANDARD.md), секреты не присылать:
 for proj in archive searchengine pdf visual-novel-engine; do
   echo "======== $proj ========"
-  ( cd ~/gitflicProject/projects/"$proj" \
+  ( cd ~/gitproject/projects/"$proj" \
     && find . -maxdepth 3 -not -path './.git*' -not -path './vendor/' -not -path './data/backups/' -not -name '.env*' | sort \
     && php -v | head -n 1 \
     && (ls -la data/ 2>/dev/null || echo "data/ отсутствует") \
@@ -292,26 +292,26 @@ kit-модули, аудит. Этот файл — эксплуатация wor
 ## 10. Cheat sheet
 
 Хаб:
-~/gitflicProject/bin/git-project-update.sh -m "docs: правки"   # публикация хаба
-~/gitflicProject/bin/git-project-update.sh status               # состояние хаба
-~/gitflicProject/bin/git-project-update.sh fix                  # подготовка к первой публикации
-~/gitflicProject/bin/git-project-pull.sh                        # обновление хаба из GitFlic
+~/gitproject/bin/git-project-update.sh -m "docs: правки"   # публикация хаба
+~/gitproject/bin/git-project-update.sh status               # состояние хаба
+~/gitproject/bin/git-project-update.sh fix                  # подготовка к первой публикации
+~/gitproject/bin/git-project-pull.sh                        # обновление хаба из GitFlic
 
 Проекты:
-~/gitflicProject/bin/git-project-clone.sh                       # мастер клонирования с выбором хоста
-~/gitflicProject/bin/git-project-remote.sh <slug> --list        # remote + актуальность
-~/gitflicProject/bin/git-project-remote.sh <slug> --add <domain>
-~/gitflicProject/bin/git-project-sync.sh                        # интерактивное меню проектов
-~/gitflicProject/bin/git-project-sync.sh <slug> -m "sync: правки"
-~/gitflicProject/bin/git-project-sync.sh status                 # таблица состояний
+~/gitproject/bin/git-project-clone.sh                       # мастер клонирования с выбором хоста
+~/gitproject/bin/git-project-remote.sh <slug> --list        # remote + актуальность
+~/gitproject/bin/git-project-remote.sh <slug> --add <domain>
+~/gitproject/bin/git-project-sync.sh                        # интерактивное меню проектов
+~/gitproject/bin/git-project-sync.sh <slug> -m "sync: правки"
+~/gitproject/bin/git-project-sync.sh status                 # таблица состояний
 
 Общее:
 git config --global --get user.name                             # идентичность настроена?
 systemctl --user restart gitflic-workspace.service
 ss -tlnp | grep :8000
 curl -sI http://127.0.0.1:8000/ | head -n 1
-tail -f ~/gitflicProject/data/workspace-error.log
-sed -E 's/=(.+)$/=[скрыто]/' ~/gitflicProject/.env              # маскированный просмотр .env
+tail -f ~/gitproject/data/workspace-error.log
+sed -E 's/=(.+)$/=[скрыто]/' ~/gitproject/.env              # маскированный просмотр .env
 
 ## 11. Известные проблемы и решения
 
@@ -438,11 +438,11 @@ commitHash брать из: GET /project/<user>/<slug>/branch/<ветка>
 5. Содержимое blob HTML допустимо только как временная замена, если Raw недоступен.
 6. Исчерпаны шаги 1-4 и инструмент недоступен → выдать пользователю готовые URL
    (raw + blob) и команду локального просмотра, а не открытый запрос «дайте ссылку»:
-   cd ~/gitflicProject/projects/<slug> && find . -maxdepth 1 -iname 'readme*' -exec cat {} +
+   cd ~/gitproject/projects/<slug> && find . -maxdepth 1 -iname 'readme*' -exec cat {} +
 7. Только после этого — просить вставку текста (STANDARD.md §1).
 
 Типичные ошибки (ЗАПРЕЩЁННЫЕ подмены):
-- Выдумывать локальные пути: единственно верный — ~/gitflicProject/projects/<slug> (§1).
+- Выдумывать локальные пути: единственно верный — ~/gitproject/projects/<slug> (§1).
 - GitLab-синтаксис: /api/v4/..., заголовок PRIVATE-TOKEN — в GitFlic не существует;
   верно: https://api.gitflic.ru/project/<user>/<slug>/blob?commitHash=<SHA>&file=<путь>,
   заголовок: Authorization: token <GITFLIC_TOKEN из .env>.

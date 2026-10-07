@@ -197,6 +197,6 @@ Changelog:
 2026-09-29: v1.3 — раздел 1: добавлено упоминание /blob/raw для чистого текста файла (детали в gitflic-workspace-guide.md §13).
 ## Changelog
 - 2026-10-01: v1.4 — рабочее пространство переименовано: GitProject Workspace Hub
-  (прежнее имя GitFlic Dev Workspace, ТЗ-001 v2, этап 0). Путь ~/gitflicProject,
+  (прежнее имя GitFlic Dev Workspace, ТЗ-001 v2, этап 0). Путь ~/gitproject,
   slug репозитория на GitFlic (gitflicproject) и URL хаба сохранены для совместимости;
   старые имена скриптов bin/ работают через симлинки.

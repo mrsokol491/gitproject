@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # common.sh — общие функции мульти-хост системы GitProject Workspace Hub.
-# Подключение: source "$HOME/gitflicProject/bin/lib/common.sh"
+# Подключение: source "$HOME/gitproject/bin/lib/common.sh"
 
-CONFIG_FILE="$HOME/gitflicProject/config/hosts.json"
-PROJECTS_DIR="$HOME/gitflicProject/projects"
-ENV_FILE="$HOME/gitflicProject/.env"
+CONFIG_FILE="$HOME/gitproject/config/hosts.json"
+PROJECTS_DIR="$HOME/gitproject/projects"
+ENV_FILE="$HOME/gitproject/.env"
 
 # Цвета консоли
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
@@ -107,8 +107,8 @@ check_remote_exists() {
 
 # Лог операции в отдельный файл хоста: log_to_host <domain> <сообщение>
 log_to_host() {
-    local log_file="$HOME/gitflicProject/data/$1.log"
-    mkdir -p "$HOME/gitflicProject/data"
+    local log_file="$HOME/gitproject/data/$1.log"
+    mkdir -p "$HOME/gitproject/data"
     printf '[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$2" >> "$log_file"
 }
 

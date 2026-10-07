@@ -11,7 +11,7 @@
 
 set -uo pipefail
 
-source "$HOME/gitflicProject/bin/lib/common.sh"
+source "$HOME/gitproject/bin/lib/common.sh"
 
 # ============================================================================
 # Вспомогательные функции для UX

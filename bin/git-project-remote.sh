@@ -9,7 +9,7 @@
 
 set -uo pipefail
 
-source "$HOME/gitflicProject/bin/lib/common.sh"
+source "$HOME/gitproject/bin/lib/common.sh"
 
 cmd_list() {
     local slug="$1" repo="$PROJECTS_DIR/$1"

@@ -9,16 +9,16 @@ echo "Дата: $(date)"
 echo
 
 SLUG="agent-knowledge"
-ROOT="$HOME/gitflicProject/projects/$SLUG"
+ROOT="$HOME/gitproject/projects/$SLUG"
 DATE_ISO="$(date +%Y-%m-%d)"
 TS="$(date +%Y%m%d_%H%M%S)"
-BACKUP_DIR="$HOME/gitflicProject/data/backups/${SLUG}-cleanup-${TS}"
+BACKUP_DIR="$HOME/gitproject/data/backups/${SLUG}-cleanup-${TS}"
 
 echo "Проверка репозитория..."
 if [[ ! -d "$ROOT/.git" ]]; then
   echo "ОШИБКА: Репозиторий не найден: $ROOT"
   echo "Создай репозиторий через Web-UI GitFlic, затем клонируй:"
-  echo "  cd ~/gitflicProject/projects"
+  echo "  cd ~/gitproject/projects"
   echo "  git clone https://gitflic.ru/project/sokol491/agent-knowledge.git"
   exit 1
 fi

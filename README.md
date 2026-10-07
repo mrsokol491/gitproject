@@ -5,14 +5,14 @@
 Git-хостах (GitFlic, GitHub, GitLab, GitVerse): индекс проектов, прокси-роутер
 в docroot проектов, скрипты синхронизации/публикации/аудита, credential helper.
 Прежнее имя: GitFlic Dev Workspace (переименован по ТЗ-001 v2, этап 0).
-Совместимость: путь ~/gitflicProject и slug репозитория на GitFlic (gitflicproject)
+Совместимость: путь ~/gitproject и slug репозитория на GitFlic (gitflicproject)
 сохранены; старые имена скриптов работают через симлинки в bin/.
 Правила разработки: STANDARD.md (приоритетный документ).
 Эксплуатация: gitflic-workspace-guide.md (порты, systemd, git-доступ, changelog).
 
 ## Структура
 
-    ~/gitflicProject/
+    ~/gitproject/
     ├── router.php                  # роутер хаба: /<slug>/... -> projects/<slug>/<docroot>/...
     ├── index.php                   # главная: список проектов из projects/
     ├── .env                        # секреты (600): GIT_HOST, <HOST>_HUB_*, <HOST>_PROJECT_*, NETWORK_PASSWORD
@@ -39,8 +39,8 @@ Git-хостах (GitFlic, GitHub, GitLab, GitVerse): индекс проект�
 Требования: PHP 8.1+, git 2.30+, curl, systemd (опционально).
 
     # 1. Клонирование хаба (slug хаба на GitFlic — gitflicproject, нижний регистр!)
-    git clone https://gitflic.ru/project/sokol491/gitflicproject.git ~/gitflicProject
-    cd ~/gitflicProject
+    git clone https://gitflic.ru/project/sokol491/gitflicproject.git ~/gitproject
+    cd ~/gitproject
 
     # 2. Создать .env из шаблона и вписать свои значения
     cp .env.example .env 2>/dev/null || true
@@ -52,7 +52,7 @@ Git-хостах (GitFlic, GitHub, GitLab, GitVerse): индекс проект�
 
     # 3. Права на скрипты и подключение credential helper
     chmod 700 bin/git-credential-multi.sh bin/git-project-*.sh
-    git config --global credential.https://gitflic.ru.helper "$HOME/gitflicProject/bin/git-credential-multi.sh"
+    git config --global credential.https://gitflic.ru.helper "$HOME/gitproject/bin/git-credential-multi.sh"
     git config --global user.name "Ваше Имя"
     git config --global user.email "ваш_email@example.com"
 
@@ -60,22 +60,22 @@ Git-хостах (GitFlic, GitHub, GitLab, GitVerse): индекс проект�
     printf 'protocol=https\nhost=gitflic.ru\n' | bin/git-credential-multi.sh get | sed -E 's/^(password=).*/\1[скрыто]/'
 
     # 5. Запуск хаба
-    php -S 0.0.0.0:8000 -t ~/gitflicProject ~/gitflicProject/router.php
+    php -S 0.0.0.0:8000 -t ~/gitproject ~/gitproject/router.php
     # или через systemd:
     systemctl --user enable --now gitflic-workspace.service
     sudo loginctl enable-linger $USER
 
     # 6. Клонирование проектов в контейнер (владелец — любой)
-    git clone https://gitflic.ru/project/<владелец>/<slug>.git ~/gitflicProject/projects/<slug>
-    ~/gitflicProject/bin/git-project-sync.sh fix <slug>
+    git clone https://gitflic.ru/project/<владелец>/<slug>.git ~/gitproject/projects/<slug>
+    ~/gitproject/bin/git-project-sync.sh fix <slug>
 
 Обновление окружения хаба — только из репозитория sokol491 на GitFlic (фиксировано):
-    ~/gitflicProject/bin/git-project-pull.sh
+    ~/gitproject/bin/git-project-pull.sh
 
 ## Порты и URL
 
 - 8000 — хаб (systemd: gitflic-workspace.service; ручной запуск:
-  php -S 0.0.0.0:8000 -t ~/gitflicProject ~/gitflicProject/router.php)
+  php -S 0.0.0.0:8000 -t ~/gitproject ~/gitproject/router.php)
 - 8080 — занят сторонним проектом: не трогать и не занимать
 - http://127.0.0.1:8000/ — хаб; http://127.0.0.1:8000/<slug>/ — проект
 
@@ -103,20 +103,20 @@ credential helper; в выводе команд маскируются ([скр�
 Запуск без аргументов открывает меню: нумерованный список проектов с цветным
 состоянием; выбор — номера через запятую (1,3), all — все, q — выход.
 
-    ~/gitflicProject/bin/git-project-sync.sh                 # интерактивное меню
-    ~/gitflicProject/bin/git-project-sync.sh <slug>          # один проект без меню
-    ~/gitflicProject/bin/git-project-sync.sh <slug> -m "сообщение"
-    ~/gitflicProject/bin/git-project-sync.sh status          # таблица состояний
-    ~/gitflicProject/bin/git-project-sync.sh fix <slug>      # init/origin/контроль
-    ~/gitflicProject/bin/git-project-sync.sh probe           # матрица эндпоинтов API
+    ~/gitproject/bin/git-project-sync.sh                 # интерактивное меню
+    ~/gitproject/bin/git-project-sync.sh <slug>          # один проект без меню
+    ~/gitproject/bin/git-project-sync.sh <slug> -m "сообщение"
+    ~/gitproject/bin/git-project-sync.sh status          # таблица состояний
+    ~/gitproject/bin/git-project-sync.sh fix <slug>      # init/origin/контроль
+    ~/gitproject/bin/git-project-sync.sh probe           # матрица эндпоинтов API
 
 ### 2. Публикация хаба (bin/git-project-update.sh)
 
-    ~/gitflicProject/bin/git-project-update.sh -m "Тест"     # публикация с сообщением
-    ~/gitflicProject/bin/git-project-update.sh               # авто-сообщение с датой
-    ~/gitflicProject/bin/git-project-update.sh status        # состояние хаба
-    ~/gitflicProject/bin/git-project-update.sh fix           # подготовка к первой публикации
-    git -C ~/gitflicProject ls-remote origin refs/heads/master && git -C ~/gitflicProject rev-parse master
+    ~/gitproject/bin/git-project-update.sh -m "Тест"     # публикация с сообщением
+    ~/gitproject/bin/git-project-update.sh               # авто-сообщение с датой
+    ~/gitproject/bin/git-project-update.sh status        # состояние хаба
+    ~/gitproject/bin/git-project-update.sh fix           # подготовка к первой публикации
+    git -C ~/gitproject ls-remote origin refs/heads/master && git -C ~/gitproject rev-parse master
 
 Факт 2026-09-29: фактический slug репозитория хаба на GitFlic — gitflicproject
 (нижний регистр); git-транспорт регистрозависим, Web-UI открывает оба написания.
@@ -126,12 +126,12 @@ credential helper; в выводе команд маскируются ([скр�
 Вызывается только git, вручную не нужен. Проверка БЕЗ вывода токена:
 
     printf 'protocol=https\nhost=gitflic.ru\n' \
-      | ~/gitflicProject/bin/git-credential-multi.sh get \
+      | ~/gitproject/bin/git-credential-multi.sh get \
       | sed -E 's/^(password=).*/\1[скрыто]/'
 
 ### 4. Аудит проекта (bin/audit-project.sh)
 
-    ~/gitflicProject/bin/audit-project.sh <slug>
+    ~/gitproject/bin/audit-project.sh <slug>
 
 ### 5. Сервис хаба (systemd)
 
@@ -144,13 +144,13 @@ credential helper; в выводе команд маскируются ([скр�
 
     ss -tlnp | grep :8000
     curl -sI http://127.0.0.1:8000/ | head -n 1
-    tail -n 20 ~/gitflicProject/data/workspace.log
-    tail -n 20 ~/gitflicProject/data/workspace-error.log
+    tail -n 20 ~/gitproject/data/workspace.log
+    tail -n 20 ~/gitproject/data/workspace-error.log
 
 ## Безопасность
 
 - Секреты только в .env (600); маскированный просмотр:
-  sed -E 's/=(.+)$/=[скрыто]/' ~/gitflicProject/.env
+  sed -E 's/=(.+)$/=[скрыто]/' ~/gitproject/.env
 - Токены: ограниченные права, срок 1-2 дня, после работ отзываются.
 - Из LAN хаб закрыт HTTP Basic Auth; с 127.0.0.1 — без пароля.
 - Роутер: forbidden-список (.env, bin/, data/, projects/, *.md), защита path
@@ -161,13 +161,13 @@ credential helper; в выводе команд маскируются ([скр�
 ## Добавление проекта
 
     # 1. Клонирование в контейнер (владелец — любой пользователь хоста)
-    git clone https://gitflic.ru/project/<владелец>/<slug>.git ~/gitflicProject/projects/<slug>
+    git clone https://gitflic.ru/project/<владелец>/<slug>.git ~/gitproject/projects/<slug>
 
     # 2. Подготовка (init, если надо; origin, контроль)
-    ~/gitflicProject/bin/git-project-sync.sh fix <slug>
+    ~/gitproject/bin/git-project-sync.sh fix <slug>
 
     # 3. Публикация ветки
-    ~/gitflicProject/bin/git-project-sync.sh <slug> -m "sync: первая публикация <slug>"
+    ~/gitproject/bin/git-project-sync.sh <slug> -m "sync: первая публикация <slug>"
 
     # 4. Проверка доступности в хабе
     curl -sI http://127.0.0.1:8000/<slug>/ | head -n 1

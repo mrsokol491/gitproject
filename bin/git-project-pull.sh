@@ -7,7 +7,7 @@
 
 set -uo pipefail
 
-HUB="$HOME/gitflicProject"
+HUB="$HOME/gitproject"
 PROJECTS_DIR="$HUB/projects"
 
 echo "==> 1. Обновление хаба (gitflicProject)..."

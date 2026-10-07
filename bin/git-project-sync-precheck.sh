@@ -4,7 +4,7 @@
 
 set -Eeuo pipefail
 
-GIT_PROJECT_WORKSPACE="${GIT_PROJECT_WORKSPACE:-$HOME/gitflicProject}"
+GIT_PROJECT_WORKSPACE="${GIT_PROJECT_WORKSPACE:-$HOME/gitproject}"
 GIT_PROJECT_PROJECTS="$GIT_PROJECT_WORKSPACE/projects"
 
 if [[ -x "$GIT_PROJECT_WORKSPACE/bin/git-project-sync.sh" ]]; then

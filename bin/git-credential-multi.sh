@@ -20,7 +20,7 @@ path="$(printf '%s\n' "$input" | sed -n 's/^path=//p' | tail -n 1 | tr -d '\r')"
 
 [ -n "$host" ] || exit 0
 
-env_file="${HOME}/gitflicProject/.env"
+env_file="${HOME}/gitproject/.env"
 if [ ! -r "$env_file" ]; then
     echo "git-credential-multi: нет читаемого .env ($env_file) — git запросит API-ТОКЕН вручную" >&2
     exit 0

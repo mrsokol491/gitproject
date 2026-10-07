@@ -17,9 +17,9 @@ declare(strict_types=1);
  *  - защита от path traversal через realpath-проверки.
  *
  * Запуск (systemd, guide раздел 5):
- *   php -S 0.0.0.0:8000 -t ~/gitflicProject ~/gitflicProject/router.php
+ *   php -S 0.0.0.0:8000 -t ~/gitproject ~/gitproject/router.php
  * Ручной запуск для отладки:
- *   cd ~/gitflicProject && php -S 127.0.0.1:8000 router.php
+ *   cd ~/gitproject && php -S 127.0.0.1:8000 router.php
  */
 
 // --- Пути хаба --------------------------------------------------------------
@@ -73,7 +73,7 @@ if (!$isLoopback) {
 
 // --- 1) Сам хаб: / и /assets/* ----------------------------------------------
 if ($uri === '/' || $uri === '/index.php') {
-    return false; // php -S исполнит ~/gitflicProject/index.php
+    return false; // php -S исполнит ~/gitproject/index.php
 }
 if ($uri === '/assets' || str_starts_with($uri, '/assets/')) {
     return false; // статика хаба: assets/css/, assets/img/

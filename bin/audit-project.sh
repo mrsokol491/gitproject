@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 # audit-project.sh — полный аудиторский отчёт по проекту workspace в файл.
-# Использование: ~/gitflicProject/bin/audit-project.sh <slug>
-# Пример:        chmod 700 ~/gitflicProject/bin/audit-project.sh archive
+# Использование: ~/gitproject/bin/audit-project.sh <slug>
+# Пример:        chmod 700 ~/gitproject/bin/audit-project.sh archive
 set -eu
 
 proj="${1:?Нужен slug проекта, например: archive}"
-root="$HOME/gitflicProject/projects/$proj"
+root="$HOME/gitproject/projects/$proj"
 [ -d "$root" ] || { echo "Нет такого проекта: $root"; exit 1; }
 
 # Отчёты кладём ВНЕ репозиториев — в коммиты они не попадут
-mkdir -p "$HOME/gitflicProject/data/audits"
-out="$HOME/gitflicProject/data/audits/${proj}-$(date +%Y%m%d_%H%M%S).txt"
+mkdir -p "$HOME/gitproject/data/audits"
+out="$HOME/gitproject/data/audits/${proj}-$(date +%Y%m%d_%H%M%S).txt"
 
 cd "$root"
 {
