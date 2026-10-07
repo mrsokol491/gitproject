@@ -1,12 +1,13 @@
 # GitProject Workspace Hub
 
-Владелец: Александр (@sokol491).
-Назначение: универсальная оболочка-хаб для работы с репозиториями на нескольких
-Git-хостах (GitFlic, GitVerse и др.): индекс проектов, прокси-роутер
+- Владелец: Александр (@sokol491).
+- Назначение: универсальная оболочка-хаб для работы с репозиториями на нескольких
+- Git-хостах (GitFlic, GitVerse и др.):
+    индекс проектов, прокси-роутер
 в docroot проектов, скрипты синхронизации/публикации/аудита, credential helper.
 
-Репозиторий: https://gitflic.ru/project/sokol491/gitproject
-Локальный путь: ~/gitproject
+- Репозиторий: https://gitflic.ru/project/sokol491/gitproject
+- Локальный путь: ~/gitproject
 
 Правила разработки: STANDARD.md (приоритетный документ).
 Эксплуатация: gitproject-workspace-guide.md (порты, systemd, git-доступ, changelog).
@@ -78,7 +79,8 @@ Git-хостах (GitFlic, GitVerse и др.): индекс проектов, п
 ## Порты и URL
 
 - 8000 — хаб (systemd: gitproject-workspace.service)
-- http://127.0.0.1:8000/ — хаб; http://127.0.0.1:8000/<slug>/ — проект
+- http://127.0.0.1:8000/ — хаб
+    http://127.0.0.1:8000/< slug >/ — проект
 
 ## Команды управления
 
