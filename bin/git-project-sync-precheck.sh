@@ -82,6 +82,78 @@ has_composer_script() {
   composer run-script --list | awk -v s="$script" '$1 == s { found = 1 } END { exit !found }'
 }
 
+
+check_markdown_quality() {
+  local dir="$1"
+  local agent_knowledge="$HOME/gitproject/projects/agent-knowledge"
+  local slopcheck="$agent_knowledge/skills/anti-ai-slop/scripts/slopcheck.py"
+  local rules_ru="$agent_knowledge/skills/anti-ai-slop/scripts/rules-ru.json"
+
+  # Проверка доступна только если anti-ai-slop установлен
+  if [[ ! -f "$slopcheck" ]] || [[ ! -f "$rules_ru" ]]; then
+    preflight_info "Markdown: anti-ai-slop не установлен, проверка пропущена"
+    return 0
+  fi
+
+  if ! command -v python3 >/dev/null 2>&1; then
+    preflight_info "Markdown: python3 не найден, проверка пропущена"
+    return 0
+  fi
+
+  preflight_info "Markdown: проверка качества .md файлов через anti-ai-slop"
+
+  local md_files=()
+  while IFS= read -r -d '' file; do
+    # Пропускаем vendor/, node_modules/, data/, storage/
+    case "$file" in
+      */vendor/*|*/node_modules/*|data/*|storage/*|vendor/*|node_modules/*) continue ;;
+    esac
+
+    # Пропускаем CHANGELOG.md и LICENSE на любой глубине
+    case "$(basename "$file")" in
+      CHANGELOG.md|LICENSE|LICENSE.md|CHANGELOG) continue ;;
+    esac
+
+    md_files+=("$file")
+  done < <(git -C "$dir" ls-files -z -- '*.md')
+
+  if [[ ${#md_files[@]} -eq 0 ]]; then
+    preflight_info "Markdown: .md файлы не найдены"
+    return 0
+  fi
+
+  local failed=0
+  local checked=0
+  local threshold=90
+
+  for file in "${md_files[@]}"; do
+    local exit_code=0
+    local full_path="$dir/$file"
+
+    if [[ ! -f "$full_path" ]]; then
+      continue
+    fi
+
+    python3 "$slopcheck" "$full_path" --rules "$rules_ru" --gate "$threshold" --quiet >/dev/null 2>&1 || exit_code=$?
+
+    checked=$((checked + 1))
+
+    if [[ $exit_code -eq 0 ]]; then
+      preflight_info "Markdown: $file [OK]"
+    elif [[ $exit_code -eq 1 ]]; then
+      preflight_info "Markdown: $file [FAIL] (score < $threshold)"
+      failed=$((failed + 1))
+    else
+      preflight_info "Markdown: $file [SKIP] (ошибка запуска)"
+    fi
+  done
+
+  if [[ $failed -gt 0 ]]; then
+    preflight_die "Markdown: $failed файлов ниже порога качества ($threshold/100). Исправь находки перед синхронизацией."
+  fi
+
+  preflight_info "Markdown: проверено $checked файлов, все прошли порог $threshold"
+}
 run_project_checks() {
   local dir="$1"
 
@@ -138,6 +210,8 @@ run_project_checks() {
       php -l "$f" >/dev/null || preflight_die "php -l failed: $f"
     done < <(git ls-files -z -- '*.php')
   fi
+
+  check_markdown_quality "$dir"
 
   popd >/dev/null
 }
