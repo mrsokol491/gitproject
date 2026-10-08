@@ -154,6 +154,35 @@ check_markdown_quality() {
 
   preflight_info "Markdown: проверено $checked файлов, все прошли порог $threshold"
 }
+
+check_remotes_available() {
+  local dir="$1"
+  
+  # Получаем список remote
+  local remotes
+  remotes="$(git -C "$dir" remote 2>/dev/null || true)"
+  
+  check_remotes_available "$dir"
+
+  if [[ -z "$remotes" ]]; then
+    preflight_die "У проекта нет настроенных remote. Добавь через: git-project-remote.sh $slug --add <domain>"
+  fi
+  
+  # Проверяем, что хотя бы один remote доступен
+  local found_ready=0
+  while IFS= read -r remote; do
+    [[ -z "$remote" ]] && continue
+    if git -C "$dir" ls-remote "$remote" HEAD >/dev/null 2>&1; then
+      found_ready=1
+      preflight_info "Remote доступен: $remote"
+      break
+    fi
+  done <<< "$remotes"
+  
+  if [[ $found_ready -eq 0 ]]; then
+    preflight_die "Ни один remote недоступен. Проверь: git-project-remote.sh $slug --list"
+  fi
+}
 run_project_checks() {
   local dir="$1"
 
@@ -201,8 +230,6 @@ run_project_checks() {
       preflight_info "Node: npm test"
       npm test
     fi
-  fi
-
   if command -v php >/dev/null 2>&1; then
     preflight_info "PHP: php -l по всем отслеживаемым *.php"
     local f

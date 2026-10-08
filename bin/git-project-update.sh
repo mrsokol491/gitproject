@@ -27,7 +27,7 @@ print_gray()    { echo -e "${GRAY}$1${RESET}"; }
 
 HUB="$HOME/gitproject"
 ENV_FILE="$HUB/.env"
-HUB_SLUG="gitflicproject"   # фактический slug на GitFlic (нижний регистр), факт 2026-09-29
+HUB_SLUG="${HUB_UPDATE_SLUG:-gitproject}"   # фактический slug на GitFlic (нижний регистр), факт 2026-09-29
 
 GITFLIC_USER=""
 
@@ -155,11 +155,11 @@ cmd_sync() {
     fi
     remote_ref="origin/$remote_branch"
 
-    print_header "== СВЕРКА: gitflicProject (локально $branch -> GitFlic $remote_branch) =="
+    print_header "== СВЕРКА: $HUB_SLUG (локально $branch -> GitFlic $remote_branch) =="
 
     if ! remote_repo_exists; then
         print_error "ОШИБКА: репозиторий хаба на GitFlic отсутствует ($(remote_url))."
-        print_info "Создайте через Web-UI (guide раздел 7): имя gitflicProject, пустой, без README."
+        print_info "Создайте через Web-UI (guide раздел 7): имя $HUB_SLUG, пустой, без README."
         exit 2
     fi
 
@@ -208,7 +208,7 @@ cmd_sync() {
             exit 5
         fi
         local msg="$commit_msg"
-        [ -z "$msg" ] && msg="sync: gitflicProject $(date +%Y-%m-%d_%H:%M) — локальные изменения"
+        [ -z "$msg" ] && msg="sync: $HUB_SLUG $(date +%Y-%m-%d_%H:%M) — локальные изменения"
         git commit -q -m "$msg"
         print_success "Создан коммит: $(git log --oneline -1)"
     else
@@ -240,7 +240,7 @@ cmd_sync() {
     local_now="$(git rev-parse HEAD)"
     remote_now="$(git ls-remote origin "refs/heads/$remote_branch" | awk '{print $1}')"
     if [ -n "$remote_now" ] && [ "$local_now" = "$remote_now" ]; then
-        print_success "УСПЕХ: gitflicProject/$branch -> $remote_branch синхронизирован, хэш ${local_now:0:7} совпадает с GitFlic."
+        print_success "УСПЕХ: $HUB_SLUG/$branch -> $remote_branch синхронизирован, хэш ${local_now:0:7} совпадает с GitFlic."
         exit 0
     fi
     print_error "ВНИМАНИЕ: хэши не совпали (локально ${local_now:0:7}, на GitFlic ${remote_now:0:7})."
