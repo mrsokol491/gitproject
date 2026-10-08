@@ -73,7 +73,14 @@ if (!$isLoopback) {
 
 // --- 1) Сам хаб: / и /assets/* ----------------------------------------------
 if ($uri === '/' || $uri === '/index.php') {
-    return false; // php -S исполнит ~/gitproject/index.php
+    // Отдаём новую панель управления из public/index.php
+    $file = __DIR__ . '/public/index.php';
+    if (is_file($file)) {
+        $_SERVER['SCRIPT_FILENAME'] = $file;
+        require $file;
+        return true;
+    }
+    return false; // fallback на корень, если public/index.php вдруг удалён
 }
 if ($uri === '/assets' || str_starts_with($uri, '/assets/')) {
     return false; // статика хаба: assets/css/, assets/img/
