@@ -3,6 +3,11 @@ declare(strict_types=1);
 
 header('Content-Type: application/json; charset=utf-8');
 
+// Функция очистки ANSI escape-последовательностей из вывода
+function strip_ansi($text) {
+    return preg_replace('/\x1b\[[0-9;]*[a-zA-Z]/', '', $text);
+}
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode(['ok' => false, 'error' => 'Метод не разрешён', 'error_code' => 'METHOD_NOT_ALLOWED'], JSON_UNESCAPED_UNICODE);
     exit(1);
@@ -43,7 +48,7 @@ $returnCode = 0;
 exec($cmd . ' 2>&1', $output, $returnCode);
 
 if ($returnCode === 0) {
-    echo json_encode(['ok' => true, 'data' => ['message' => 'Успех', 'log' => implode("\n", $output)]], JSON_UNESCAPED_UNICODE);
+    echo json_encode(['ok' => true, 'data' => ['message' => 'Успех', 'log' => strip_ansi(implode("\n", $output))]], JSON_UNESCAPED_UNICODE);
 } else {
-    echo json_encode(['ok' => false, 'error' => 'Ошибка синхронизации', 'error_code' => 'SYNC_FAILED', 'data' => ['log' => implode("\n", $output)]], JSON_UNESCAPED_UNICODE);
+    echo json_encode(['ok' => false, 'error' => 'Ошибка синхронизации', 'error_code' => 'SYNC_FAILED', 'data' => ['log' => strip_ansi(implode("\n", $output))]], JSON_UNESCAPED_UNICODE);
 }
