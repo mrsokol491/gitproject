@@ -45,7 +45,7 @@ load_env_soft() {
 
 remote_url() {
     local u
-    if [ -d "$HUB/.git" ] && u="$(git -C "$HUB" remote get-url origin 2>/dev/null)" && [ -n "$u" ]; then
+    if [ -d "$HUB/.git" ] && u="$(git -C "$HUB" remote get-url "$hub_remote" 2>/dev/null)" && [ -n "$u" ]; then
         printf '%s' "$u"
     else
         printf 'https://gitflic.ru/project/%s/%s.git' "$GITFLIC_USER" "$HUB_SLUG"
@@ -89,10 +89,10 @@ cmd_fix() {
     if ! { git -C "$HUB" config --get user.name >/dev/null && git -C "$HUB" config --get user.email >/dev/null; }; then
         print_warn "ВНИМАНИЕ: не настроена идентичность git (guide раздел 4)"
     fi
-    if ! git -C "$HUB" remote get-url origin >/dev/null 2>&1; then
-        git -C "$HUB" remote add origin "$(remote_url)" && print_success "origin: добавлен ($(remote_url))"
+    if ! git -C "$HUB" remote get-url "$hub_remote" >/dev/null 2>&1; then
+        git -C "$HUB" remote add "$hub_remote" "$(remote_url)" && print_success "origin: добавлен ($(remote_url))"
     else
-        print_info "origin: $(git -C "$HUB" remote get-url origin)"
+        print_info "origin: $(git -C "$HUB" remote get-url "$hub_remote")"
     fi
     if [ ! -f "$HUB/.gitignore" ]; then
         write_gitignore && print_success ".gitignore: создан по шаблону хаба"
@@ -125,7 +125,7 @@ cmd_status() {
         behind="$(git -C "$HUB" log --oneline "HEAD..${up}" 2>/dev/null | wc -l)"
     fi
     print_header "хаб:            $HUB"
-    print_info    "ветка:          $branch${up:+ -> ${up#origin/}}"
+    print_info    "ветка:          $branch${up:+ -> ${up#"$hub_remote"/}}"
     print_info    "ahead/behind:   $ahead/$behind (по последнему fetch)"
     print_info    "грязных файлов: $dirty"
     if remote_repo_exists; then
@@ -156,11 +156,11 @@ cmd_sync() {
     fi
     upstream="$(git rev-parse --abbrev-ref '@{u}' 2>/dev/null || true)"
     if [ -n "$upstream" ]; then
-        remote_branch="${upstream#origin/}"
+        remote_branch="${upstream#"$hub_remote"/}"
     else
         remote_branch="$branch"
     fi
-    remote_ref="origin/$remote_branch"
+    remote_ref="$hub_remote/$remote_branch"
 
     print_header "== СВЕРКА: $HUB_SLUG (локально $branch -> GitFlic $remote_branch) =="
 
@@ -170,8 +170,8 @@ cmd_sync() {
         exit 2
     fi
 
-    if ! git fetch origin >/dev/null 2>&1; then
-        print_error "ОШИБКА: git fetch origin не удался (сеть/доступ). Проверьте credential helper."
+    if ! git fetch "$hub_remote" >/dev/null 2>&1; then
+        print_error "ОШИБКА: git fetch $hub_remote не удался (сеть/доступ). Проверьте credential helper."
         exit 2
     fi
 
@@ -238,14 +238,14 @@ cmd_sync() {
 
     print_info "-- Публикация на GitFlic: $branch -> $remote_branch --"
     if [ "$has_remote" -eq 1 ]; then
-        git push origin "$branch:$remote_branch" || exit 4
+        git push "$hub_remote" "$branch:$remote_branch" || exit 4
     else
-        git push -u origin "$branch:$remote_branch" || exit 4
+        git push -u "$hub_remote" "$branch:$remote_branch" || exit 4
     fi
 
     local local_now remote_now
     local_now="$(git rev-parse HEAD)"
-    remote_now="$(git ls-remote origin "refs/heads/$remote_branch" | awk '{print $1}')"
+    remote_now="$(git ls-remote "$hub_remote" "refs/heads/$remote_branch" | awk '{print $1}')"
     if [ -n "$remote_now" ] && [ "$local_now" = "$remote_now" ]; then
         print_success "УСПЕХ: $HUB_SLUG/$branch -> $remote_branch синхронизирован, хэш ${local_now:0:7} совпадает с GitFlic."
         exit 0
