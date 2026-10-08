@@ -15,7 +15,7 @@ declare(strict_types=1);
         :root { --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --muted: #94a3b8; --primary: #3b82f6; --success: #22c55e; --warn: #eab308; --danger: #ef4444; --border: #334155; }
         * { box-sizing: border-box; }
         body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 2rem; line-height: 1.6; }
-        .container { max-width: 1200px; margin: 0 auto; }
+        .container { max-width: 1400px; margin: 0 auto; }
         h1 { color: #60a5fa; margin-bottom: 0.5rem; }
         .subtitle { color: var(--muted); margin-bottom: 2rem; }
         .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; }
@@ -32,25 +32,35 @@ declare(strict_types=1);
         .btn:hover { opacity: 0.9; }
         .btn:disabled { background: var(--border); cursor: not-allowed; opacity: 0.6; }
         .btn-sm { padding: 0.375rem 0.75rem; font-size: 0.75rem; }
+        .btn-success { background: var(--success); }
+        .btn-danger { background: var(--danger); }
         .projects-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 1rem; margin-top: 1rem; }
         .project-card { background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 6px; padding: 1rem; }
         .project-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
         .project-name { font-weight: 600; font-size: 1rem; }
         .project-meta { font-size: 0.875rem; color: var(--muted); margin-bottom: 0.5rem; }
         .project-actions { display: flex; gap: 0.5rem; margin-top: 0.75rem; }
-        pre.log { background: #0a0f1e; color: #a5b4fc; padding: 1rem; border-radius: 6px; overflow-x: auto; font-size: 0.8rem; display: none; margin-top: 1rem; border: 1px solid var(--border); }
+        pre.log { background: #0a0f1e; color: #a5b4fc; padding: 1rem; border-radius: 6px; overflow-x: auto; font-size: 0.8rem; display: none; margin-top: 1rem; border: 1px solid var(--border); max-height: 400px; }
         .loading { opacity: 0.6; pointer-events: none; }
         .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 0.5rem; }
         .status-ready { background: var(--success); }
         .status-unknown { background: var(--muted); }
         .alert { padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1rem; }
         .alert-info { background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); }
+        .header-actions { display: flex; gap: 1rem; align-items: center; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🚀 GitProject Workspace Hub</h1>
-        <p class="subtitle">Рабочее пространство @sokol491 — репозитории в контейнере projects/</p>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2rem;">
+            <div>
+                <h1>🚀 GitProject Workspace Hub</h1>
+                <p class="subtitle" style="margin:0;">Рабочее пространство @sokol491 — репозитории в контейнере projects/</p>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-success" id="sync-all-btn" onclick="runSync('all', '')">🔄 Синхронизировать все проекты</button>
+            </div>
+        </div>
         
         <div class="card">
             <h2>📊 Статус Git-хостов</h2>
@@ -61,10 +71,7 @@ declare(strict_types=1);
         </div>
 
         <div class="card">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
-                <h2 style="margin:0;">📁 Проекты</h2>
-                <button class="btn" id="sync-all-btn" onclick="runSync('all', '')">🔄 Синхронизировать все</button>
-            </div>
+            <h2> Проекты</h2>
             <div id="projects-container" class="projects-grid">
                 <div style="grid-column:1/-1;text-align:center;padding:2rem;color:var(--muted);">Загрузка проектов...</div>
             </div>
@@ -119,7 +126,7 @@ declare(strict_types=1);
                         </div>
                         <div class="project-meta">нет описания</div>
                         <div class="project-actions">
-                            <button class="btn btn-sm" onclick="runSync('all', '${p}')">Синхронизировать</button>
+                            <button class="btn btn-sm" onclick="runSync('all', '${p}')">🔄 Синхронизировать</button>
                             <a href="/${p}/" class="btn btn-sm" style="background:var(--border);text-decoration:none;color:white;">Открыть</a>
                         </div>
                     </div>
@@ -151,9 +158,9 @@ declare(strict_types=1);
                 
                 log.textContent = json.ok 
                     ? '✅ Успех:\n' + (json.data?.log || 'Готово')
-                    : '❌ Ошибка: ' + json.error + '\n\n' + (json.data?.log || '');
+                    : ' Ошибка: ' + json.error + '\n\n' + (json.data?.log || '');
             } catch (e) {
-                log.textContent = '❌ Сетевая ошибка: ' + e.message;
+                log.textContent = ' Сетевая ошибка: ' + e.message;
             } finally {
                 btn.disabled = false;
                 btn.classList.remove('loading');
