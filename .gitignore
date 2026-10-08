@@ -17,3 +17,5 @@
 *.sqlite-journal
 *.sqlite-wal
 *.sqlite-shm
+# Agent runtime (исполняемые файлы агента, не коммитятся в хаб)
+/agent/
