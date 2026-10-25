@@ -112,31 +112,78 @@ usort($projects, static fn(array $a, array $b): int => strcmp($a['name'], $b['na
 <title>GitProject Workspace Hub</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
-         background:#0f172a; color:#e2e8f0; min-height:100vh; padding:2rem; }
+  body { 
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    background: linear-gradient(135deg, #0d0b1a 0%, #1a1333 50%, #0f172a 100%);
+    background-attachment: fixed;
+    color:#e8e4f3;
+    min-height:100vh;
+    padding:2rem;
+  }
   .container { max-width:1000px; margin:0 auto; }
-  h1 { color:#60a5fa; margin-bottom:.5rem; font-size:2rem; }
-  .sub { color:#94a3b8; margin-bottom:1.5rem; }
-  .info { background:#1e293b; border:1px solid #334155; border-radius:10px;
-          padding:1rem; margin-bottom:2rem; font-family:monospace; font-size:.85rem; }
-  .info span { color:#60a5fa; }
+  h1 { 
+    background: linear-gradient(135deg, #a78bfa, #7c3aed, #6d28d9);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom:.5rem;
+    font-size:2rem;
+    font-weight: 700;
+  }
+  .sub { color:#9b8fb8; margin-bottom:1.5rem; }
+  .info { 
+    background: #1a1528;
+    border:1px solid #2d2640;
+    border-radius:12px;
+    padding:1rem;
+    margin-bottom:2rem;
+    font-family:monospace;
+    font-size:.85rem;
+    box-shadow: 0 4px 20px rgba(124, 58, 237, 0.08);
+  }
+  .info span { color:#a78bfa; }
   .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:1rem; }
-  .card { background:#1e293b; border:1px solid #334155; border-radius:10px;
-          padding:1.2rem; transition:all .2s; cursor:pointer; text-decoration:none; color:inherit; display:block; }
-  .card:hover { border-color:#60a5fa; transform:translateY(-2px); }
+  .card { 
+    background: #1a1528;
+    border:1px solid #2d2640;
+    border-radius:12px;
+    padding:1.2rem;
+    transition:all .3s ease;
+    cursor:pointer;
+    text-decoration:none;
+    color:inherit;
+    display:block;
+    box-shadow: 0 4px 20px rgba(124, 58, 237, 0.08);
+  }
+  .card:hover { 
+    border-color:#a78bfa;
+    transform:translateY(-2px);
+    box-shadow: 0 6px 30px rgba(124, 58, 237, 0.15);
+    background: #221d35;
+  }
   .card.disabled { opacity:.5; cursor:not-allowed; }
   .card-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:.5rem; }
-  .card-name { font-size:1.15rem; font-weight:600; color:#f1f5f9; }
-  .badge { background:#334155; color:#60a5fa; padding:.15rem .5rem;
-           border-radius:4px; font-size:.72rem; }
-  .card-desc { color:#94a3b8; font-size:.88rem; margin-bottom:.8rem; min-height:2em; }
-  .card-meta { display:flex; gap:.8rem; flex-wrap:wrap; font-size:.78rem; color:#64748b; }
+  .card-name { font-size:1.15rem; font-weight:600; color:#f3e8ff; }
+  .badge { 
+    background: rgba(124, 58, 237, 0.15);
+    color:#a78bfa;
+    padding:.15rem .5rem;
+    border-radius:6px;
+    font-size:.72rem;
+  }
+  .card-desc { color:#9b8fb8; font-size:.88rem; margin-bottom:.8rem; min-height:2em; }
+  .card-meta { display:flex; gap:.8rem; flex-wrap:wrap; font-size:.78rem; color:#7c6f9b; }
   .dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:5px; }
-  .dot.ok   { background:#22c55e; }
+  .dot.ok   { background:#10b981; }
   .dot.warn { background:#f59e0b; }
   .dot.bad  { background:#ef4444; }
-  .empty { text-align:center; padding:3rem; color:#64748b; }
-  .empty code { background:#1e293b; padding:.2rem .5rem; border-radius:4px; color:#60a5fa; }
+  .empty { text-align:center; padding:3rem; color:#7c6f9b; }
+  .empty code { 
+    background:#1a1528;
+    padding:.2rem .5rem;
+    border-radius:6px;
+    color:#a78bfa;
+  }
 </style>
 </head>
 <body>

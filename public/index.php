@@ -13,40 +13,60 @@ declare(strict_types=1);
     <title>GitProject Workspace Hub</title>
     <style>
         :root {
-            --bg: #0f172a;
-            --card: #1e293b;
-            --text: #e2e8f0;
-            --muted: #94a3b8;
-            --primary: #3b82f6;
-            --success: #22c55e;
-            --warn: #eab308;
+            --bg: #0d0b1a;
+            --bg-gradient: linear-gradient(135deg, #0d0b1a 0%, #1a1333 50%, #0f172a 100%);
+            --card: #1a1528;
+            --card-hover: #221d35;
+            --text: #e8e4f3;
+            --muted: #9b8fb8;
+            --primary: #7c3aed;
+            --primary-light: #a78bfa;
+            --primary-glow: rgba(124, 58, 237, 0.3);
+            --success: #10b981;
+            --warn: #f59e0b;
             --danger: #ef4444;
-            --border: #334155;
+            --border: #2d2640;
+            --border-hover: #7c3aed;
         }
         * { box-sizing: border-box; }
         body {
             font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-            background: var(--bg);
+            background: var(--bg-gradient);
+            background-attachment: fixed;
             color: var(--text);
             margin: 0;
             padding: 2rem;
             line-height: 1.6;
+            min-height: 100vh;
         }
         .container { max-width: 1400px; margin: 0 auto; }
         header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem; }
-        h1 { color: #60a5fa; margin: 0 0 0.25rem 0; font-size: 2rem; }
+        h1 { 
+            background: linear-gradient(135deg, #a78bfa, #7c3aed, #6d28d9);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin: 0 0 0.25rem 0;
+            font-size: 2rem;
+            font-weight: 700;
+        }
         .subtitle { color: var(--muted); margin: 0; font-size: 1rem; }
         .card {
             background: var(--card);
             border: 1px solid var(--border);
-            border-radius: 10px;
+            border-radius: 12px;
             padding: 1.5rem;
             margin-bottom: 1.5rem;
+            box-shadow: 0 4px 20px rgba(124, 58, 237, 0.08);
+            transition: all 0.3s ease;
+        }
+        .card:hover {
+            box-shadow: 0 6px 30px rgba(124, 58, 237, 0.15);
         }
         .card h2 {
             margin: 0 0 1rem 0;
             font-size: 1.25rem;
-            color: #f8fafc;
+            color: #f3e8ff;
             border-bottom: 1px solid var(--border);
             padding-bottom: 0.75rem;
         }
@@ -57,68 +77,95 @@ declare(strict_types=1);
             margin-bottom: 1rem;
             border-bottom: 1px solid var(--border);
             padding-bottom: 0.75rem;
+            background: linear-gradient(90deg, rgba(124, 58, 237, 0.05), transparent);
         }
         .card-header h2 { margin: 0; border: none; padding: 0; }
         table { width: 100%; border-collapse: collapse; }
         th, td { text-align: left; padding: 0.75rem; border-bottom: 1px solid var(--border); }
-        th { color: var(--muted); font-weight: 600; font-size: 0.875rem; }
+        th { color: var(--primary-light); font-weight: 600; font-size: 0.875rem; }
         .badge {
             display: inline-block;
-            padding: 0.2rem 0.5rem;
-            border-radius: 4px;
+            padding: 0.2rem 0.6rem;
+            border-radius: 6px;
             font-size: 0.75rem;
             font-weight: 600;
         }
-        .badge-ready { background: rgba(34, 197, 94, 0.2); color: var(--success); }
-        .badge-integrating { background: rgba(234, 179, 8, 0.2); color: var(--warn); }
-        .badge-yes { background: rgba(34, 197, 94, 0.2); color: var(--success); }
+        .badge-ready { background: rgba(16, 185, 129, 0.2); color: var(--success); }
+        .badge-integrating { background: rgba(245, 158, 11, 0.2); color: var(--warn); }
+        .badge-yes { background: rgba(16, 185, 129, 0.2); color: var(--success); }
         .badge-no { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
         .btn {
-            background: var(--primary);
+            background: linear-gradient(135deg, #7c3aed, #6d28d9);
             color: white;
             border: none;
             padding: 0.5rem 1rem;
-            border-radius: 6px;
+            border-radius: 8px;
             cursor: pointer;
             font-size: 0.875rem;
             font-weight: 500;
-            transition: opacity 0.2s;
+            transition: all 0.2s ease;
             text-decoration: none;
             display: inline-block;
+            box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3);
         }
-        .btn:hover { opacity: 0.9; }
-        .btn:disabled { background: var(--border); cursor: not-allowed; opacity: 0.6; }
+        .btn:hover { 
+            opacity: 0.95;
+            box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4);
+            transform: translateY(-1px);
+        }
+        .btn:disabled { 
+            background: var(--border); 
+            cursor: not-allowed; 
+            opacity: 0.6;
+            box-shadow: none;
+            transform: none;
+        }
         .btn-sm { padding: 0.375rem 0.75rem; font-size: 0.75rem; }
-        .btn-success { background: var(--success); }
-        .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text); }
-        .btn-ghost:hover { background: var(--border); }
+        .btn-success { 
+            background: linear-gradient(135deg, #10b981, #059669);
+            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+        }
+        .btn-ghost { 
+            background: transparent; 
+            border: 1px solid var(--border); 
+            color: var(--text);
+            box-shadow: none;
+        }
+        .btn-ghost:hover { 
+            background: rgba(124, 58, 237, 0.1);
+            border-color: var(--primary-light);
+        }
         .projects-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
             gap: 1rem;
         }
         .project-card {
-            background: rgba(255,255,255,0.03);
+            background: rgba(124, 58, 237, 0.05);
             border: 1px solid var(--border);
-            border-radius: 8px;
+            border-radius: 10px;
             padding: 1rem;
-            transition: border-color 0.2s;
+            transition: all 0.3s ease;
         }
-        .project-card:hover { border-color: #60a5fa; }
+        .project-card:hover { 
+            border-color: var(--primary-light);
+            background: rgba(124, 58, 237, 0.08);
+            box-shadow: 0 4px 15px rgba(124, 58, 237, 0.15);
+        }
         .project-head {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 0.5rem;
         }
-        .project-name { font-weight: 600; font-size: 1.1rem; color: #f1f5f9; }
+        .project-name { font-weight: 600; font-size: 1.1rem; color: #f3e8ff; }
         .project-desc { color: var(--muted); font-size: 0.875rem; margin-bottom: 1rem; min-height: 1.5em; }
         .project-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
         pre.log {
-            background: #0a0f1e;
-            color: #a5b4fc;
+            background: #120e24;
+            color: #c4b5fd;
             padding: 1rem;
-            border-radius: 6px;
+            border-radius: 8px;
             overflow-x: auto;
             font-size: 0.8rem;
             font-family: 'Courier New', monospace;
