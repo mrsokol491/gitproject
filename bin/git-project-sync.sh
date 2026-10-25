@@ -42,7 +42,8 @@ ensure_project_remotes_from_env() {
             [ -z "$domain" ] && continue
             
             owner_var="${prefix}_PROJECT_USER"
-            owner="$(sed -n "s/^${owner_var}=//p" "$env_file" 2>/dev/null | tail -n 1 | tr -d '')"
+            owner="$(sed -n "s/^${owner_var}=//p" "$env_file" 2>/dev/null | tail -n 1 | tr -d '
+')"
             [ -z "$owner" ] && owner="sokol491"
             
             local url="${url_template//\{owner\}/$owner}"
@@ -218,6 +219,85 @@ sync_project_specific_remote() {
         return 0
     else
         print_error "    ✗ Ошибка push на $remote"
+        return 1
+    fi
+}
+
+# ============================================================================
+# Pull updates from a specific remote
+# ============================================================================
+
+pull_project_remote() {
+    local slug="$1" remote="${2:-origin}"
+    local repo="$PROJECTS_DIR/$slug"
+    if [ ! -d "$repo/.git" ]; then
+        print_error "Проект $slug не найден"
+        return 1
+    fi
+    if ! git -C "$repo" remote get-url "$remote" >/dev/null 2>&1; then
+        print_error "Remote $remote не настроен для проекта $slug"
+        print_info "Добавьте: git-project-remote.sh $slug --add <domain>"
+        return 1
+    fi
+    local branch
+    branch="$(git -C "$repo" branch --show-current 2>/dev/null)"
+    [ -n "$branch" ] || { print_error "Не определена текущая ветка"; return 1; }
+
+    print_header ""
+    print_header "==> Pull из $remote: $slug"
+    print_info "    Ветка: $branch"
+
+    # Fetch remote
+    print_info "    Получение изменений..."
+    local fetchOutput=()
+    if ! git -C "$repo" fetch "$remote" "$branch" 2>&1; then
+        print_error "    Ошибка fetch с $remote"
+        return 1
+    fi
+
+    local remote_ref="refs/remotes/$remote/$branch"
+    if ! git -C "$repo" show-ref --verify --quiet "$remote_ref" 2>/dev/null; then
+        print_info "    Ветка $remote/$branch отсутствует"
+        return 0
+    fi
+
+    local local_sha remote_sha
+    local_sha="$(git -C "$repo" rev-parse HEAD)"
+    remote_sha="$(git -C "$repo" rev-parse "$remote_ref")"
+
+    if [ "$local_sha" = "$remote_sha" ]; then
+        print_success "    Версии совпадают, обновлений нет"
+        return 0
+    fi
+
+    # Check if fast-forward is possible
+    local mb
+    mb="$(git -C "$repo" merge-base "$local_sha" "$remote_sha" 2>/dev/null || echo '')"
+    if [ "$mb" = "$remote_sha" ]; then
+        print_info "    Локальная версия впереди, пропуск pull"
+        return 0
+    fi
+
+    # Show summary of changes
+    local changed_files
+    changed_files="$(git -C "$repo" diff --stat "$local_sha"..."$remote_sha" 2>/dev/null)"
+    local file_count
+    file_count="$(echo "$changed_files" | tail -1 | grep -oP '\d+(?= file)' || echo '0')"
+    print_info "    Изменений: $file_count файлов"
+    print_info "    ---"
+    echo "$changed_files" | head -20 | while IFS= read -r line; do
+        print_info "      $line"
+    done
+    print_info "    ---"
+
+    # Apply merge
+    print_info "    Применение merge..."
+    if git -C "$repo" merge --no-edit "$remote_sha" -m "merge: pull $remote/$branch" 2>&1; then
+        print_success "    Pull из $remote завершён успешно"
+        return 0
+    else
+        print_error "    Конфликт слияния!"
+        git -C "$repo" merge --abort 2>/dev/null || true
         return 1
     fi
 }
@@ -403,20 +483,23 @@ cmd_probe() {
 main() {
     load_env
 
-    local sync_all=false sync_remote="" slugs=() commit_msg="" mode="" rest=()
+    local sync_all=false sync_pull=false sync_remote="" slugs=() commit_msg="" mode="" rest=()
 
     while [ $# -gt 0 ]; do
         case "$1" in
             --all)     sync_all=true; shift ;;
+            --pull)    sync_pull=true; shift ;;
             --remote)  sync_remote="${2:-}"; [ -n "$sync_remote" ] && shift 2 || { print_error "--remote требует аргумент"; exit 2; } ;;
             -m)        commit_msg="${2:-}"; [ -n "$commit_msg" ] && shift 2 || shift ;;
             status|fix|probe) mode="$1"; shift ;;
             -h|--help)
                 echo "Использование:"
                 echo "  git-project-sync.sh                         # интерактивное меню"
-                echo "  git-project-sync.sh <slug>                  # только origin"
-                echo "  git-project-sync.sh <slug> --all            # на все remote"
-                echo "  git-project-sync.sh <slug> --remote <name>  # на конкретный remote"
+                echo "  git-project-sync.sh <slug>                  # только origin (push)"
+                echo "  git-project-sync.sh <slug> --all            # push на все remote"
+                echo "  git-project-sync.sh <slug> --remote <r>     # push на конкретный remote"
+                echo "  git-project-sync.sh <slug> --pull           # pull из origin"
+                echo "  git-project-sync.sh <slug> --pull --remote <r>  # pull из конкретного remote"
                 echo "  git-project-sync.sh <slug> -m 'сообщение'"
                 echo "  git-project-sync.sh status | fix <slug> | probe"
                 exit 0
@@ -432,7 +515,7 @@ main() {
         probe)  cmd_probe; exit 0 ;;
     esac
 
-    if [ "$sync_all" = true ] || [ -n "$sync_remote" ]; then
+    if [ "$sync_all" = true ] || [ "$sync_pull" = true ] || [ -n "$sync_remote" ]; then
         if [ ${#rest[@]} -eq 0 ]; then
             print_error "Укажите проект(ы) для синхронизации"
             exit 2
@@ -441,6 +524,12 @@ main() {
         for slug in "${rest[@]}"; do
             if [ "$sync_all" = true ]; then
                 sync_project_all_remotes "$slug" || fail=$((fail + 1))
+            elif [ "$sync_pull" = true ]; then
+                if [ -n "$sync_remote" ]; then
+                    pull_project_remote "$slug" "$sync_remote" || fail=$((fail + 1))
+                else
+                    pull_project_remote "$slug" "origin" || fail=$((fail + 1))
+                fi
             else
                 sync_project_specific_remote "$slug" "$sync_remote" || fail=$((fail + 1))
             fi

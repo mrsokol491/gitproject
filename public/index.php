@@ -183,6 +183,13 @@ declare(strict_types=1);
             font-size: 0.875rem;
             color: var(--muted);
         }
+        .hub-info { display: flex; flex-direction: column; gap: 0.5rem; }
+        .hub-row { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
+        .hub-label { color: var(--muted); font-size: 0.875rem; }
+        .hub-value { color: var(--text); font-weight: 500; font-family: monospace; }
+        .hub-updates { color: var(--warn); font-weight: 600; }
+        .hub-uptodate { color: var(--success); font-weight: 600; }
+        .hub-ahead { color: var(--primary-light); font-size: 0.8rem; }
     </style>
 </head>
 <body>
@@ -211,6 +218,18 @@ declare(strict_types=1);
                     <tr><td colspan="5" class="empty">Загрузка...</td></tr>
                 </tbody>
             </table>
+        </div>
+
+        <!-- Статус Hub -->
+        <div class="card" id="hub-status-card">
+            <div class="card-header">
+                <h2>🔧 GitProject Hub</h2>
+                <button class="btn btn-sm" id="hub-check-btn" onclick="checkHubStatus()">🔍 Проверить обновления</button>
+            </div>
+            <div id="hub-status-content">
+                <div class="empty">Нажмите "Проверить обновления" для проверки</div>
+            </div>
+            <pre id="hub-log" class="log"></pre>
         </div>
 
         <!-- Проекты -->
@@ -266,20 +285,37 @@ declare(strict_types=1);
                     container.innerHTML = '<div class="empty" style="grid-column: 1/-1;">Проекты не найдены в projects/</div>';
                     return;
                 }
-                container.innerHTML = json.data.map(p => `
-                    <div class="project-card" data-slug="${escapeHtml(p)}">
-                        <div class="project-head">
-                            <span class="project-name">${escapeHtml(p)}</span>
-                        </div>
-                        <div class="project-desc">нет описания</div>
-                        <div class="project-actions">
-                            <button class="btn btn-sm" onclick="syncOne('${escapeHtml(p)}')">🔄 Синхронизировать</button>
-                            <a href="/${escapeHtml(p)}/" class="btn btn-sm btn-ghost">Открыть</a>
-                        </div>
-                    </div>
-                `).join('');
+                container.innerHTML = json.data.map(p => {
+                    const dirtyBadge = p.dirty
+                        ? '<span class="badge badge-integrating" style="margin-left:0.5rem">!</span>'
+                        : '';
+                    const branchInfo = p.branch
+                        ? '<span class="badge badge-ready" style="margin-left:0.5rem;font-size:0.7rem">' + escapeHtml(p.branch) + '</span>'
+                        : '';
+                    const desc = p.description && p.description !== '' ? escapeHtml(p.description) : 'нет описания';
+                    const remotes = p.remotes || {};
+                    const remoteNames = Object.keys(remotes);
+                    const showPull = remoteNames.length > 0;
+                    const pullButtons = showPull
+                        ? remoteNames.map(r =>
+                            '<button class="btn btn-sm btn-ghost" onclick="syncPull(\'' + escapeHtml(p.slug) + '\', \'' + escapeHtml(r) + '\')" title="Pull из ' + escapeHtml(r) + '">⬇ ' + escapeHtml(r) + '</button>'
+                          ).join('')
+                        : '';
+                    return '<div class="project-card" data-slug="' + escapeHtml(p.slug) + '">' +
+                        '<div class="project-head">' +
+                            '<span class="project-name">' + escapeHtml(p.name) + dirtyBadge + branchInfo + '</span>' +
+                        '</div>' +
+                        '<div class="project-desc">' + desc + '</div>' +
+                        '<div class="project-actions">' +
+                            '<button class="btn btn-sm" onclick="syncOne(\'' + escapeHtml(p.slug) + '\')">🔄 Синхронизировать</button>' +
+                            (showPull ? '<button class="btn btn-sm btn-ghost" onclick="syncPullAll(\'' + escapeHtml(p.slug) + '\')" title="Pull из всех remote">⬇ Все</button>' : '') +
+                            (pullButtons ? '<div style="display:flex;gap:0.3rem;flex-wrap:wrap;margin-top:0.3rem">' + pullButtons + '</div>' : '') +
+                            '<a href="/' + escapeHtml(p.slug) + '/" class="btn btn-sm btn-ghost">Открыть</a>' +
+                        '</div>' +
+                    '</div>';
+                }).join('');
             } catch (e) {
-                container.innerHTML = `<div class="empty" style="grid-column: 1/-1; color:var(--danger);">Ошибка сети: ${escapeHtml(e.message)}</div>`;
+                container.innerHTML = '<div class="empty" style="grid-column: 1/-1; color:var(--danger);">Ошибка сети: ' + escapeHtml(e.message) + '</div>';
             }
         }
 
@@ -377,6 +413,147 @@ declare(strict_types=1);
             btn.textContent = '🔄 Синхронизировать все';
         }
 
+        // --- Hub update functions ---------------------------------------------------
+
+        async function checkHubStatus() {
+            const content = document.getElementById('hub-status-content');
+            const btn = document.getElementById('hub-check-btn');
+            btn.disabled = true;
+            btn.textContent = '⏳ Проверка...';
+            content.innerHTML = '<div class="empty">Загрузка...</div>';
+
+            try {
+                const res = await fetch('/api/hub_update.php?action=status');
+                const json = await res.json();
+                if (!json.ok) {
+                    content.innerHTML = '<div class="empty" style="color:var(--danger);">Ошибка: ' + escapeHtml(json.error) + '</div>';
+                    return;
+                }
+
+                const d = json.data;
+                let html = '<div class="hub-info">';
+                html += '<div class="hub-row">';
+                html += '<span class="hub-label">Ветка:</span>';
+                html += '<span class="hub-value">' + escapeHtml(d.current_branch || 'unknown') + '</span>';
+                html += '</div>';
+                html += '<div class="hub-row">';
+                html += '<span class="hub-label">Коммит:</span>';
+                html += '<span class="hub-value">' + escapeHtml(d.current_commit || 'unknown') + '</span>';
+                html += '</div>';
+
+                if (d.has_updates) {
+                    html += '<div class="hub-row">';
+                    html += '<span class="hub-label">Доступно обновлений:</span>';
+                    html += '<span class="hub-updates">⬆ ' + d.behind + ' коммитов, ' + d.changed_files + ' файлов</span>';
+                    html += '</div>';
+                    if (d.log && d.log.length > 0) {
+                        html += '<div class="hub-row">';
+                        html += '<span class="hub-label">Последние коммиты:</span>';
+                        html += '</div>';
+                        html += '<div style="margin-left:1rem">';
+                        d.log.forEach(function(msg) {
+                            html += '<div style="color:var(--muted);font-size:0.8rem;font-family:monospace;">' + escapeHtml(msg) + '</div>';
+                        });
+                        html += '</div>';
+                    }
+                    html += '<div class="hub-row" style="margin-top:0.5rem">';
+                    html += '<button class="btn btn-sm" onclick="applyHubUpdate()">⬇ Применить обновления</button>';
+                    html += '</div>';
+                } else {
+                    html += '<div class="hub-row">';
+                    html += '<span class="hub-uptodate">✓ Актуальная версия</span>';
+                    if (d.ahead > 0) {
+                        html += '<span class="hub-ahead">(' + d.ahead + ' коммит(ов) впереди origin)</span>';
+                    }
+                    html += '</div>';
+                }
+
+                html += '</div>';
+                content.innerHTML = html;
+            } catch (e) {
+                content.innerHTML = '<div class="empty" style="color:var(--danger);">Ошибка сети: ' + escapeHtml(e.message) + '</div>';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🔍 Проверить обновления';
+            }
+        }
+
+        async function applyHubUpdate() {
+            const content = document.getElementById('hub-status-content');
+            const btn = document.getElementById('hub-check-btn');
+            const log = document.getElementById('hub-log');
+            btn.disabled = true;
+            btn.textContent = '⏳ Обновление...';
+            log.style.display = 'block';
+            log.textContent = 'Применение обновлений...';
+            content.innerHTML = '<div class="empty">Обновление...</div>';
+
+            try {
+                const res = await fetch('/api/hub_update.php?action=pull', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+                const json = await res.json();
+                if (json.ok) {
+                    content.innerHTML = '<div class="hub-info"><div class="hub-row"><span class="hub-uptodate">✓ Hub обновлён</span></div></div>';
+                    log.textContent = json.data.log.join('\n');
+                } else {
+                    content.innerHTML = '<div class="empty" style="color:var(--danger);">Ошибка: ' + escapeHtml(json.error) + '</div>';
+                    log.textContent = json.data?.log?.join('\n') || json.error;
+                }
+            } catch (e) {
+                content.innerHTML = '<div class="empty" style="color:var(--danger);">Ошибка сети: ' + escapeHtml(e.message) + '</div>';
+                log.textContent = 'Ошибка сети: ' + e.message;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🔍 Проверить обновления';
+            }
+        }
+
+        // --- Pull functions ---------------------------------------------------------
+
+        async function syncPull(slug, remote) {
+            const card = document.querySelector('.project-card[data-slug="' + CSS.escape(slug) + '"]');
+            const btn = card ? card.querySelector('button[title*="' + remote + '"]') : null;
+            const log = document.getElementById('sync-log');
+            const progress = document.getElementById('sync-progress');
+
+            if (btn) {
+                btn.disabled = true;
+                btn.classList.add('loading');
+                btn.textContent = '⏳ Pull...';
+            }
+            log.style.display = 'block';
+            log.textContent = 'Pull из ' + remote + ': ' + slug + '...';
+            progress.textContent = '';
+
+            try {
+                const res = await fetch('/api/sync.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ slug: slug, mode: 'pull', remote: remote })
+                });
+                const json = await res.json();
+                log.textContent = json.ok
+                    ? '✅ Pull (' + slug + ', ' + remote + '):\n' + (json.data?.log || 'Готово')
+                    : '❌ Pull ошибка (' + slug + '): ' + json.error + '\n\n' + (json.data?.log || '');
+            } catch (e) {
+                log.textContent = '❌ Сетевая ошибка: ' + e.message;
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.classList.remove('loading');
+                    btn.textContent = '⬇ ' + remote;
+                }
+            }
+        }
+
+        async function syncPullAll(slug) {
+            // Pull from origin first, then offer per-remote pull
+            await syncPull(slug, 'origin');
+        }
+
         // Экранирование HTML
         function escapeHtml(str) {
             if (str === null || str === undefined) return '';
@@ -391,6 +568,7 @@ declare(strict_types=1);
         // Инициализация при загрузке
         loadHosts();
         loadProjects();
+        checkHubStatus();
     </script>
 </body>
 </html>
