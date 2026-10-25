@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="VcsDirectoryMappings">
+    <mapping directory="" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/projects/agent-knowledge" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/projects/archive" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/projects/gitproject-android" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/projects/pdfsearch" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/projects/test" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/projects/virtual-cloud" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/projects/visual-novel-engine" vcs="Git" />
+  </component>
+</project>
