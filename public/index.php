@@ -41,6 +41,13 @@ declare(strict_types=1);
         }
         .container { max-width: 1400px; margin: 0 auto; }
         header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem; }
+        .btn-clone {
+            background: linear-gradient(135deg, #10b981, #059669);
+            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+        }
+        .btn-clone:hover {
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+        }
         h1 { 
             background: linear-gradient(135deg, #a78bfa, #7c3aed, #6d28d9);
             -webkit-background-clip: text;
@@ -190,6 +197,52 @@ declare(strict_types=1);
         .hub-updates { color: var(--warn); font-weight: 600; }
         .hub-uptodate { color: var(--success); font-weight: 600; }
         .hub-ahead { color: var(--primary-light); font-size: 0.8rem; }
+
+        /* Модальное окно */
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1000; }
+        .modal-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); }
+        .modal-content {
+            position: relative;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 3rem auto;
+            max-width: 550px;
+            max-height: calc(100vh - 6rem);
+            overflow-y: auto;
+            box-shadow: 0 8px 40px rgba(0,0,0,0.4);
+        }
+        .modal-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 1.25rem; padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border);
+        }
+        .modal-header h2 { margin: 0; font-size: 1.25rem; color: #f3e8ff; }
+        .modal-close {
+            background: none; border: none; color: var(--muted); font-size: 1.25rem;
+            cursor: pointer; padding: 0.25rem 0.5rem;
+        }
+        .modal-close:hover { color: var(--text); }
+        .form-group { margin-bottom: 1rem; }
+        .form-group label {
+            display: block; margin-bottom: 0.4rem; color: var(--muted);
+            font-size: 0.875rem; font-weight: 500;
+        }
+        .form-group label small { color: var(--border-hover); font-weight: 400; }
+        .form-group input, .form-group select {
+            width: 100%; padding: 0.6rem 0.75rem;
+            background: #120e24; border: 1px solid var(--border);
+            border-radius: 8px; color: var(--text); font-size: 0.9rem;
+            transition: border-color 0.2s;
+        }
+        .form-group input:focus, .form-group select:focus {
+            outline: none; border-color: var(--primary-light);
+        }
+        .modal-actions {
+            display: flex; gap: 0.75rem; margin-top: 1.25rem;
+        }
+        .modal-actions .btn { flex: 1; }
     </style>
 </head>
 <body>
@@ -199,6 +252,7 @@ declare(strict_types=1);
                 <h1>🚀 GitProject Workspace Hub</h1>
                 <p class="subtitle">Рабочее пространство @sokol491 — репозитории в контейнере projects/</p>
             </div>
+            <button class="btn btn-clone" onclick="openCloneModal()">➕ Клонировать проект</button>
         </header>
 
         <!-- Статус хостов -->
@@ -248,6 +302,72 @@ declare(strict_types=1);
         </div>
     </div>
 
+    <!-- Модальное окно клонирования -->
+    <div id="clone-modal" class="modal" style="display:none;">
+        <div class="modal-overlay" onclick="closeCloneModal()"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>➕ Клонировать проект</h2>
+                <button class="modal-close" onclick="closeCloneModal()">✕</button>
+            </div>
+            <form id="clone-form" onsubmit="doClone(event)">
+                <div class="form-group">
+                    <label for="clone-host">Хост</label>
+                    <select id="clone-host" required>
+                        <option value="">Выберите хост...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="clone-owner">Владелец (owner)</label>
+                    <input type="text" id="clone-owner" placeholder="sokol491" required>
+                </div>
+                <div class="form-group">
+                    <label for="clone-slug">Имя проекта (slug)</label>
+                    <input type="text" id="clone-slug" placeholder="my-project" required>
+                </div>
+                <div class="form-group">
+                    <label for="clone-local">Локальное имя <small>(опционально, по умолчанию = slug)</small></label>
+                    <input type="text" id="clone-local" placeholder="my-project">
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" class="btn btn-clone" id="clone-submit-btn">Клонировать</button>
+                    <button type="button" class="btn btn-ghost" onclick="closeCloneModal()">Отмена</button>
+                </div>
+            </form>
+            <div id="clone-result" style="display:none;">
+                <pre id="clone-log" class="log"></pre>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно удаления -->
+    <div id="delete-modal" class="modal" style="display:none;">
+        <div class="modal-overlay" onclick="closeDeleteModal()"></div>
+        <div class="modal-content" style="border-color:var(--danger);">
+            <div class="modal-header">
+                <h2 style="color:var(--danger);">🗑 Удалить проект</h2>
+                <button class="modal-close" onclick="closeDeleteModal()">✕</button>
+            </div>
+            <div id="delete-info" style="margin-bottom:1rem;padding:0.75rem;background:#1a0e0e;border-radius:8px;font-size:0.9rem;">
+            </div>
+            <div id="delete-options" style="display:flex;flex-direction:column;gap:0.5rem;">
+            </div>
+            <div id="delete-confirm-section" style="display:none;margin-top:1rem;">
+                <div class="form-group">
+                    <label for="delete-confirm-code">Код подтверждения</label>
+                    <input type="text" id="delete-confirm-code" placeholder="Введите код..." style="font-family:monospace;">
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn" style="background:linear-gradient(135deg,#ef4444,#dc2626);" id="delete-execute-btn" onclick="executeDelete()">Удалить</button>
+                    <button type="button" class="btn btn-ghost" onclick="closeDeleteModal()">Отмена</button>
+                </div>
+            </div>
+            <div id="delete-result" style="display:none;">
+                <pre id="delete-log" class="log"></pre>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Загрузка списка хостов
         async function loadHosts() {
@@ -259,6 +379,7 @@ declare(strict_types=1);
                     tbody.innerHTML = `<tr><td colspan="5" class="empty" style="color:var(--danger);">Ошибка: ${json.error}</td></tr>`;
                     return;
                 }
+                hostsData = json.data;
                 tbody.innerHTML = json.data.map(h => {
                     const statusClass = h.status === 'ready' ? 'badge-ready' : 'badge-integrating';
                     const configClass = h.configured ? 'badge-yes' : 'badge-no';
@@ -304,6 +425,7 @@ declare(strict_types=1);
                     return '<div class="project-card" data-slug="' + escapeHtml(p.slug) + '">' +
                         '<div class="project-head">' +
                             '<span class="project-name">' + escapeHtml(p.name) + dirtyBadge + branchInfo + '</span>' +
+                            '<button class="btn btn-sm btn-ghost" onclick="loadRemotes(\'' + escapeHtml(p.slug) + '\')" style="margin-left:auto;font-size:0.7rem">🔗 Remote</button>' +
                         '</div>' +
                         '<div class="project-desc">' + desc + '</div>' +
                         '<div class="project-actions">' +
@@ -312,6 +434,10 @@ declare(strict_types=1);
                             (pullButtons ? '<div style="display:flex;gap:0.3rem;flex-wrap:wrap;margin-top:0.3rem">' + pullButtons + '</div>' : '') +
                             '<a href="/' + escapeHtml(p.slug) + '/" class="btn btn-sm btn-ghost">Открыть</a>' +
                         '</div>' +
+                        '<div style="margin-top:0.75rem;display:flex;gap:0.5rem;justify-content:flex-end;">' +
+                            '<button class="btn btn-sm" style="background:linear-gradient(135deg,#ef4444,#dc2626);box-shadow:0 2px 8px rgba(239,68,68,0.3);" onclick="showDeleteModal(\'' + escapeHtml(p.slug) + '\')">🗑 Удалить</button>' +
+                        '</div>' +
+                        '<div id="remotes-section-' + escapeHtml(p.slug) + '" style="margin-top:0.75rem"></div>' +
                     '</div>';
                 }).join('');
             } catch (e) {
@@ -552,6 +678,384 @@ declare(strict_types=1);
         async function syncPullAll(slug) {
             // Pull from origin first, then offer per-remote pull
             await syncPull(slug, 'origin');
+        }
+
+        // --- Clone modal functions ------------------------------------------------
+
+        let hostsData = [];
+
+        function openCloneModal() {
+            document.getElementById('clone-modal').style.display = 'block';
+            document.getElementById('clone-form').style.display = 'block';
+            document.getElementById('clone-result').style.display = 'none';
+            document.getElementById('clone-form').reset();
+            document.getElementById('clone-local').placeholder = '';
+            document.getElementById('clone-submit-btn').disabled = false;
+            document.getElementById('clone-submit-btn').textContent = 'Клонировать';
+
+            // Заполнить dropdown хостов из уже загруженных данных
+            const sel = document.getElementById('clone-host');
+            sel.innerHTML = '<option value="">Выберите хост...</option>';
+            hostsData.forEach(h => {
+                if (h.status === 'ready') {
+                    const opt = document.createElement('option');
+                    opt.value = h.host;
+                    opt.textContent = h.id + ' — ' + h.host;
+                    sel.appendChild(opt);
+                }
+            });
+        }
+
+        // --- Remote management functions ------------------------------------------
+
+        async function loadRemotes(slug) {
+            const section = document.getElementById('remotes-section-' + slug);
+            if (!section) return;
+
+            // Если уже загружено — переключить видимость
+            if (section.dataset.loaded === 'true') {
+                section.dataset.expanded = section.dataset.expanded === 'true' ? 'false' : 'true';
+                section.style.display = section.dataset.expanded === 'true' ? 'block' : 'none';
+                return;
+            }
+
+            section.dataset.loaded = 'true';
+            section.style.display = 'block';
+            section.dataset.expanded = 'true';
+            section.innerHTML = '<div style="font-size:0.8rem;color:var(--muted);">Загрузка...</div>';
+
+            try {
+                const res = await fetch('/api/projects_remotes.php?slug=' + encodeURIComponent(slug));
+                const json = await res.json();
+
+                if (!json.ok) {
+                    section.innerHTML = '<div style="font-size:0.8rem;color:var(--danger);">Ошибка: ' + escapeHtml(json.error) + '</div>';
+                    return;
+                }
+
+                const data = json.data;
+                const remotes = data.remotes || [];
+
+                if (remotes.length === 0) {
+                    section.innerHTML =
+                        '<div style="font-size:0.8rem;color:var(--muted);margin-bottom:0.5rem;">Нет настроенных remote</div>' +
+                        '<button class="btn btn-sm btn-ghost" onclick="openAddRemoteModal(\'' + slug + '\')">➕ Добавить remote</button>';
+                    return;
+                }
+
+                let html = '<div style="font-size:0.8rem;color:var(--muted);margin-bottom:0.5rem;">Remote (' + remotes.length + '):</div>';
+                html += '<div style="display:flex;flex-direction:column;gap:0.3rem;">';
+
+                remotes.forEach(r => {
+                    const statusColor = r.status === 'fresh' ? 'var(--success)' : (r.status === 'empty' ? 'var(--warn)' : 'var(--warn)');
+                    html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:0.35rem 0.5rem;background:#120e24;border-radius:6px;font-size:0.78rem;">' +
+                        '<div style="display:flex;align-items:center;gap:0.5rem;">' +
+                            '<strong style="color:#f3e8ff;">' + escapeHtml(r.name) + '</strong>' +
+                            '<span style="color:' + statusColor + ';font-size:0.7rem;">' + escapeHtml(r.status_label) + '</span>' +
+                            (r.sha7 !== '—' ? '<span style="color:var(--muted);font-family:monospace;font-size:0.7rem;">' + escapeHtml(r.sha7) + '</span>' : '') +
+                        '</div>' +
+                        '<div style="display:flex;gap:0.3rem;">' +
+                            (r.name !== 'origin' ? '<button class="btn btn-sm btn-ghost" style="padding:0.2rem 0.4rem;font-size:0.65rem;" onclick="removeRemote(\'' + slug + '\', \'' + escapeHtml(r.name) + '\')">✕</button>' : '') +
+                        '</div>' +
+                    '</div>';
+                });
+
+                html += '</div>';
+                html += '<button class="btn btn-sm btn-ghost" style="margin-top:0.5rem;font-size:0.7rem;" onclick="openAddRemoteModal(\'' + slug + '\')">➕ Добавить remote</button>';
+
+                section.innerHTML = html;
+            } catch (e) {
+                section.innerHTML = '<div style="font-size:0.8rem;color:var(--danger);">Ошибка сети: ' + escapeHtml(e.message) + '</div>';
+            }
+        }
+
+        async function openAddRemoteModal(slug) {
+            document.getElementById('clone-modal').style.display = 'block';
+            document.getElementById('clone-form').style.display = 'block';
+            document.getElementById('clone-result').style.display = 'none';
+
+            // Переключить форму на добавление remote
+            const form = document.getElementById('clone-form');
+            form.onsubmit = function(e) { doAddRemote(e, slug); };
+
+            document.getElementById('clone-modal').querySelector('h2').textContent = '➕ Добавить remote';
+            document.getElementById('clone-submit-btn').textContent = 'Добавить';
+
+            // Заполнить dropdown хостов
+            const sel = document.getElementById('clone-host');
+            sel.innerHTML = '<option value="">Выберите хост...</option>';
+            hostsData.forEach(h => {
+                if (h.status === 'ready') {
+                    const opt = document.createElement('option');
+                    opt.value = h.host;
+                    opt.textContent = h.id + ' — ' + h.host;
+                    sel.appendChild(opt);
+                }
+            });
+
+            // Скрыть поле slug, заменить на домен
+            const ownerInput = document.getElementById('clone-owner');
+            const slugInput = document.getElementById('clone-slug');
+            const localInput = document.getElementById('clone-local');
+
+            ownerInput.closest('.form-group').style.display = 'none';
+            slugInput.closest('.form-group').style.display = 'none';
+            localInput.closest('.form-group').style.display = 'none';
+
+            // Добавить поле домена
+            let domainGroup = document.getElementById('clone-domain-group');
+            if (!domainGroup) {
+                domainGroup = document.createElement('div');
+                domainGroup.id = 'clone-domain-group';
+                domainGroup.className = 'form-group';
+                domainGroup.innerHTML = '<label for="clone-domain">Домен хоста</label><input type="text" id="clone-domain" placeholder="gitverse.ru" required>';
+                form.insertBefore(domainGroup, form.querySelector('.modal-actions'));
+            }
+            domainGroup.style.display = 'block';
+            document.getElementById('clone-domain').value = '';
+        }
+
+        async function doAddRemote(e, slug) {
+            e.preventDefault();
+
+            const domain = document.getElementById('clone-domain').value.trim();
+            const owner = document.getElementById('clone-owner').value.trim();
+
+            const btn = document.getElementById('clone-submit-btn');
+            btn.disabled = true;
+            btn.textContent = '⏳ Добавление...';
+
+            try {
+                const res = await fetch('/api/projects_remotes_add.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ slug: slug, domain: domain, owner: owner })
+                });
+                const json = await res.json();
+
+                document.getElementById('clone-form').style.display = 'none';
+                document.getElementById('clone-result').style.display = 'block';
+                const logEl = document.getElementById('clone-log');
+                logEl.style.display = 'block';
+
+                if (json.ok) {
+                    logEl.innerHTML = '<span style="color:var(--success)">✅ Remote добавлен!</span>\n\n' +
+                        'Remote: ' + json.data.remote + '\n' +
+                        'URL: ' + json.data.url + '\n' +
+                        '\n--- Fetch ---\n' + (json.data.fetch_log || 'Готово');
+                    // Перезагрузить remote
+                    loadRemotes(slug);
+                } else {
+                    logEl.innerHTML = '<span style="color:var(--danger)">❌ Ошибка</span>\n\n' +
+                        (json.error || 'Неизвестная ошибка') +
+                        '\n\n--- Лог ---\n' + (json.data?.log || '');
+                }
+            } catch (err) {
+                document.getElementById('clone-form').style.display = 'none';
+                document.getElementById('clone-result').style.display = 'block';
+                document.getElementById('clone-log').style.display = 'block';
+                document.getElementById('clone-log').innerHTML = '<span style="color:var(--danger)">❌ Сетевая ошибка</span>\n\n' + err.message;
+            }
+        }
+
+        async function removeRemote(slug, remote) {
+            const expected = 'DELETE-' + remote.toUpperCase();
+            const confirm = prompt('Введите ' + expected + ' для подтверждения:');
+            if (confirm !== expected) {
+                if (confirm !== null) alert('Подтверждение не совпадает');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/projects_remotes_remove.php?slug=' + encodeURIComponent(slug) + '&remote=' + encodeURIComponent(remote), {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ confirm: expected })
+                });
+                const json = await res.json();
+
+                if (json.ok) {
+                    alert(json.data.message);
+                    loadRemotes(slug);
+                } else {
+                    alert('❌ ' + (json.error || 'Ошибка'));
+                }
+            } catch (err) {
+                alert('❌ Сетевая ошибка: ' + err.message);
+            }
+        }
+
+        function closeCloneModal() {
+            document.getElementById('clone-modal').style.display = 'none';
+            // Сбросить форму клонирования
+            const form = document.getElementById('clone-form');
+            form.onsubmit = doClone;
+
+            const ownerInput = document.getElementById('clone-owner');
+            const slugInput = document.getElementById('clone-slug');
+            const localInput = document.getElementById('clone-local');
+            ownerInput.closest('.form-group').style.display = 'block';
+            slugInput.closest('.form-group').style.display = 'block';
+            localInput.closest('.form-group').style.display = 'block';
+
+            const domainGroup = document.getElementById('clone-domain-group');
+            if (domainGroup) domainGroup.style.display = 'none';
+
+            document.getElementById('clone-modal').querySelector('h2').textContent = '➕ Клонировать проект';
+            document.getElementById('clone-submit-btn').textContent = 'Клонировать';
+            document.getElementById('clone-form').reset();
+            document.getElementById('clone-local').placeholder = '';
+        }
+
+        // --- Delete project functions -----------------------------------------------
+
+        let deleteSlug = '';
+        let deleteConfirmCode = '';
+
+        async function showDeleteModal(slug) {
+            deleteSlug = slug;
+            const modal = document.getElementById('delete-modal');
+            modal.style.display = 'block';
+
+            // Сбросить состояние
+            document.getElementById('delete-info').style.display = 'block';
+            document.getElementById('delete-options').style.display = 'flex';
+            document.getElementById('delete-confirm-section').style.display = 'none';
+            document.getElementById('delete-result').style.display = 'none';
+            document.getElementById('delete-confirm-code').value = '';
+
+            // Показать информацию о проекте
+            document.getElementById('delete-info').innerHTML =
+                '<strong style="color:var(--danger);">⚠ Внимание!</strong> Будет удалён проект <strong>' + escapeHtml(slug) + '</strong>. Это действие нельзя отменить.';
+
+            // Загрузить remote для этого проекта
+            const optionsDiv = document.getElementById('delete-options');
+            optionsDiv.innerHTML = '<div style="color:var(--muted);font-size:0.85rem;">Загрузка...</div>';
+
+            try {
+                const res = await fetch('/api/projects_remotes.php?slug=' + encodeURIComponent(slug));
+                const json = await res.json();
+
+                let html = '';
+                html += '<button class="btn" style="background:linear-gradient(135deg,#f59e0b,#d97706);width:100%;text-align:left;" onclick="selectDeleteOption(\'DELETE-LOCAL\', \'Только локально (сохранить на всех хостах)\')">📁 Только локально</button>';
+
+                if (json.ok && json.data && json.data.remotes && json.data.remotes.length > 0) {
+                    json.data.remotes.forEach(r => {
+                        if (r.name !== 'origin') {
+                            html += '<button class="btn btn-ghost" style="width:100%;text-align:left;" onclick="selectDeleteOption(\'DELETE-' + r.name.toUpperCase() + '\', \'С хоста ' + escapeHtml(r.name) + ' (' + escapeHtml(r.host) + ')\')">🌐 С хоста: ' + escapeHtml(r.name) + '</button>';
+                        }
+                    });
+                }
+
+                html += '<button class="btn" style="background:linear-gradient(135deg,#ef4444,#dc2626);width:100%;text-align:left;" onclick="selectDeleteOption(\'DELETE-ALL\', \'Со всех хостов и локально\')">💣 Со всех хостов и локально</button>';
+
+                optionsDiv.innerHTML = html;
+            } catch (e) {
+                optionsDiv.innerHTML = '<div style="color:var(--danger);font-size:0.85rem;">Ошибка: ' + escapeHtml(e.message) + '</div>';
+            }
+        }
+
+        function selectDeleteOption(code, label) {
+            deleteConfirmCode = code;
+            document.getElementById('delete-options').style.display = 'none';
+            document.getElementById('delete-confirm-section').style.display = 'block';
+            document.getElementById('delete-confirm-code').placeholder = code;
+            document.getElementById('delete-confirm-code').value = '';
+            document.getElementById('delete-confirm-code').focus();
+        }
+
+        async function executeDelete() {
+            const code = document.getElementById('delete-confirm-code').value.trim();
+            if (code !== deleteConfirmCode) {
+                alert('Код подтверждения не совпадает. Ожидается: ' + deleteConfirmCode);
+                return;
+            }
+
+            const btn = document.getElementById('delete-execute-btn');
+            btn.disabled = true;
+            btn.textContent = '⏳ Удаление...';
+
+            document.getElementById('delete-confirm-section').style.display = 'none';
+            document.getElementById('delete-result').style.display = 'block';
+            const logEl = document.getElementById('delete-log');
+            logEl.style.display = 'block';
+            logEl.textContent = 'Удаление...';
+
+            try {
+                const url = '/api/projects_remove.php?slug=' + encodeURIComponent(deleteSlug);
+                const res = await fetch(url, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ confirm: code })
+                });
+                const json = await res.json();
+
+                if (json.ok) {
+                    logEl.innerHTML = '<span style="color:var(--success);">✅ ' + escapeHtml(json.data.message) + '</span>';
+                    if (json.data.note) {
+                        logEl.innerHTML += '\n\n⚠ ' + escapeHtml(json.data.note);
+                    }
+                    // Перезагрузить список проектов
+                    loadProjects();
+                } else {
+                    logEl.innerHTML = '<span style="color:var(--danger);">❌ ' + escapeHtml(json.error) + '</span>';
+                }
+            } catch (err) {
+                logEl.innerHTML = '<span style="color:var(--danger);">❌ Сетевая ошибка</span>\n\n' + err.message;
+            }
+        }
+
+        function closeDeleteModal() {
+            document.getElementById('delete-modal').style.display = 'none';
+            deleteSlug = '';
+            deleteConfirmCode = '';
+        }
+
+        // Экранирование HTML
+        async function doClone(e) {
+            e.preventDefault();
+
+            const host = document.getElementById('clone-host').value;
+            const owner = document.getElementById('clone-owner').value.trim();
+            const slug = document.getElementById('clone-slug').value.trim();
+            const localName = document.getElementById('clone-local').value.trim() || slug;
+
+            const btn = document.getElementById('clone-submit-btn');
+            btn.disabled = true;
+            btn.textContent = '⏳ Клонирование...';
+
+            try {
+                const res = await fetch('/api/clone.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ host, owner, slug, local_name: localName })
+                });
+                const json = await res.json();
+
+                document.getElementById('clone-form').style.display = 'none';
+                document.getElementById('clone-result').style.display = 'block';
+                const logEl = document.getElementById('clone-log');
+                logEl.style.display = 'block';
+
+                if (json.ok) {
+                    logEl.innerHTML = '<span style="color:var(--success)">✅ Успешно!</span>\n\n' +
+                        'Проект: ' + json.data.slug + '\n' +
+                        'Хост: ' + json.data.host + '\n' +
+                        'URL: ' + json.data.url + '\n' +
+                        '\n--- Лог ---\n' + (json.data.log || 'Готово');
+                    // Перезагрузить список проектов
+                    loadProjects();
+                } else {
+                    logEl.innerHTML = '<span style="color:var(--danger)">❌ Ошибка</span>\n\n' +
+                        (json.error || 'Неизвестная ошибка') +
+                        '\n\n--- Лог ---\n' + (json.data?.log || '');
+                }
+            } catch (err) {
+                document.getElementById('clone-form').style.display = 'none';
+                document.getElementById('clone-result').style.display = 'block';
+                document.getElementById('clone-log').style.display = 'block';
+                document.getElementById('clone-log').innerHTML = '<span style="color:var(--danger)">❌ Сетевая ошибка</span>\n\n' + err.message;
+            }
         }
 
         // Экранирование HTML
