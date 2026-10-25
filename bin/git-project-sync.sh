@@ -191,6 +191,79 @@ sync_project_all_remotes() {
 }
 
 # ============================================================================
+# Мультипуш: commit + push на все remote (без fetch/merge)
+# ============================================================================
+
+sync_project_push_all() {
+    local slug="$1"
+    local repo="$PROJECTS_DIR/$slug"
+    if [ ! -d "$repo/.git" ]; then
+        print_error "Проект $slug не найден"
+        return 1
+    fi
+    local branch
+    branch="$(git -C "$repo" branch --show-current 2>/dev/null)"
+    [ -n "$branch" ] || { print_error "Не определена текущая ветка"; return 1; }
+
+    print_header ""
+    print_header "==> Мультипуш: $slug (все remote)"
+    print_info "    Ветка: $branch"
+
+    # Автоматически добавляем missing remote из .env
+    ensure_project_remotes_from_env "$repo" "$slug"
+
+    # Пересчитываем список remote
+    local -a remotes=()
+    while read -r remote; do
+        [ -n "$remote" ] && remotes+=("$remote")
+    done < <(get_project_remotes "$slug")
+
+    if [ ${#remotes[@]} -eq 0 ]; then
+        print_warn "    У проекта нет настроенных remote"
+        return 1
+    fi
+    print_info "    Remote: ${remotes[*]}"
+
+    # 1. Коммит локальных изменений
+    if [ -n "$(git -C "$repo" status --porcelain)" ]; then
+        print_info "    Коммит локальных изменений..."
+        git -C "$repo" add -A
+        local forbidden
+        forbidden="$(git -C "$repo" diff --cached --name-only | grep -E '^data/|^storage/|^vendor/|\.sqlite(-journal|-wal|-shm)?$|\.log$|\.ged$|^\.env($|[^.])|^\.env\.(local|prod|production)$' | grep -vE '^data/\.gitkeep$|\.env\.example$' || true)"
+        if [ -n "$forbidden" ]; then
+            print_error "    В staging запрещённые пути:"
+            echo "$forbidden" | sed 's/^/      ! /' >&2
+            git -C "$repo" reset -q
+            return 5
+        fi
+        git -C "$repo" commit -q -m "sync: $slug $(date +%Y-%m-%d_%H:%M)"
+        print_success "    ✓ Коммит создан"
+    else
+        print_gray "    Рабочий каталог чист"
+    fi
+
+    local success=0 fail=0
+    for remote in "${remotes[@]}"; do
+        print_info "    Push -> $remote..."
+        if git -C "$repo" push "$remote" "$branch" >/dev/null 2>&1; then
+            print_success "    ✓ УСПЕХ: $remote"
+            ((success++))
+        else
+            print_error "    ✗ Ошибка push на $remote"
+            ((fail++))
+        fi
+    done
+
+    print_header ""
+    if [ $fail -eq 0 ]; then
+        print_success "    Мультипуш завершён: $success remote"
+    else
+        print_warn "    Мультипуш с ошибками: $success успешно, $fail ошибок"
+    fi
+    return $fail
+}
+
+# ============================================================================
 # Синхронизация конкретного remote
 # ============================================================================
 
@@ -483,11 +556,12 @@ cmd_probe() {
 main() {
     load_env
 
-    local sync_all=false sync_pull=false sync_remote="" slugs=() commit_msg="" mode="" rest=()
+    local sync_all=false sync_push=false sync_pull=false sync_remote="" slugs=() commit_msg="" mode="" rest=()
 
     while [ $# -gt 0 ]; do
         case "$1" in
             --all)     sync_all=true; shift ;;
+            --push)    sync_push=true; shift ;;
             --pull)    sync_pull=true; shift ;;
             --remote)  sync_remote="${2:-}"; [ -n "$sync_remote" ] && shift 2 || { print_error "--remote требует аргумент"; exit 2; } ;;
             -m)        commit_msg="${2:-}"; [ -n "$commit_msg" ] && shift 2 || shift ;;
@@ -496,7 +570,8 @@ main() {
                 echo "Использование:"
                 echo "  git-project-sync.sh                         # интерактивное меню"
                 echo "  git-project-sync.sh <slug>                  # только origin (push)"
-                echo "  git-project-sync.sh <slug> --all            # push на все remote"
+                echo "  git-project-sync.sh <slug> --all            # push на все remote (с fetch/merge)"
+                echo "  git-project-sync.sh <slug> --push           # push на все remote (без fetch/merge)"
                 echo "  git-project-sync.sh <slug> --remote <r>     # push на конкретный remote"
                 echo "  git-project-sync.sh <slug> --pull           # pull из origin"
                 echo "  git-project-sync.sh <slug> --pull --remote <r>  # pull из конкретного remote"
@@ -515,7 +590,7 @@ main() {
         probe)  cmd_probe; exit 0 ;;
     esac
 
-    if [ "$sync_all" = true ] || [ "$sync_pull" = true ] || [ -n "$sync_remote" ]; then
+    if [ "$sync_all" = true ] || [ "$sync_push" = true ] || [ "$sync_pull" = true ] || [ -n "$sync_remote" ]; then
         if [ ${#rest[@]} -eq 0 ]; then
             print_error "Укажите проект(ы) для синхронизации"
             exit 2
@@ -524,6 +599,8 @@ main() {
         for slug in "${rest[@]}"; do
             if [ "$sync_all" = true ]; then
                 sync_project_all_remotes "$slug" || fail=$((fail + 1))
+            elif [ "$sync_push" = true ]; then
+                sync_project_push_all "$slug" || fail=$((fail + 1))
             elif [ "$sync_pull" = true ]; then
                 if [ -n "$sync_remote" ]; then
                     pull_project_remote "$slug" "$sync_remote" || fail=$((fail + 1))

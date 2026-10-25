@@ -339,7 +339,7 @@ declare(strict_types=1);
                 const res = await fetch('/api/sync.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ slug: slug, mode: 'all' })
+                    body: JSON.stringify({ slug: slug, mode: 'push' })
                 });
                 const json = await res.json();
                 log.textContent = json.ok
@@ -388,7 +388,7 @@ declare(strict_types=1);
                     const res = await fetch('/api/sync.php', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ slug: slug, mode: 'all' })
+                        body: JSON.stringify({ slug: slug, mode: 'push' })
                     });
                     const json = await res.json();
                     if (json.ok) {

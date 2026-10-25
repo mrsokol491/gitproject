@@ -23,7 +23,7 @@ if (!preg_match('/^[a-zA-Z0-9_-]+$/', $slug)) {
     exit(1);
 }
 
-if (!in_array($mode, ['all', 'specific', 'pull'], true)) {
+if (!in_array($mode, ['all', 'specific', 'pull', 'push'], true)) {
     echo json_encode(['ok' => false, 'error' => 'Некорректный режим', 'error_code' => 'INVALID_MODE'], JSON_UNESCAPED_UNICODE);
     exit(1);
 }
@@ -39,6 +39,8 @@ if (!is_executable($syncScript)) {
 $cmd = sprintf('%s %s', escapeshellarg($syncScript), escapeshellarg($slug));
 if ($mode === 'all') {
     $cmd .= ' --all';
+} elseif ($mode === 'push') {
+    $cmd .= ' --push';
 } elseif ($mode === 'specific' && preg_match('/^[a-zA-Z0-9_-]+$/', $remote)) {
     $cmd .= sprintf(' --remote %s', escapeshellarg($remote));
 } elseif ($mode === 'pull') {
