@@ -68,7 +68,7 @@
 |---|---|---|---|---|
 | `gitflic` | gitflic.ru | ready | да | URL: `/project/{owner}/{slug}.git`, регистр owner не важен, raw требует commit SHA. |
 | `gitverse` | gitverse.ru | ready | да | URL: `/{owner}/{slug}.git`, регистр owner строгий (Sokol491), raw по имени ветки. |
-| `sourcecraft` | git.sourcecraft.dev | integrating | да | URL: `/{owner}/{slug}.git`, REST API на `api.sourcecraft.tech`. |
+| `sourcecraft` | git.sourcecraft.dev | ready | да | URL: `/{owner}/{slug}.git`, REST API на `api.sourcecraft.tech`. |
 | `github` | github.com | integrating | нет | Стандартный GitHub API. |
 | `gitlab` | gitlab.com | integrating | нет | Стандартный GitLab API. |
 | `bitbucket` | bitbucket.org | integrating | нет | Стандартный Bitbucket API. |

@@ -17,7 +17,7 @@
   },
   "sourcecraft": {
     "host": "git.sourcecraft.dev",
-    "status": "integrating",
+    "status": "ready",
     "env_prefix": "SOURCECRAFT",
     "url_template": "https://git.sourcecraft.dev/{owner}/{slug}.git",
     "registry": "rf",
