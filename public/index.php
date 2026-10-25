@@ -198,6 +198,17 @@ declare(strict_types=1);
         .hub-uptodate { color: var(--success); font-weight: 600; }
         .hub-ahead { color: var(--primary-light); font-size: 0.8rem; }
 
+        /* Таблица миграции */
+        #migrate-versions-table { width:100%;border-collapse:collapse;font-size:0.85rem; }
+        #migrate-versions-table th { background:rgba(124,58,237,0.15);padding:0.5rem;text-align:left;color:var(--primary-light); }
+        #migrate-versions-table td { padding:0.5rem;border-bottom:1px solid var(--border); }
+        #migrate-versions-table tr:hover { background:rgba(124,58,237,0.05); }
+        #migrate-versions-table .state-fresh { color:var(--success); }
+        #migrate-versions-table .state-behind { color:var(--warn); }
+        #migrate-versions-table .state-diverged { color:var(--danger); }
+        #migrate-versions-table .state-empty { color:var(--muted); }
+        #migrate-versions-table input[type="radio"] { accent-color: var(--primary); }
+
         /* Модальное окно */
         .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1000; }
         .modal-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); }
@@ -278,7 +289,10 @@ declare(strict_types=1);
         <div class="card" id="hub-status-card">
             <div class="card-header">
                 <h2>🔧 GitProject Hub</h2>
-                <button class="btn btn-sm" id="hub-check-btn" onclick="checkHubStatus()">🔍 Проверить обновления</button>
+                <div style="display:flex;gap:0.5rem;">
+                    <button class="btn btn-sm" id="hub-check-btn" onclick="checkHubStatus()">🔍 Проверить обновления</button>
+                    <button class="btn btn-sm btn-success" id="hub-push-btn" onclick="hubMultiPush()">📤 Мульти-push</button>
+                </div>
             </div>
             <div id="hub-status-content">
                 <div class="empty">Нажмите "Проверить обновления" для проверки</div>
@@ -368,6 +382,62 @@ declare(strict_types=1);
         </div>
     </div>
 
+    <!-- Модальное окно миграции -->
+    <div id="migrate-modal" class="modal" style="display:none;">
+        <div class="modal-overlay" onclick="closeMigrateModal()"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🔀 Миграция проекта</h2>
+                <button class="modal-close" onclick="closeMigrateModal()">✕</button>
+            </div>
+            <div id="migrate-info" style="margin-bottom:1rem;padding:0.75rem;background:rgba(124,58,237,0.1);border-radius:8px;font-size:0.9rem;">
+                <strong>Проект:</strong> <span id="migrate-slug-name"></span>
+            </div>
+            <div id="migrate-table-section">
+                <div id="migrate-loading" style="text-align:center;padding:1rem;color:var(--muted);">Загрузка таблицы версий...</div>
+                <div id="migrate-table-container" style="display:none;">
+                    <table id="migrate-versions-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Версия</th>
+                                <th>SHA</th>
+                                <th>Дата</th>
+                                <th>Состояние</th>
+                                <th>Выбор</th>
+                            </tr>
+                        </thead>
+                        <tbody id="migrate-versions-body"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div id="migrate-actions" style="display:none;margin-top:1rem;">
+                <div style="display:flex;gap:1rem;margin-bottom:1rem;">
+                    <div class="form-group" style="flex:1;">
+                        <label for="migrate-source">Откуда</label>
+                        <select id="migrate-source">
+                            <option value="">Выберите...</option>
+                        </select>
+                    </div>
+                    <div style="display:flex;align-items:center;padding-top:0.75rem;color:var(--primary-light);font-size:1.2rem;">➜</div>
+                    <div class="form-group" style="flex:1;">
+                        <label for="migrate-target">Куда</label>
+                        <select id="migrate-target">
+                            <option value="">Выберите...</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn" id="migrate-execute-btn" onclick="executeMigrate()">🔀 Мигрировать</button>
+                    <button class="btn btn-ghost" onclick="closeMigrateModal()">Отмена</button>
+                </div>
+            </div>
+            <div id="migrate-result" style="display:none;">
+                <pre id="migrate-log" class="log"></pre>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Загрузка списка хостов
         async function loadHosts() {
@@ -430,6 +500,7 @@ declare(strict_types=1);
                         '<div class="project-desc">' + desc + '</div>' +
                         '<div class="project-actions">' +
                             '<button class="btn btn-sm" onclick="syncOne(\'' + escapeHtml(p.slug) + '\')">🔄 Синхронизировать</button>' +
+                            '<button class="btn btn-sm btn-ghost" onclick="openMigrateModal(\'' + escapeHtml(p.slug) + '\')" title="Миграция между хостами">🔀 Миграция</button>' +
                             (showPull ? '<button class="btn btn-sm btn-ghost" onclick="syncPullAll(\'' + escapeHtml(p.slug) + '\')" title="Pull из всех remote">⬇ Все</button>' : '') +
                             (pullButtons ? '<div style="display:flex;gap:0.3rem;flex-wrap:wrap;margin-top:0.3rem">' + pullButtons + '</div>' : '') +
                             '<a href="/' + escapeHtml(p.slug) + '/" class="btn btn-sm btn-ghost">Открыть</a>' +
@@ -1009,6 +1080,223 @@ declare(strict_types=1);
             document.getElementById('delete-modal').style.display = 'none';
             deleteSlug = '';
             deleteConfirmCode = '';
+        }
+
+        // --- Hub multi-push functions -----------------------------------------------
+
+        async function hubMultiPush() {
+            const btn = document.getElementById('hub-push-btn');
+            const log = document.getElementById('hub-log');
+            const content = document.getElementById('hub-status-content');
+
+            btn.disabled = true;
+            btn.textContent = '⏳ Пуш...';
+            log.style.display = 'block';
+            log.textContent = 'Мульти-push хаба на все remote...';
+            content.innerHTML = '<div class="empty">Выполняется мульти-push...</div>';
+
+            try {
+                const res = await fetch('/api/hub_multi_push.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+                const json = await res.json();
+                if (json.ok) {
+                    content.innerHTML = '<div class="hub-info"><div class="hub-row"><span class="hub-uptodate">✅ Мульти-push завершён</span></div></div>';
+                    log.textContent = json.data?.log || 'Готово';
+                } else {
+                    content.innerHTML = '<div class="empty" style="color:var(--danger);">Ошибка: ' + escapeHtml(json.error) + '</div>';
+                    log.textContent = json.data?.log?.join('\n') || json.error;
+                }
+            } catch (e) {
+                content.innerHTML = '<div class="empty" style="color:var(--danger);">Ошибка сети: ' + escapeHtml(e.message) + '</div>';
+                log.textContent = 'Ошибка сети: ' + e.message;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '📤 Мульти-push';
+            }
+        }
+
+        // --- Migrate functions ------------------------------------------------------
+
+        let migrateSlug = '';
+        let migrateVersions = [];
+        let migrateSource = '';
+        let migrateTarget = '';
+
+        async function openMigrateModal(slug) {
+            migrateSlug = slug;
+            migrateSource = '';
+            migrateTarget = '';
+            migrateVersions = [];
+
+            const modal = document.getElementById('migrate-modal');
+            modal.style.display = 'block';
+
+            // Сброс
+            document.getElementById('migrate-slug-name').textContent = slug;
+            document.getElementById('migrate-loading').style.display = 'block';
+            document.getElementById('migrate-table-container').style.display = 'none';
+            document.getElementById('migrate-actions').style.display = 'none';
+            document.getElementById('migrate-result').style.display = 'none';
+
+            // Загрузить таблицу версий
+            try {
+                const res = await fetch('/api/projects_migrate.php?slug=' + encodeURIComponent(slug));
+                const json = await res.json();
+
+                if (!json.ok) {
+                    document.getElementById('migrate-loading').innerHTML = '<span style="color:var(--danger);">Ошибка: ' + escapeHtml(json.error) + '</span>';
+                    return;
+                }
+
+                migrateVersions = json.data.versions || [];
+
+                if (migrateVersions.length === 0) {
+                    document.getElementById('migrate-loading').innerHTML = '<span style="color:var(--warn);">Нет данных для миграции (нужен хотя бы один remote)</span>';
+                    return;
+                }
+
+                // Показать таблицу
+                document.getElementById('migrate-loading').style.display = 'none';
+                document.getElementById('migrate-table-container').style.display = 'block';
+
+                const tbody = document.getElementById('migrate-versions-body');
+                tbody.innerHTML = migrateVersions.map((v, i) => {
+                    let stateClass = 'state-empty';
+                    let stateIcon = '⚪';
+                    if (v.state.includes('свежий') || v.state.includes('fresh')) {
+                        stateClass = 'state-fresh';
+                        stateIcon = '🟢';
+                    } else if (v.state.includes('отстаёт') || v.state.includes('behind')) {
+                        stateClass = 'state-behind';
+                        stateIcon = '🟡';
+                    } else if (v.state.includes('расходится') || v.state.includes('diverged')) {
+                        stateClass = 'state-diverged';
+                        stateIcon = '🔴';
+                    }
+
+                    return '<tr>' +
+                        '<td>' + v.num + '</td>' +
+                        '<td><strong>' + escapeHtml(v.name) + '</strong></td>' +
+                        '<td style="font-family:monospace;font-size:0.8rem;">' + escapeHtml(v.sha.substring(0, 7)) + '</td>' +
+                        '<td style="font-size:0.8rem;">' + escapeHtml(v.date) + '</td>' +
+                        '<td><span class="' + stateClass + '">' + stateIcon + ' ' + escapeHtml(v.state) + '</span></td>' +
+                        '<td><input type="radio" name="migrate-choice" value="' + v.num + '" onchange="onMigrateChoice(this)"></td>' +
+                        '</tr>';
+                }).join('');
+
+                // Заполнить селекты
+                const sourceSel = document.getElementById('migrate-source');
+                const targetSel = document.getElementById('migrate-target');
+                sourceSel.innerHTML = '<option value="">Выберите...</option>';
+                targetSel.innerHTML = '<option value="">Выберите...</option>';
+
+                migrateVersions.forEach((v, i) => {
+                    const opt1 = document.createElement('option');
+                    opt1.value = v.name;
+                    opt1.textContent = v.num + ': ' + v.name;
+                    sourceSel.appendChild(opt1);
+
+                    const opt2 = document.createElement('option');
+                    opt2.value = v.name;
+                    opt2.textContent = v.num + ': ' + v.name;
+                    targetSel.appendChild(opt2);
+                });
+
+                document.getElementById('migrate-actions').style.display = 'block';
+            } catch (e) {
+                document.getElementById('migrate-loading').innerHTML = '<span style="color:var(--danger);">Ошибка сети: ' + escapeHtml(e.message) + '</span>';
+            }
+        }
+
+        function onMigrateChoice(radio) {
+            // Определяем, для source или target выбрано
+            const name = radio.name; // "migrate-choice"
+            const val = radio.value;
+            const num = parseInt(val);
+
+            // Находим версию в массиве
+            const v = migrateVersions.find(ver => ver.num === num);
+            if (!v) return;
+
+            // Если source не выбран — ставим в source
+            if (!migrateSource) {
+                migrateSource = v.name;
+                document.getElementById('migrate-source').value = migrateSource;
+            } else if (!migrateTarget) {
+                // Если target не выбран и отличается — ставим в target
+                if (v.name !== migrateSource) {
+                    migrateTarget = v.name;
+                    document.getElementById('migrate-target').value = migrateTarget;
+                }
+            } else {
+                // Оба выбраны — сбросить и начать заново
+                migrateSource = v.name;
+                migrateTarget = '';
+                document.getElementById('migrate-source').value = migrateSource;
+                document.getElementById('migrate-target').value = '';
+            }
+        }
+
+        async function executeMigrate() {
+            const source = document.getElementById('migrate-source').value;
+            const target = document.getElementById('migrate-target').value;
+
+            if (!source || !target) {
+                alert('Выберите источник и приёмник');
+                return;
+            }
+            if (source === target) {
+                alert('Источник и приёмник не могут совпадать');
+                return;
+            }
+
+            const btn = document.getElementById('migrate-execute-btn');
+            btn.disabled = true;
+            btn.textContent = '⏳ Миграция...';
+
+            document.getElementById('migrate-actions').style.display = 'none';
+            document.getElementById('migrate-result').style.display = 'block';
+            const logEl = document.getElementById('migrate-log');
+            logEl.style.display = 'block';
+            logEl.textContent = 'Выполняется миграция: ' + source + ' → ' + target + '...';
+
+            try {
+                const res = await fetch('/api/projects_migrate.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ slug: migrateSlug, source: source, target: target })
+                });
+                const json = await res.json();
+
+                if (json.ok) {
+                    logEl.innerHTML = '<span style="color:var(--success);">✅ ' + escapeHtml(json.data.message) + '</span>\n\n' + (json.data.log || '');
+                    // Перезагрузить список проектов
+                    loadProjects();
+                } else {
+                    let errorMsg = '<span style="color:var(--danger);">❌ ' + escapeHtml(json.error) + '</span>';
+                    if (json.error_code === 'SOURCE_BEHIND') {
+                        errorMsg += '\n\n⚠ Ваша версия отстаёт от приёмника. Попробуйте обратное направление.';
+                    }
+                    errorMsg += '\n\n--- Лог ---\n' + (json.data?.log || '');
+                    logEl.innerHTML = errorMsg;
+                }
+            } catch (err) {
+                logEl.innerHTML = '<span style="color:var(--danger);">❌ Сетевая ошибка</span>\n\n' + err.message;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🔀 Мигрировать';
+            }
+        }
+
+        function closeMigrateModal() {
+            document.getElementById('migrate-modal').style.display = 'none';
+            migrateSlug = '';
+            migrateSource = '';
+            migrateTarget = '';
+            migrateVersions = [];
         }
 
         // Экранирование HTML
