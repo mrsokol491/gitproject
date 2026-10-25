@@ -17,5 +17,6 @@
 *.sqlite-journal
 *.sqlite-wal
 *.sqlite-shm
-/.gigaide/
 /.idea/
+/.gigaide/
+/.gigacode/
