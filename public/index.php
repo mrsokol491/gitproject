@@ -268,7 +268,10 @@ declare(strict_types=1);
 
         <!-- Статус хостов -->
         <div class="card">
-            <h2>📊 Статус Git-хостов</h2>
+            <div class="card-header">
+                <h2>📊 Статус Git-хостов</h2>
+                <button class="btn btn-sm btn-success" onclick="openAddHostModal()">➕ Добавить хост</button>
+            </div>
             <table id="hosts-table">
                 <thead>
                     <tr>
@@ -438,6 +441,99 @@ declare(strict_types=1);
         </div>
     </div>
 
+    <!-- Модальное окно добавления хоста -->
+    <div id="addhost-modal" class="modal" style="display:none;">
+        <div class="modal-overlay" onclick="closeAddHostModal()"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>➕ Добавить Git-хост</h2>
+                <button class="modal-close" onclick="closeAddHostModal()">✕</button>
+            </div>
+            <form id="addhost-form" onsubmit="doAddHost(event)">
+                <div class="form-group">
+                    <label for="addhost-id">ID хоста</label>
+                    <input type="text" id="addhost-id" placeholder="github" required>
+                    <small style="color:var(--muted);font-size:0.75rem;">Уникальный идентификатор (латиница, цифры, _-)</small>
+                </div>
+                <div class="form-group">
+                    <label for="addhost-domain">Домен</label>
+                    <input type="text" id="addhost-domain" placeholder="github.com" required>
+                </div>
+                <div class="form-group">
+                    <label for="addhost-prefix">Префикс переменных</label>
+                    <input type="text" id="addhost-prefix" placeholder="GITHUB" required>
+                    <small style="color:var(--muted);font-size:0.75rem;">Будет использоваться как GITHUB_HUB_USER, GITHUB_HUB_TOKEN и т.д.</small>
+                </div>
+                <div class="form-group">
+                    <label for="addhost-user">Пользователь</label>
+                    <input type="text" id="addhost-user" placeholder="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="addhost-token">API-токен</label>
+                    <input type="password" id="addhost-token" placeholder="Введите токен" required>
+                </div>
+                <div class="form-group">
+                    <label for="addhost-scope">Область применения</label>
+                    <select id="addhost-scope">
+                        <option value="BOTH">Оба (HUB + PROJECT)</option>
+                        <option value="HUB">Только HUB</option>
+                        <option value="PROJECT">Только PROJECT</option>
+                    </select>
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" class="btn btn-success" id="addhost-submit-btn">Добавить хост</button>
+                    <button type="button" class="btn btn-ghost" onclick="closeAddHostModal()">Отмена</button>
+                </div>
+            </form>
+            <div id="addhost-result" style="display:none;margin-top:1rem;">
+                <pre id="addhost-log" class="log"></pre>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно аудита -->
+    <div id="audit-modal" class="modal" style="display:none;">
+        <div class="modal-overlay" onclick="closeAuditModal()"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📋 Аудит проекта</h2>
+                <button class="modal-close" onclick="closeAuditModal()">✕</button>
+            </div>
+            <div id="audit-info" style="margin-bottom:1rem;padding:0.75rem;background:rgba(124,58,237,0.1);border-radius:8px;font-size:0.9rem;">
+                <strong>Проект:</strong> <span id="audit-slug-name"></span>
+            </div>
+            <div id="audit-actions">
+                <button class="btn" id="audit-run-btn" onclick="runAuditExecute()">📋 Сгенерировать отчёт</button>
+            </div>
+            <div id="audit-result" style="display:none;margin-top:1rem;">
+                <pre id="audit-log" class="log"></pre>
+                <div id="audit-download" style="display:none;margin-top:1rem;text-align:right;">
+                    <a id="audit-download-link" href="#" class="btn btn-sm btn-success" download>⬇ Скачать отчёт</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно предпроверки -->
+    <div id="precheck-modal" class="modal" style="display:none;">
+        <div class="modal-overlay" onclick="closePrecheckModal()"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>✅ Предпроверка проекта</h2>
+                <button class="modal-close" onclick="closePrecheckModal()">✕</button>
+            </div>
+            <div id="precheck-info" style="margin-bottom:1rem;padding:0.75rem;background:rgba(124,58,237,0.1);border-radius:8px;font-size:0.9rem;">
+                <strong>Проект:</strong> <span id="precheck-slug-name"></span>
+            </div>
+            <div id="precheck-actions">
+                <button class="btn" id="precheck-run-btn" onclick="runPrecheckExecute()">✅ Запустить проверки</button>
+            </div>
+            <div id="precheck-result" style="display:none;margin-top:1rem;">
+                <pre id="precheck-log" class="log"></pre>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Загрузка списка хостов
         async function loadHosts() {
@@ -500,7 +596,9 @@ declare(strict_types=1);
                         '<div class="project-desc">' + desc + '</div>' +
                         '<div class="project-actions">' +
                             '<button class="btn btn-sm" onclick="syncOne(\'' + escapeHtml(p.slug) + '\')">🔄 Синхронизировать</button>' +
+                            '<button class="btn btn-sm btn-ghost" onclick="runPrecheck(\'' + escapeHtml(p.slug) + '\')" title="Предпроверки перед sync">✅ Проверка</button>' +
                             '<button class="btn btn-sm btn-ghost" onclick="openMigrateModal(\'' + escapeHtml(p.slug) + '\')" title="Миграция между хостами">🔀 Миграция</button>' +
+                            '<button class="btn btn-sm btn-ghost" onclick="runAudit(\'' + escapeHtml(p.slug) + '\')" title="Сгенерировать аудиторский отчёт">📋 Аудит</button>' +
                             (showPull ? '<button class="btn btn-sm btn-ghost" onclick="syncPullAll(\'' + escapeHtml(p.slug) + '\')" title="Pull из всех remote">⬇ Все</button>' : '') +
                             (pullButtons ? '<div style="display:flex;gap:0.3rem;flex-wrap:wrap;margin-top:0.3rem">' + pullButtons + '</div>' : '') +
                             '<a href="/' + escapeHtml(p.slug) + '/" class="btn btn-sm btn-ghost">Открыть</a>' +
@@ -1297,6 +1395,208 @@ declare(strict_types=1);
             migrateSource = '';
             migrateTarget = '';
             migrateVersions = [];
+        }
+
+        // --- Add Host functions ---------------------------------------------------
+
+        function openAddHostModal() {
+            document.getElementById('addhost-modal').style.display = 'block';
+            document.getElementById('addhost-form').style.display = 'block';
+            document.getElementById('addhost-result').style.display = 'none';
+            document.getElementById('addhost-form').reset();
+            document.getElementById('addhost-submit-btn').disabled = false;
+            document.getElementById('addhost-submit-btn').textContent = 'Добавить хост';
+        }
+
+        function closeAddHostModal() {
+            document.getElementById('addhost-modal').style.display = 'none';
+        }
+
+        async function doAddHost(e) {
+            e.preventDefault();
+
+            const hostId = document.getElementById('addhost-id').value.trim();
+            const domain = document.getElementById('addhost-domain').value.trim();
+            const prefix = document.getElementById('addhost-prefix').value.trim().toUpperCase();
+            const user = document.getElementById('addhost-user').value.trim();
+            const token = document.getElementById('addhost-token').value;
+            const scope = document.getElementById('addhost-scope').value;
+
+            const btn = document.getElementById('addhost-submit-btn');
+            btn.disabled = true;
+            btn.textContent = '⏳ Добавление...';
+
+            document.getElementById('addhost-form').style.display = 'none';
+            document.getElementById('addhost-result').style.display = 'block';
+            const logEl = document.getElementById('addhost-log');
+            logEl.style.display = 'block';
+            logEl.textContent = 'Проверка подключения...';
+
+            try {
+                const res = await fetch('/api/hosts.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ host_id: hostId, domain, prefix, user, token, scope })
+                });
+                const json = await res.json();
+
+                if (json.ok) {
+                    logEl.innerHTML = '<span style="color:var(--success);">✅ ' + escapeHtml(json.data.message) + '</span>\n\n' +
+                        'Хост: ' + escapeHtml(hostId) + ' (' + escapeHtml(domain) + ')\n' +
+                        'Пользователь: ' + escapeHtml(user) + '\n' +
+                        'Область: ' + escapeHtml(scope);
+                    // Перезагрузить список хостов
+                    loadHosts();
+                } else {
+                    logEl.innerHTML = '<span style="color:var(--danger);">❌ ' + escapeHtml(json.error) + '</span>';
+                    if (json.data?.http_code) {
+                        logEl.innerHTML += '\nHTTP код: ' + json.data.http_code;
+                    }
+                }
+            } catch (err) {
+                logEl.innerHTML = '<span style="color:var(--danger);">❌ Сетевая ошибка</span>\n\n' + err.message;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Добавить хост';
+            }
+        }
+
+        // --- Audit functions ------------------------------------------------------
+
+        let auditSlug = '';
+        let auditFile = '';
+
+        function openAuditModal(slug) {
+            auditSlug = slug;
+            auditFile = '';
+            const modal = document.getElementById('audit-modal');
+            modal.style.display = 'block';
+            document.getElementById('audit-slug-name').textContent = slug;
+            document.getElementById('audit-actions').style.display = 'block';
+            document.getElementById('audit-result').style.display = 'none';
+            document.getElementById('audit-download').style.display = 'none';
+            document.getElementById('audit-run-btn').disabled = false;
+            document.getElementById('audit-run-btn').textContent = '📋 Сгенерировать отчёт';
+        }
+
+        function closeAuditModal() {
+            document.getElementById('audit-modal').style.display = 'none';
+        }
+
+        function runAudit(slug) {
+            openAuditModal(slug);
+        }
+
+        async function runAuditExecute() {
+            const btn = document.getElementById('audit-run-btn');
+            btn.disabled = true;
+            btn.textContent = '⏳ Генерация...';
+
+            document.getElementById('audit-actions').style.display = 'none';
+            document.getElementById('audit-result').style.display = 'block';
+            const logEl = document.getElementById('audit-log');
+            logEl.style.display = 'block';
+            logEl.textContent = 'Генерация аудиторского отчёта...';
+
+            try {
+                const res = await fetch('/api/audit.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ slug: auditSlug })
+                });
+                const json = await res.json();
+
+                if (json.ok) {
+                    auditFile = json.data.file;
+                    logEl.innerHTML = '<span style="color:var(--success);">✅ Отчёт сгенерирован!</span>\n\n' +
+                        'Файл: ' + escapeHtml(json.data.file) + '\n' +
+                        'Размер: ' + json.data.size + ' байт (' + json.data.lines + ' строк)\n';
+
+                    if (json.data.secrets_found && json.data.secrets_found.length > 0) {
+                        logEl.innerHTML += '\n⚠ Обнаружены возможные секреты: ' + json.data.secrets_found.join(', ') + '\n';
+                    }
+                    if (json.data.secret_warnings && json.data.secret_warnings.length > 0) {
+                        logEl.innerHTML += '\nПодозрительные строки (значения скрыты):\n' + json.data.secret_warnings.join('\n');
+                    }
+
+                    // Показать ссылку на скачивание
+                    const downloadDiv = document.getElementById('audit-download');
+                    const downloadLink = document.getElementById('audit-download-link');
+                    downloadLink.href = json.data.download_url;
+                    downloadDiv.style.display = 'block';
+                } else {
+                    logEl.innerHTML = '<span style="color:var(--danger);">❌ ' + escapeHtml(json.error) + '</span>';
+                }
+            } catch (err) {
+                logEl.innerHTML = '<span style="color:var(--danger);">❌ Сетевая ошибка</span>\n\n' + err.message;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '📋 Сгенерировать отчёт';
+            }
+        }
+
+        // --- Precheck functions ---------------------------------------------------
+
+        let precheckSlug = '';
+
+        function openPrecheckModal(slug) {
+            precheckSlug = slug;
+            const modal = document.getElementById('precheck-modal');
+            modal.style.display = 'block';
+            document.getElementById('precheck-slug-name').textContent = slug;
+            document.getElementById('precheck-actions').style.display = 'block';
+            document.getElementById('precheck-result').style.display = 'none';
+            document.getElementById('precheck-run-btn').disabled = false;
+            document.getElementById('precheck-run-btn').textContent = '✅ Запустить проверки';
+        }
+
+        function closePrecheckModal() {
+            document.getElementById('precheck-modal').style.display = 'none';
+        }
+
+        function runPrecheck(slug) {
+            openPrecheckModal(slug);
+        }
+
+        async function runPrecheckExecute() {
+            const btn = document.getElementById('precheck-run-btn');
+            btn.disabled = true;
+            btn.textContent = '⏳ Проверка...';
+
+            document.getElementById('precheck-actions').style.display = 'none';
+            document.getElementById('precheck-result').style.display = 'block';
+            const logEl = document.getElementById('precheck-log');
+            logEl.style.display = 'block';
+            logEl.textContent = 'Выполнение предпроверок...';
+
+            try {
+                const res = await fetch('/api/precheck.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ slug: precheckSlug })
+                });
+                const json = await res.json();
+
+                if (json.ok) {
+                    logEl.innerHTML = '<span style="color:var(--success);">✅ Предпроверки пройдены!</span>\n\n' + (json.data?.log || 'Готово');
+                } else {
+                    let html = '<span style="color:var(--danger);">❌ Предпроверка не пройдена</span>\n\n';
+                    if (json.data?.failures && json.data.failures.length > 0) {
+                        html += '<strong>Проблемы:</strong>\n';
+                        json.data.failures.forEach(function(f) {
+                            html += '  • ' + escapeHtml(f) + '\n';
+                        });
+                        html += '\n';
+                    }
+                    html += '--- Лог ---\n' + (json.data?.log || json.error);
+                    logEl.innerHTML = html;
+                }
+            } catch (err) {
+                logEl.innerHTML = '<span style="color:var(--danger);">❌ Сетевая ошибка</span>\n\n' + err.message;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '✅ Запустить проверки';
+            }
         }
 
         // Экранирование HTML
