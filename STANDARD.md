@@ -151,6 +151,21 @@ HTTP в LAN: риск зафиксирован; TLS при возможност�
 - Отключить `allow_url_include` и `cgi.fix_pathinfo`.
 - Блокировать shell-функции в `php.ini` (`disable_functions`).
 
+### Итоги аудита безопасности v1.0.0 (2026-10-27)
+
+| Контроль | Статус | Детали |
+|----------|--------|--------|
+| .env права | ✅ Проверка добавлена | `cmd_status()` предупреждает если != 600 |
+| Router path traversal | ✅ Защита | `realpath()` + `str_starts_with()` на всех путях |
+| Forbidden-список router.php | ✅ Обновлён | .env, .git, bin/, data/, projects/, *.md |
+| Credential helper | ✅ Безопасен | Placeholder-логика, токены не выводятся в stdout |
+| Router security headers | ✅ `nosniff` | `X-Content-Type-Options: nosniff` при отдаче статики |
+| Basic Auth для LAN | ✅ Работает | loopback без пароля, LAN требует NETWORK_PASSWORD |
+| 503 при отсутствии пароля | ✅ Реализовано | HTTP 503 + error_log при пустом NETWORK_PASSWORD |
+| Блокировка *.md в router.php | ✅ Добавлено | Все .md-файлы кроме API/Assets возвращают 403 |
+| .gitkeep в каталогах | ✅ Проверено | assets/, config/, data/, projects/ |
+| .gitignore актуален | ✅ *.ged добавлен | .env, *.log, *.ged, *.sqlite* блокируются |
+
 10. Фронтенд
 Сервер: данные, API, безопасность, рендеринг страниц; браузер: интерактив.
 Данные — JSON, не исполняемые .js; новые window.*-глобалы запрещены (ES-модули).

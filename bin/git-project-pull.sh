@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# gitflic-update.sh — Безопасное обновление локальных репозиториев из GitFlic.
-# Обновляет сам хаб (gitflicProject) и все проекты в контейнере projects/.
-# 
+# git-project-pull.sh — Безопасное обновление локальных репозиториев из основного хоста.
+# Обновляет сам хаб (gitproject) и все проекты в контейнере projects/.
+#
 # ЗАПРЕЩЕНО: запускать через sudo.
 # Использует --ff-only для предотвращения случайных merge-коммитов при обновлении.
 
@@ -10,13 +10,13 @@ set -uo pipefail
 HUB="$HOME/gitproject"
 PROJECTS_DIR="$HUB/projects"
 
-echo "==> 1. Обновление хаба (gitflicProject)..."
+echo "==> 1. Обновление хаба (gitproject)..."
 if git -C "$HUB" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-    echo "    [gitflicProject] fetch..."
+    echo "    [gitproject] fetch..."
     git -C "$HUB" fetch origin >/dev/null 2>&1
     branch="$(git -C "$HUB" branch --show-current)"
     if [ -n "$branch" ]; then
-        echo "    [gitflicProject] pull --ff-only origin $branch..."
+        echo "    [gitproject] pull --ff-only origin $branch..."
         git -C "$HUB" pull --ff-only origin "$branch" || echo "    ВНИМАНИЕ: хаб не обновлён (возможны локальные незакоммиченные изменения)"
     else
         echo "    ВНИМАНИЕ: хаб в состоянии detached HEAD или без коммитов"

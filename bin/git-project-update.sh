@@ -27,20 +27,42 @@ print_gray()    { echo -e "${GRAY}$1${RESET}"; }
 
 HUB="$HOME/gitproject"
 ENV_FILE="$HUB/.env"
-HUB_SLUG="${HUB_UPDATE_SLUG:-gitproject}"   # фактический slug на GitFlic (нижний регистр), факт 2026-09-29
+HUB_SLUG="${HUB_UPDATE_SLUG:-gitproject}"   # фактический slug на хосте обновлений
 
-# Имя remote для хаба (из HUB_UPDATE_HOST: gitflic.ru → gitflic)
-hub_remote="gitflic"
+# Имя remote для хаба: берём из HUB_UPDATE_HOST или первый готовый remote
+_hub_update_host="${HUB_UPDATE_HOST:-gitverse.ru}"
+_hub_update_host_id="$(echo "$_hub_update_host" | sed -E 's/\.ru$//; s/\.dev$//; s/\.com$//')"
+hub_remote="${HUB_UPDATE_REMOTE:=$_hub_update_host_id}"
+
+# Отображаемое имя хоста обновлений (для вывода в консоль)
+_hub_display_host() {
+    case "$_hub_update_host" in
+        gitverse.ru)     echo "GitVerse" ;;
+        gitflic.ru)      echo "GitFlic" ;;
+        git.sourcecraft.dev) echo "SourceCraft" ;;
+        github.com)      echo "GitHub" ;;
+        gitlab.com)      echo "GitLab" ;;
+        bitbucket.org)   echo "Bitbucket" ;;
+        gitea.com)       echo "Gitea" ;;
+        codebase.mos.ru) echo "CodeBase" ;;
+        *)               echo "$_hub_update_host" ;;
+    esac
+}
 
 # Мульти-хост: выбираем первый доступный remote
 first_remote="$(git -C "$HUB" remote | head -1)"
 [ -z "$first_remote" ] && { print_error "У хаба нет настроенных remote"; exit 1; }
 
-GITFLIC_USER=""
-
 load_env_soft() {
-    GITFLIC_USER="$(sed -n 's/^GITFLIC_USER=//p' "$ENV_FILE" 2>/dev/null | tail -n 1 | tr -d '\r')"
-    GITFLIC_USER="${GITFLIC_USER:-sokol491}"
+    # Пользователь хаба на хосте обновлений (динамически по домену)
+    case "$_hub_update_host" in
+        gitverse.ru)   HUB_USER_VAR="GITVERSE_HUB_USER" ;;
+        gitflic.ru)    HUB_USER_VAR="GITFLIC_HUB_USER" ;;
+        git.sourcecraft.dev) HUB_USER_VAR="SOURCECRAFT_HUB_USER" ;;
+        github.com)    HUB_USER_VAR="GITHUB_HUB_USER" ;;
+        *)             HUB_USER_VAR="GITVERSE_HUB_USER" ;;
+    esac
+    eval "HUB_USER=\"\${${HUB_USER_VAR}:-sokol491}\""
 }
 
 remote_url() {
@@ -48,7 +70,8 @@ remote_url() {
     if [ -d "$HUB/.git" ] && u="$(git -C "$HUB" remote get-url "$hub_remote" 2>/dev/null)" && [ -n "$u" ]; then
         printf '%s' "$u"
     else
-        printf 'https://gitflic.ru/project/%s/%s.git' "$GITFLIC_USER" "$HUB_SLUG"
+        # Строим URL динамически по домену хоста обновлений
+        printf 'https://%s/%s/%s.git' "$_hub_update_host" "$HUB_USER" "$HUB_SLUG"
     fi
 }
 
@@ -103,15 +126,15 @@ cmd_fix() {
     mkdir -p "$HUB/data"
     [ -f "$HUB/data/.gitkeep" ] || touch "$HUB/data/.gitkeep"
     if remote_repo_exists; then
-        print_success "GitFlic: репозиторий хаба существует, remote доступен"
+        print_success "$(_hub_display_host): репозиторий хаба существует, remote доступен"
     else
-        print_warn "GitFlic: репозитория хаба нет — создайте через Web-UI (guide раздел 7)"
+        print_warn "$(_hub_display_host): репозитория хаба нет — создайте через Web-UI (guide раздел 7)"
     fi
 }
 
 cmd_status() {
     if ! is_local_repo; then
-        print_warn "хаб: не git-репозиторий (выполните: gitflic-sync-hub.sh fix)"
+        print_warn "хаб: не git-репозиторий (выполните: git-project-update.sh fix)"
         return 0
     fi
     local branch up dirty ahead behind
@@ -129,9 +152,9 @@ cmd_status() {
     print_info    "ahead/behind:   $ahead/$behind (по последнему fetch)"
     print_info    "грязных файлов: $dirty"
     if remote_repo_exists; then
-        print_success "GitFlic:        репозиторий хаба существует ($(remote_url))"
+        print_success "$(_hub_display_host):        репозиторий хаба существует ($(remote_url))"
     else
-        print_error "GitFlic:        репозитория хаба нет ($(remote_url))"
+        print_error "$(_hub_display_host):        репозитория хаба нет ($(remote_url))"
     fi
 }
 
@@ -140,7 +163,7 @@ cmd_sync() {
     cd "$HUB" || exit 2
     if ! is_local_repo; then
         print_error "ОШИБКА: $HUB не является git-репозиторием."
-        print_info "Подсказка: gitflic-sync-hub.sh fix"
+        print_info "Подсказка: git-project-update.sh fix"
         exit 2
     fi
     if ! { git config --get user.name >/dev/null && git config --get user.email >/dev/null; }; then
@@ -162,10 +185,10 @@ cmd_sync() {
     fi
     remote_ref="$hub_remote/$remote_branch"
 
-    print_header "== СВЕРКА: $HUB_SLUG (локально $branch -> GitFlic $remote_branch) =="
+    print_header "== СВЕРКА: $HUB_SLUG (локально $branch -> $(_hub_display_host) $remote_branch) =="
 
     if ! remote_repo_exists; then
-        print_error "ОШИБКА: репозиторий хаба на GitFlic отсутствует ($(remote_url))."
+        print_error "ОШИБКА: репозиторий хаба на $(_hub_display_host) отсутствует ($(remote_url))."
         print_info "Создайте через Web-UI (guide раздел 7): имя $HUB_SLUG, пустой, без README."
         exit 2
     fi
@@ -188,17 +211,17 @@ cmd_sync() {
     if [ "$has_remote" -eq 1 ] && [ "$has_local" -eq 1 ]; then
         remote_head="$(git rev-parse --short "$remote_ref")"
         behind_list="$(git log --oneline "HEAD..${remote_ref}" 2>/dev/null || true)"
-        print_info "Локально:  $local_head | На GitFlic ($remote_branch): $remote_head"
+        print_info "Локально:  $local_head | На $(_hub_display_host) ($remote_branch): $remote_head"
     else
-        print_info "Локально:  $local_head | На GitFlic: ветка $remote_branch отсутствует (будет создана)"
+        print_info "Локально:  $local_head | На $(_hub_display_host): ветка $remote_branch отсутствует (будет создана)"
     fi
 
     local ahead_n=0 behind_n=0
     [ -n "$ahead_list" ] && ahead_n="$(wc -l <<<"$ahead_list")"
     [ -n "$behind_list" ] && behind_n="$(wc -l <<<"$behind_list")"
-    print_info "Коммитов локально, которых нет на GitFlic: $ahead_n"
+    print_info "Коммитов локально, которых нет на $(_hub_display_host): $ahead_n"
     [ -n "$ahead_list" ] && echo "$ahead_list" | head -n 10 | sed 's/^/  > /'
-    print_info "Коммитов на GitFlic, которых нет локально:  $behind_n"
+    print_info "Коммитов на $(_hub_display_host), которых нет локально:  $behind_n"
     [ -n "$behind_list" ] && echo "$behind_list" | head -n 10 | sed 's/^/  < /'
 
     if [ -n "$(git status --porcelain)" ]; then
@@ -236,7 +259,7 @@ cmd_sync() {
         fi
     fi
 
-    print_info "-- Публикация на GitFlic: $branch -> $remote_branch --"
+    print_info "-- Публикация на $(_hub_display_host): $branch -> $remote_branch --"
     if [ "$has_remote" -eq 1 ]; then
         git push "$hub_remote" "$branch:$remote_branch" || exit 4
     else
@@ -247,10 +270,10 @@ cmd_sync() {
     local_now="$(git rev-parse HEAD)"
     remote_now="$(git ls-remote "$hub_remote" "refs/heads/$remote_branch" | awk '{print $1}')"
     if [ -n "$remote_now" ] && [ "$local_now" = "$remote_now" ]; then
-        print_success "УСПЕХ: $HUB_SLUG/$branch -> $remote_branch синхронизирован, хэш ${local_now:0:7} совпадает с GitFlic."
+        print_success "УСПЕХ: $HUB_SLUG/$branch -> $remote_branch синхронизирован, хэш ${local_now:0:7} совпадает с $(_hub_display_host)."
         exit 0
     fi
-    print_error "ВНИМАНИЕ: хэши не совпали (локально ${local_now:0:7}, на GitFlic ${remote_now:0:7})."
+    print_error "ВНИМАНИЕ: хэши не совпали (локально ${local_now:0:7}, на $(_hub_display_host) ${remote_now:0:7})."
     print_info "Повторите синхронизацию или проверьте вывод push выше."
     exit 4
 }

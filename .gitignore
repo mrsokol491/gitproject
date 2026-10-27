@@ -13,6 +13,7 @@
 /projects/*
 # Логи и служебные файлы
 *.log
+*.ged
 *.sqlite
 *.sqlite-journal
 *.sqlite-wal
