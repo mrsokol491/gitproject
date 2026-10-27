@@ -108,7 +108,7 @@ if (str_starts_with($uri, '/api/')) {
 $forbidden = [
     '.env', '.git', '.gitignore',
     'bin', 'data', 'projects',
-    'STANDARD.md', 'gitproject-workspace-guide.md',
+    'README.md', 'STANDARD.md', 'gitproject-workspace-guide.md',
 ];
 foreach ($forbidden as $blocked) {
     if ($uri === '/' . $blocked || str_starts_with($uri, '/' . $blocked . '/')) {
@@ -117,6 +117,14 @@ foreach ($forbidden as $blocked) {
         echo "403 Forbidden\n";
         return true;
     }
+}
+
+// --- 2.5) Запрет на доступ к .md файлам (STANDARD.md §9) -------------------
+if (str_ends_with($uri, '.md') && !str_starts_with($uri, '/api/') && !str_starts_with($uri, '/assets/')) {
+    http_response_code(403);
+    header('Content-Type: text/plain; charset=utf-8');
+    echo "403 Forbidden\n";
+    return true;
 }
 
 // --- 3) Разбор /<slug>/<path...> --------------------------------------------

@@ -9,10 +9,9 @@ GIT_PROJECT_PROJECTS="$GIT_PROJECT_WORKSPACE/projects"
 
 if [[ -x "$GIT_PROJECT_WORKSPACE/bin/git-project-sync.sh" ]]; then
   GIT_PROJECT_SYNC_BIN="$GIT_PROJECT_WORKSPACE/bin/git-project-sync.sh"
-elif [[ -x "$GIT_PROJECT_WORKSPACE/bin/gitflic-sync.sh" ]]; then
-  GIT_PROJECT_SYNC_BIN="$GIT_PROJECT_WORKSPACE/bin/gitflic-sync.sh"
 else
-  GIT_PROJECT_SYNC_BIN="$GIT_PROJECT_WORKSPACE/bin/git-project-sync.sh"
+  print_error "Не найден bin/git-project-sync.sh"
+  exit 2
 fi
 
 preflight_info() {
