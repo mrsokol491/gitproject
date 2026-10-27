@@ -275,16 +275,21 @@ main() {
         ti=$(( $(read_num "${#NAMES[@]}" "Куда") - 1 ))
     fi
 
+    # П. 2.3: запрос кода подтверждения MIGRATE-<SRC>-TO-<TARGET>
+    local src_name="${NAMES[$si]}" tgt_name="${NAMES[$ti]}"
+    local confirm_code
+    confirm_code="$(echo "MIGRATE-${src_name}-TO-${tgt_name}" | tr '[:lower:]' '[:upper:]')"
+    
     print_header ""
-    print_warn "  Внимание: будет опубликована версия на ${NAMES[$ti]}"
-    print_info "    Откуда: ${NAMES[$si]} (${SHAS[$si]:0:7})"
-    print_info "    Куда:   ${NAMES[$ti]} (${SHAS[$ti]:0:7})"
+    print_warn "  Внимание: будет опубликована версия на $tgt_name"
+    print_info "    Откуда: $src_name (${SHAS[$si]:0:7})"
+    print_info "    Куда:   $tgt_name (${SHAS[$ti]:0:7})"
     print_info "    ${DOMAINS[$ti]}"
     echo ""
-    print_hint "Подтвердить миграцию? (Д — да, Н — нет)"
+    print_hint "Подтвердить миграцию? Введите код: $confirm_code"
     local confirm
-    read -r -p "$(echo -e "  ${CYAN}➤ Ваш выбор: ${RESET}")" confirm
-    if ! [[ "$confirm" =~ ^[ДдYy]$ ]]; then
+    read -r -p "$(echo -e "  ${CYAN}➤ Код подтверждения: ${RESET}")" confirm
+    if [ "$confirm" != "$confirm_code" ]; then
         print_info "  Отмена миграции"
         exit 0
     fi
