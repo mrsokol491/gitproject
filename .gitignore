@@ -19,6 +19,4 @@
 *.sqlite-wal
 *.sqlite-shm
 /.idea/
-/.gigaide/
-/.gigacode/
 /.giga*/
