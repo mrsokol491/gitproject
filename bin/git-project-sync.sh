@@ -42,8 +42,7 @@ ensure_project_remotes_from_env() {
             [ -z "$domain" ] && continue
             
             owner_var="${prefix}_PROJECT_USER"
-            owner="$(sed -n "s/^${owner_var}=//p" "$env_file" 2>/dev/null | tail -n 1 | tr -d '
-')"
+            owner="$(sed -n "s/^${owner_var}=//p" "$env_file" 2>/dev/null | tail -n 1 | tr -d '\n')"
             [ -z "$owner" ] && owner="sokol491"
             
             local url="${url_template//\{owner\}/$owner}"
@@ -162,6 +161,11 @@ sync_project_all_remotes() {
                 print_error "    ✗ Ошибка push на $remote"
                 ((fail++))
             fi
+        elif [ "$mb" = "$local_sha" ]; then
+            # П. 2.2: remote впереди, локальная версия отстаёт
+            print_error "    $remote: локальная версия отстаёт от remote"
+            print_error "    Операция заблокирована — используйте 'git-project-migrate.sh' для синхронизации"
+            ((fail++))
         else
             print_warn "    $remote: истории расходятся, слияние с приоритетом локальной версии..."
             if git -C "$repo" merge --allow-unrelated-histories -X ours "$remote_sha" -m "sync: merge $remote, приоритет локальной версии" >/dev/null 2>&1; then
@@ -522,143 +526,132 @@ cmd_status() {
 }
 
 cmd_fix() {
-    local slug="$1" repo="$PROJECTS_DIR/$1"
+    local slug="$1" repo="$PROJECTS_DIR/$slug"
     print_header ""
-    print_header "==> Подготовка: $slug"
-    [ -d "$repo" ] || { print_error "    $repo не существует"; return 2; }
-    is_local_repo "$repo" && print_success "    git: да" || { git -C "$repo" init -b master && print_success "    git: инициализирован"; }
-    if ! git -C "$repo" remote get-url origin >/dev/null 2>&1; then
-        local url
-        url="$(build_repo_url "$GIT_HOST" "$GITFLIC_USER" "$slug")"
-        git -C "$repo" remote add origin "$url" && print_success "    origin: добавлен ($url)"
-    else
-        print_info "    origin: $(git -C "$repo" remote get-url origin)"
-    fi
-    remote_repo_exists "$slug" && print_success "    хост: репозиторий существует" || print_warn "    хост: репозитория нет"
+    print_header "==> Подготовка проекта: $slug"
+    [ -d "$repo/.git" ] || { print_error "    $repo не является git-репозиторием"; return 1; }
+    cd "$repo" || return 1
+    { git config --get user.name >/dev/null && git config --get user.email >/dev/null; } \
+        || { print_error "    не настроена идентичность git"; return 1; }
+    local branch
+    branch="$(git branch --show-current)"
+    [ -n "$branch" ] || { print_error "    detached HEAD"; return 1; }
+    
+    # Автоматически добавляем remote
+    print_info "    Добавление remote из .env..."
+    ensure_project_remotes_from_env "$repo" "$slug"
+    
+    print_success "    ✓ Проект $slug готов к синхронизации"
+    return 0
 }
 
 cmd_probe() {
     print_header ""
-    print_header "Матрица API ${GIT_HOST}:"
-    local base path
-    for base in "https://${GIT_HOST}/api/v2" "https://${GIT_HOST}/api/v1" "https://${GIT_HOST}/api"; do
-        for path in "/user" "/projects" "/projects/${GITFLIC_USER}/archive" "/user/projects"; do
-            api_call_url GET "${base}${path}"
-            printf "GET  %-58s -> %s %s\n" "${base}${path}" "$API_CODE" "$API_REDIRECT"
-        done
+    print_header "==> Матрица API"
+    
+    local hosts=("gitflic" "gitverse" "sourcecraft" "github" "gitlab" "bitbucket" "gitea" "codebase")
+    local urls=("https://gitflic.ru" "https://gitverse.ru" "https://sourcecraft.ru" "https://github.com" "https://gitlab.com" "https://bitbucket.org" "https://gitea.com" "https://codebasehub.com")
+    
+    local i url
+    for i in "${!hosts[@]}"; do
+        url="${urls[$i]}"
+        print_info "    ${hosts[$i]} ($url)..."
+        if git ls-remote "$url" >/dev/null 2>&1; then
+            print_success "      ✓ доступен"
+        else
+            print_error "      ✗ недоступен"
+        fi
     done
+    print_header "=============================================================="
 }
-
-# ============================================================================
-# Главная функция
-# ============================================================================
 
 main() {
     load_env
-
-    local sync_all=false sync_push=false sync_pull=false sync_remote="" slugs=() commit_msg="" mode="" rest=()
-
+    
+    [ -n "${1:-}" ] || { echo "Использование: git-project-sync.sh <slug> [--all | --remote <r> | status | fix | probe]"; exit 2; }
+    local slug="$1"; shift
+    local action="sync" remote_arg="" all_flag=0 commit_msg=""
+    
     while [ $# -gt 0 ]; do
         case "$1" in
-            --all)     sync_all=true; shift ;;
-            --push)    sync_push=true; shift ;;
-            --pull)    sync_pull=true; shift ;;
-            --remote)  sync_remote="${2:-}"; [ -n "$sync_remote" ] && shift 2 || { print_error "--remote требует аргумент"; exit 2; } ;;
-            -m)        commit_msg="${2:-}"; [ -n "$commit_msg" ] && shift 2 || shift ;;
-            status|fix|probe) mode="$1"; shift ;;
-            -h|--help)
-                echo "Использование:"
-                echo "  git-project-sync.sh                         # интерактивное меню"
-                echo "  git-project-sync.sh <slug>                  # только origin (push)"
-                echo "  git-project-sync.sh <slug> --all            # push на все remote (с fetch/merge)"
-                echo "  git-project-sync.sh <slug> --push           # push на все remote (без fetch/merge)"
-                echo "  git-project-sync.sh <slug> --remote <r>     # push на конкретный remote"
-                echo "  git-project-sync.sh <slug> --pull           # pull из origin"
-                echo "  git-project-sync.sh <slug> --pull --remote <r>  # pull из конкретного remote"
-                echo "  git-project-sync.sh <slug> -m 'сообщение'"
-                echo "  git-project-sync.sh status | fix <slug> | probe"
-                exit 0
-                ;;
-            -*)        print_error "Неизвестный флаг: $1"; exit 2 ;;
-            *)         rest+=("$1"); shift ;;
+            --all) all_flag=1; shift ;;
+            --remote) remote_arg="$2"; shift 2 ;;
+            -m) commit_msg="$2"; shift 2 ;;
+            status) action="status"; shift ;;
+            fix) action="fix"; shift ;;
+            probe) action="probe"; shift ;;
+            *) print_error "Неизвестный параметр: $1"; exit 2 ;;
         esac
     done
 
-    case "$mode" in
-        status) cmd_status; exit 0 ;;
-        fix)    [ -n "${rest[0]:-}" ] || { print_error "fix требует slug"; exit 2; }; cmd_fix "${rest[0]}"; exit $? ;;
-        probe)  cmd_probe; exit 0 ;;
-    esac
-
-    if [ "$sync_all" = true ] || [ "$sync_push" = true ] || [ "$sync_pull" = true ] || [ -n "$sync_remote" ]; then
-        if [ ${#rest[@]} -eq 0 ]; then
-            print_error "Укажите проект(ы) для синхронизации"
-            exit 2
-        fi
-        local fail=0
-        for slug in "${rest[@]}"; do
-            if [ "$sync_all" = true ]; then
-                sync_project_all_remotes "$slug" || fail=$((fail + 1))
-            elif [ "$sync_push" = true ]; then
-                sync_project_push_all "$slug" || fail=$((fail + 1))
-            elif [ "$sync_pull" = true ]; then
-                if [ -n "$sync_remote" ]; then
-                    pull_project_remote "$slug" "$sync_remote" || fail=$((fail + 1))
-                else
-                    pull_project_remote "$slug" "origin" || fail=$((fail + 1))
-                fi
-            else
-                sync_project_specific_remote "$slug" "$sync_remote" || fail=$((fail + 1))
-            fi
-        done
-        exit $fail
+    # Команда status
+    if [ "$action" = "status" ]; then
+        cmd_status
+        exit 0
+    fi
+    
+    # Команда probe
+    if [ "$action" = "probe" ]; then
+        cmd_probe
+        exit 0
     fi
 
-    if [ ${#rest[@]} -eq 1 ]; then
-        sync_project_origin "${rest[0]}" "$commit_msg"
+    # Команда fix
+    if [ "$action" = "fix" ]; then
+        cmd_fix "$slug"
         exit $?
     fi
-    if [ ${#rest[@]} -gt 1 ]; then
-        print_error "Укажите один проект или используйте --all для нескольких"
-        exit 2
-    fi
 
-    local -a SLUGS=()
-    for dir in "$PROJECTS_DIR"/*/; do
-        [ -d "$dir" ] || continue
-        SLUGS+=("$(basename "$dir")")
-    done
-    if [ "${#SLUGS[@]}" -eq 0 ]; then
-        print_error "Проекты не найдены в $PROJECTS_DIR"
-        exit 2
-    fi
+    # Проверяем существование проекта
+    [ -d "$PROJECTS_DIR/$slug/.git" ] || { print_error "Проект $slug не найден в $PROJECTS_DIR/"; exit 2; }
 
-    show_menu "${SLUGS[@]}"
-    local CHOICE
-    CHOICE="$(read_choice "${#SLUGS[@]}")"
-
-    local -a SELECTED=()
-    if [ "$CHOICE" = "all" ]; then
-        SELECTED=("${SLUGS[@]}")
-    else
-        IFS=',' read -ra NUMS <<< "$CHOICE"
-        for N in "${NUMS[@]}"; do
-            SELECTED+=("${SLUGS[$((N - 1))]}")
+    # Интерактивный выбор проектов
+    if [ -z "$slug" ]; then
+        local -a slugs=()
+        for dir in "$PROJECTS_DIR"/*/; do
+            [ -d "$dir" ] && slugs+=("$(basename "$dir")")
         done
+        if [ ${#slugs[@]} -eq 0 ]; then
+            print_error "Нет проектов в каталоге $PROJECTS_DIR"
+            exit 2
+        fi
+        show_menu "${slugs[@]}"
+        local choice
+        choice="$(read_choice ${#slugs[@]})"
+        
+        if [ "$choice" = "all" ]; then
+            for s in "${slugs[@]}"; do
+                if [ $all_flag -eq 1 ]; then
+                    sync_project_all_remotes "$s"
+                else
+                    sync_project_origin "$s" "$commit_msg"
+                fi
+            done
+        else
+            IFS=',' read -ra selected <<< "$choice"
+            for n in "${selected[@]}"; do
+                local s="${slugs[$((n - 1))]}"
+                if [ $all_flag -eq 1 ]; then
+                    sync_project_all_remotes "$s"
+                else
+                    sync_project_origin "$s" "$commit_msg"
+                fi
+            done
+        fi
+    else
+        # Одиночный проект
+        if [ $all_flag -eq 1 ]; then
+            sync_project_all_remotes "$slug"
+        elif [ -n "$remote_arg" ]; then
+            sync_project_specific_remote "$slug" "$remote_arg"
+        else
+            sync_project_origin "$slug" "$commit_msg"
+        fi
     fi
-
-    print_header ""
-    print_header "Синхронизация: ${#SELECTED[@]} проект(ов)"
-    local OK=0 FAIL=0
-    for SLUG in "${SELECTED[@]}"; do
-        if sync_project_origin "$SLUG" "$commit_msg"; then OK=$((OK + 1)); else FAIL=$((FAIL + 1)); fi
-    done
-    echo ""
-    print_header "=============================================================="
-    [ $FAIL -eq 0 ] && print_success "  Итог: успешно $OK, ошибок $FAIL" \
-                    || print_warn "  Итог: успешно $OK, ошибок $FAIL"
-    print_header "=============================================================="
-    exit $FAIL
 }
+
+# ============================================================================
+# Вызов
+# ============================================================================
 
 main "$@"
