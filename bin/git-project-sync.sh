@@ -568,13 +568,14 @@ cmd_probe() {
 main() {
     load_env
     
-    [ -n "${1:-}" ] || { echo "Использование: git-project-sync.sh <slug> [--all | --remote <r> | status | fix | probe]"; exit 2; }
+    [ -n "${1:-}" ] || { echo "Использование: git-project-sync.sh <slug> [--all | --push | --remote <r> | status | fix | probe]"; exit 2; }
     local slug="$1"; shift
-    local action="sync" remote_arg="" all_flag=0 commit_msg=""
+    local action="sync" remote_arg="" all_flag=0 push_flag=0 commit_msg=""
     
     while [ $# -gt 0 ]; do
         case "$1" in
             --all) all_flag=1; shift ;;
+            --push) push_flag=1; shift ;;
             --remote) remote_arg="$2"; shift 2 ;;
             -m) commit_msg="$2"; shift 2 ;;
             status) action="status"; shift ;;
@@ -621,7 +622,9 @@ main() {
         
         if [ "$choice" = "all" ]; then
             for s in "${slugs[@]}"; do
-                if [ $all_flag -eq 1 ]; then
+                if [ $push_flag -eq 1 ]; then
+                    sync_project_push_all "$s"
+                elif [ $all_flag -eq 1 ]; then
                     sync_project_all_remotes "$s"
                 else
                     sync_project_origin "$s" "$commit_msg"
@@ -631,7 +634,9 @@ main() {
             IFS=',' read -ra selected <<< "$choice"
             for n in "${selected[@]}"; do
                 local s="${slugs[$((n - 1))]}"
-                if [ $all_flag -eq 1 ]; then
+                if [ $push_flag -eq 1 ]; then
+                    sync_project_push_all "$s"
+                elif [ $all_flag -eq 1 ]; then
                     sync_project_all_remotes "$s"
                 else
                     sync_project_origin "$s" "$commit_msg"
@@ -640,7 +645,9 @@ main() {
         fi
     else
         # Одиночный проект
-        if [ $all_flag -eq 1 ]; then
+        if [ $push_flag -eq 1 ]; then
+            sync_project_push_all "$slug"
+        elif [ $all_flag -eq 1 ]; then
             sync_project_all_remotes "$slug"
         elif [ -n "$remote_arg" ]; then
             sync_project_specific_remote "$slug" "$remote_arg"
