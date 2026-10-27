@@ -1,19 +1,21 @@
 {
-  "gitflic": {
-    "host": "gitflic.ru",
-    "status": "ready",
-    "env_prefix": "GITFLIC",
-    "url_template": "https://gitflic.ru/project/{owner}/{slug}.git",
-    "registry": "rf",
-    "description": "GitFlic — российский Git-хостинг (реестр ПО РФ)"
-  },
   "gitverse": {
     "host": "gitverse.ru",
     "status": "ready",
+    "is_update_source": true,
     "env_prefix": "GITVERSE",
     "url_template": "https://gitverse.ru/{owner}/{slug}.git",
     "registry": "rf",
-    "description": "GitVerse — российский Git-хостинг от Сбера (реестр ПО РФ)"
+    "description": "GitVerse — основной хост (реестр ПО РФ, Сбер)"
+  },
+  "gitflic": {
+    "host": "gitflic.ru",
+    "status": "ready",
+    "is_mirror": true,
+    "env_prefix": "GITFLIC",
+    "url_template": "https://gitflic.ru/project/{owner}/{slug}.git",
+    "registry": "rf",
+    "description": "GitFlic — зеркало (реестр ПО РФ, Astra Linux)"
   },
   "sourcecraft": {
     "host": "git.sourcecraft.dev",
@@ -21,7 +23,7 @@
     "env_prefix": "SOURCECRAFT",
     "url_template": "https://git.sourcecraft.dev/{owner}/{slug}.git",
     "registry": "rf",
-    "description": "SourceCraft — платформа от Яндекса (Yandex B2B Tech). Git, code review, CI/CD, встроенный ИИ-помощник, интеграция с Yandex Cloud. Только облачная версия (без on-premise)."
+    "description": "SourceCraft — платформа от Яндекса (Yandex B2B Tech)"
   },
   "github": {
     "host": "github.com",
