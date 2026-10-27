@@ -137,3 +137,28 @@ credential helper; в выводе команд маскируются ([скр�
 ## Логи
 
 data/workspace.log, data/workspace-error.log, data/<host>.log — в репозиторий не попадают.
+
+## Известные ограничения 1.0.0
+
+- `php -S` (встроенный веб-сервер PHP) используется в production-сценариях systemd без дополнительной изоляции; для production рекомендуется nginx/FPM.
+- API-удаление репозитория на хосте не реализуется из скриптов (удалите через Web-UI хоста).
+- Credential helper поддерживает только `get` и `store`; `erase` не реализован.
+- Обновление хаба (`git-project-pull.sh`) выполняет merge с приоритетом локальной версии; при конфликтах требуется ручное разрешение.
+- Мульти-синхронизация (`--all`) блокируется при расхождении историй с remote, если не задан флаг приоритета.
+- Файлы `*.ged`, `*.sqlite`, `*.log` игнорируются git, но могут попадать в индексы проектов.
+
+## Безопасность
+
+- Секреты только в .env (600); маскированный просмотр:
+  sed -E 's/=(.+)$/=[скрыто]/' ~/gitproject/.env
+- Токены: ограниченные права, срок 1-2 дня, после работ отзываются.
+- Защита от PHP2Shell (CVE-2026-109618/9):
+  - Использовать PHP >= 8.1.33, 8.2.25, 8.3.12, 8.4.0+.
+  - `disable_functions`: exec, system, shell_exec, passthru, popen, proc_open, pcntl_exec.
+  - `open_basedir`: изоляция на ~/gitproject/public/.
+  - `allow_url_include=Off`, `cgi.fix_pathinfo=0`.
+  - Подробности: STANDARD.md раздел 9.
+- Из LAN хаб закрыт HTTP Basic Auth; с 127.0.0.1 — без пароля.
+- Роутер: forbidden-список (.env, bin/, data/, projects/, STANDARD.md, guide), защита path
+  traversal (realpath + проверка префикса docroot).
+- Заголовки безопасности: `X-Content-Type-Options: nosniff` при отдаче статики.

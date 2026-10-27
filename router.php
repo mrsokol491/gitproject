@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 /**
  * Роутер хаба GitProject Workspace (корень workspace).
- * Версия 2.1 от 2026-09-24.
+ * Версия 2.2 от 2026-10-27.
  *
  * Обязанности:
  *  - Basic Auth для LAN: с адресов НЕ loopback требует пароль NETWORK_PASSWORD
@@ -63,7 +63,7 @@ if (!$isLoopback) {
 
     $sentPassword = $_SERVER['PHP_AUTH_PW'] ?? null;
     if ($sentPassword === null || !hash_equals($networkPassword, $sentPassword)) {
-        header('WWW-Authenticate: Basic realm="GitFlic Workspace", charset="UTF-8"');
+        header('WWW-Authenticate: Basic realm="GitProject Workspace Hub", charset="UTF-8"');
         http_response_code(401);
         header('Content-Type: text/plain; charset=utf-8');
         echo "401 Unauthorized\n";

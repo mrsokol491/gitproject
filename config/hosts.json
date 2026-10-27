@@ -10,7 +10,7 @@
   },
   "gitflic": {
     "host": "gitflic.ru",
-    "status": "ready",
+    "status": "mirror",
     "is_mirror": true,
     "env_prefix": "GITFLIC",
     "url_template": "https://gitflic.ru/project/{owner}/{slug}.git",

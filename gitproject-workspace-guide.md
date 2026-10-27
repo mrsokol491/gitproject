@@ -1,6 +1,6 @@
 # GitProject Workspace Hub — Руководство по работе
 
-Версия 2.3 от 2026-10-07. Владелец: Александр (@sokol491).
+Версия 2.9 от 2026-10-27. Владелец: Александр (@sokol491).
 Назначение: постоянный контекст ИИ-ассистента для работы с проектами на нескольких Git-хостах.
 Расположение: ~/gitproject/gitproject-workspace-guide.md
 
@@ -548,3 +548,13 @@ remote исключаются из списка wizard.
 - Raw-файлы: https://raw.sourcecraft.tech/raw/<org>/<repo>/<commit>/<path>
 - REST API: https://api.sourcecraft.tech/repos/{org}/{repo}/trees
 - Статус: ready (полная интеграция подтверждена тестом push)
+
+2026-10-27: v2.9 — Итоги релиза 1.0.0:
+- Все P0-задачи эпика #4 выполнены: мультипуш (PR #7), клонирование, remote CRUD, удаление проектов
+- CLI: все 8 скриптов bin/ синтаксически валидны и связаны с API
+- API: все 8 эндпоинтов готовы, JWT-аутентификация через credential helper
+- UI: index.php — полная панель управления (проекты, хосты, миграция, аудит, предпроверки)
+- Безопасность: .env права проверены в sync status; PHP2Shell задокументирован в STANDARD.md
+- hosts.json: GitVerse — ready + is_update_source, GitFlic — status=mirror
+- Базовая структура репозитория проверена: .gitkeep в assets/, data/, config/
+- Известные ограничения 1.0.0 задокументированы в README.md

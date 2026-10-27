@@ -508,6 +508,16 @@ sync_project_origin() {
 cmd_status() {
     print_header ""
     print_header "Состояние проектов (хост: ${GIT_HOST}):"
+
+    # Проверка прав .env (п. 1.2.3 ТЗ)
+    if [ -f "$ENV_FILE" ]; then
+        local env_perms
+        env_perms="$(stat -c '%a' "$ENV_FILE" 2>/dev/null || echo "?")"
+        if [ "$env_perms" != "?" ] && [ "$env_perms" != "600" ]; then
+            print_warn "  ⚠ .env имеет права $env_perms (должны быть 600)"
+        fi
+    fi
+
     printf "${BLUE}${BOLD}%-24s %-6s %-7s %-24s %s${RESET}\n" "ПРОЕКТ" "LOCAL" "REMOTE" "ВЕТКА" "ГРЯЗЬ"
     local dir slug local_s remote_s branch dirty
     for dir in "$PROJECTS_DIR"/*/; do
