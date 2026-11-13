@@ -127,6 +127,17 @@ if (str_ends_with($uri, '.md') && !str_starts_with($uri, '/api/') && !str_starts
     return true;
 }
 
+// --- 2.6) Страница проекта в хабе: /hub/project/<slug>/ --------------------
+if (str_starts_with($uri, '/hub/project/')) {
+    $file = __DIR__ . '/index.php';
+    if (is_file($file)) {
+        $_SERVER['SCRIPT_FILENAME'] = $file;
+        $_SERVER['REQUEST_URI']     = $uri;
+        require $file;
+        return true;
+    }
+}
+
 // --- 3) Разбор /<slug>/<path...> --------------------------------------------
 $parts   = explode('/', trim($uri, '/'));
 $slug    = (string) ($parts[0] ?? '');
