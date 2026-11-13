@@ -1,97 +1,328 @@
 /* GitProject Workspace Hub — стили интерфейса */
 
 /* --- Базовый сброс и тело страницы --- */
-* { margin:0; padding:0; box-sizing:border-box; }
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
-body { 
-    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
-    background: linear-gradient(135deg, #0d0b1a 0%, #1a1333 50%, #0f172a 100%);
-    background-attachment: fixed;
-    color:#e8e4f3;
-    min-height:100vh;
-    padding:2rem;
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #0d0b1a;
+    color: #e8e4f3;
+    min-height: 100vh;
+    padding: 1.5rem;
+    line-height: 1.5;
 }
 
-.container { max-width:1000px; margin:0 auto; }
+.container { max-width: 1100px; margin: 0 auto; }
 
-/* --- Заголовки и подписи --- */
-h1 { 
+/* --- Заголовок главного экрана --- */
+.header { text-align: center; margin-bottom: 2rem; }
+
+.header h1 {
     background: linear-gradient(135deg, #a78bfa, #7c3aed, #6d28d9);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    margin-bottom:.5rem;
-    font-size:2rem;
+    font-size: 2rem;
     font-weight: 700;
+    margin-bottom: 0.25rem;
 }
 
-.sub { color:#9b8fb8; margin-bottom:1.5rem; }
-
-/* --- Информационная панель --- */
-.info { 
-    background: #1a1528;
-    border:1px solid #2d2640;
-    border-radius:12px;
-    padding:1rem;
-    margin-bottom:2rem;
-    font-family:monospace;
-    font-size:.85rem;
-    box-shadow: 0 4px 20px rgba(124, 58, 237, 0.08);
-}
-
-.info span { color:#a78bfa; }
+.header .sub { color: #9b8fb8; font-size: 0.95rem; }
 
 /* --- Сетка проектов --- */
-.grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:1rem; }
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+}
 
 /* --- Карточка проекта --- */
-.card { 
+.card {
     background: #1a1528;
-    border:1px solid #2d2640;
-    border-radius:12px;
-    padding:1.2rem;
-    transition:all .3s ease;
-    cursor:pointer;
-    text-decoration:none;
-    color:inherit;
-    display:block;
+    border: 1px solid #2d2640;
+    border-radius: 12px;
+    padding: 1.2rem;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    color: inherit;
+    display: block;
     box-shadow: 0 4px 20px rgba(124, 58, 237, 0.08);
 }
 
-.card:hover { 
-    border-color:#a78bfa;
-    transform:translateY(-2px);
+.card:hover {
+    border-color: #a78bfa;
+    transform: translateY(-2px);
     box-shadow: 0 6px 30px rgba(124, 58, 237, 0.15);
     background: #221d35;
 }
 
-.card.disabled { opacity:.5; cursor:not-allowed; }
-
-.card-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:.5rem; }
-.card-name { font-size:1.15rem; font-weight:600; color:#f3e8ff; }
-
-.badge { 
-    background: rgba(124, 58, 237, 0.15);
-    color:#a78bfa;
-    padding:.15rem .5rem;
-    border-radius:6px;
-    font-size:.72rem;
+.card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
 }
 
-.card-desc { color:#9b8fb8; font-size:.88rem; margin-bottom:.8rem; min-height:2em; }
+.card-name {
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: #f3e8ff;
+}
 
-.card-meta { display:flex; gap:.8rem; flex-wrap:wrap; font-size:.78rem; color:#7c6f9b; }
+.badge {
+    padding: 0.15rem 0.5rem;
+    border-radius: 6px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
 
-.dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:5px; }
-.dot.ok   { background:#10b981; }
-.dot.warn { background:#f59e0b; }
-.dot.bad  { background:#ef4444; }
+.badge--php {
+    background: rgba(124, 58, 237, 0.15);
+    color: #a78bfa;
+}
+
+.badge--node-js {
+    background: rgba(34, 197, 94, 0.15);
+    color: #4ade80;
+}
+
+.badge--unknown {
+    background: rgba(156, 163, 175, 0.15);
+    color: #9ca3af;
+}
+
+.card-desc {
+    color: #9b8fb8;
+    font-size: 0.88rem;
+    margin-bottom: 0.8rem;
+    min-height: 1.5em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.card-meta {
+    display: flex;
+    gap: 0.8rem;
+    flex-wrap: wrap;
+    font-size: 0.78rem;
+    color: #7c6f9b;
+}
+
+.dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 5px;
+}
+
+.dot--ok   { background: #10b981; }
+.dot--warn { background: #f59e0b; }
+.dot--bad  { background: #ef4444; }
 
 /* --- Пустое состояние --- */
-.empty { text-align:center; padding:3rem; color:#7c6f9b; }
-.empty code { 
-    background:#1a1528;
-    padding:.2rem .5rem;
-    border-radius:6px;
-    color:#a78bfa;
+.empty { text-align: center; padding: 3rem; color: #7c6f9b; }
+
+/* --- Заголовок страницы проекта --- */
+.project-header { margin-bottom: 1.5rem; }
+
+.project-back {
+    display: inline-block;
+    color: #a78bfa;
+    text-decoration: none;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+    transition: color 0.2s;
+}
+
+.project-back:hover { color: #c4b5fd; }
+
+.project-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #f3e8ff;
+}
+
+/* --- Техническая информация проекта --- */
+.project-info {
+    background: #1a1528;
+    border: 1px solid #2d2640;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 4px 20px rgba(124, 58, 237, 0.08);
+}
+
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 0.5rem 0;
+}
+
+.info-label {
+    color: #9b8fb8;
+    font-size: 0.88rem;
+    min-width: 100px;
+}
+
+.info-value {
+    color: #e8e4f3;
+    font-size: 0.88rem;
+    text-align: right;
+    word-break: break-all;
+}
+
+.info-divider {
+    border: none;
+    border-top: 1px solid #2d2640;
+    margin: 1rem 0;
+}
+
+/* --- Сравнение версий --- */
+.version-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 2rem;
+    padding: 0.5rem 0;
+}
+
+.version-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    flex: 1;
+}
+
+.version-tag {
+    font-family: monospace;
+    font-size: 0.9rem;
+    color: #f3e8ff;
+    background: #0d0b1a;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+}
+
+/* --- Статус синхронизации --- */
+.sync-status {
+    padding: 0.75rem 0 0;
+    text-align: center;
+}
+
+.sync-icon {
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.sync-ok { color: #10b981; }
+.sync-warn { color: #f59e0b; }
+
+/* --- Кнопки действий --- */
+.project-actions {
+    display: grid;
+    gap: 1rem;
+}
+
+@media (min-width: 768px) {
+    .project-actions {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+.action-group {
+    background: #1a1528;
+    border: 1px solid #2d2640;
+    border-radius: 12px;
+    padding: 1rem;
+    box-shadow: 0 4px 20px rgba(124, 58, 237, 0.08);
+}
+
+.action-group-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #a78bfa;
+    margin-bottom: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.action-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.btn {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    border: 1px solid #2d2640;
+    border-radius: 8px;
+    color: #e8e4f3;
+    text-decoration: none;
+    font-size: 0.88rem;
+    background: #0d0b1a;
+    text-align: center;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.btn:hover {
+    border-color: #a78bfa;
+    background: #221d35;
+}
+
+.btn--primary {
+    border-color: #7c3aed;
+    background: rgba(124, 58, 237, 0.15);
+    color: #c4b5fd;
+}
+
+.btn--primary:hover {
+    background: rgba(124, 58, 237, 0.25);
+    border-color: #a78bfa;
+}
+
+/* --- Адаптивность --- */
+@media (max-width: 480px) {
+    body { padding: 1rem; }
+
+    .header h1 { font-size: 1.5rem; }
+
+    .grid {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+
+    .info-row {
+        flex-direction: column;
+        gap: 0.2rem;
+    }
+
+    .info-value { text-align: left; }
+
+    .version-row {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .action-buttons {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+
+    .btn { flex: 1; min-width: 120px; }
+}
+
+@media (min-width: 481px) and (max-width: 768px) {
+    .grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (min-width: 1024px) {
+    body { padding: 2rem; }
 }
