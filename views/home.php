@@ -18,15 +18,15 @@
 
   <?php if ($projects === []): ?>
     <div class="empty">
-      <p>В projects/ пока нет репозиториев.</p>
+      <p>📂 В projects/ пока нет репозиториев.</p>
     </div>
   <?php else: ?>
     <div class="grid">
       <?php foreach ($projects as $p): ?>
-        <a class="card" href="<?= htmlspecialchars($p['entry_point']) ?>">
+        <a class="card" href="<?= htmlspecialchars($p['page_url']) ?>">
           <div class="card-head">
             <span class="card-name">
-              <span class="dot <?= $p['dot'] ?>"></span>
+              <span class="dot dot--<?= $p['dot'] ?>"></span>
               <?= htmlspecialchars($p['name']) ?>
             </span>
             <span class="badge badge--<?= str_replace(['.', ' '], '-', strtolower($p['type'])) ?>"><?= htmlspecialchars($p['type']) ?></span>
@@ -36,7 +36,7 @@
           <?php endif; ?>
           <div class="card-meta">
             <span>📅 <?= htmlspecialchars($p['modified']) ?></span>
-            <span>📦 <?= $p['size_kb'] ?> KB</span>
+            <span>📦 <?= htmlspecialchars($p['size_human']) ?></span>
           </div>
         </a>
       <?php endforeach; ?>
@@ -54,46 +54,52 @@
   </header>
 
   <section class="project-info">
-    <div class="info-row">
-      <span class="info-label">Тип</span>
-      <span class="info-value"><?= htmlspecialchars($project['type']) ?></span>
-    </div>
     <?php if ($project['description'] !== ''): ?>
     <div class="info-row">
       <span class="info-label">Описание</span>
       <span class="info-value"><?= htmlspecialchars($project['description']) ?></span>
     </div>
     <?php endif; ?>
-    <?php if ($project['docroot'] !== null): ?>
     <div class="info-row">
-      <span class="info-label">Docroot</span>
-      <span class="info-value"><?= htmlspecialchars($project['docroot']) ?>/</span>
+      <span class="info-label">Тип</span>
+      <span class="info-value"><?= htmlspecialchars($project['type']) ?></span>
+    </div>
+    <?php if ($project['version'] !== null): ?>
+    <div class="info-row">
+      <span class="info-label">Версия</span>
+      <span class="info-value"><?= htmlspecialchars($project['version']) ?></span>
     </div>
     <?php endif; ?>
     <div class="info-row">
+      <span class="info-label">Docroot</span>
+      <span class="info-value"><?= $project['docroot'] !== null ? htmlspecialchars($project['docroot']) . '/' : 'none' ?></span>
+    </div>
+    <div class="info-row">
       <span class="info-label">Размер</span>
-      <span class="info-value"><?= $project['size_kb'] ?> KB</span>
+      <span class="info-value"><?= htmlspecialchars($project['size_human']) ?></span>
     </div>
     <div class="info-row">
       <span class="info-label">Обновлено</span>
-      <span class="info-value"><?= htmlspecialchars($project['modified']) ?></span>
+      <span class="info-value"><?= htmlspecialchars($project['modified_full']) ?></span>
     </div>
     <hr class="info-divider">
     <div class="version-row">
       <div class="version-item">
-        <span class="info-label">Локальная</span>
-        <span class="info-value version-tag"><?= htmlspecialchars($project['local_version'] ?? '—') ?></span>
+        <span class="info-label">Локальная<?= $project['branch'] !== null ? ' (' . htmlspecialchars($project['branch']) . ')' : '' ?></span>
+        <span class="info-value version-tag"><?= htmlspecialchars($project['local_version'] ?? '—') ?><?= $project['local_date'] !== null ? ' · ' . htmlspecialchars($project['local_date']) : '' ?></span>
       </div>
       <div class="version-item">
-        <span class="info-label">Git-сервер</span>
-        <span class="info-value version-tag"><?= htmlspecialchars($project['git_version'] ?? '—') ?></span>
+        <span class="info-label">Git-сервер<?= $project['git_remote'] !== null ? ' (' . htmlspecialchars($project['git_remote']) . ')' : '' ?></span>
+        <span class="info-value version-tag"><?= htmlspecialchars($project['git_version'] ?? '—') ?><?= $project['git_date'] !== null ? ' · ' . htmlspecialchars($project['git_date']) : '' ?></span>
       </div>
     </div>
     <div class="sync-status">
       <?php if ($project['synced'] === true): ?>
         <span class="sync-icon sync-ok">✅ Синхронизировано</span>
-      <?php else: ?>
+      <?php elseif ($project['synced'] === false): ?>
         <span class="sync-icon sync-warn">⚠️ Есть обновления</span>
+      <?php else: ?>
+        <span class="sync-icon sync-none">⚪ Нет данных о сервере (выполните fetch)</span>
       <?php endif; ?>
     </div>
   </section>
@@ -102,27 +108,34 @@
     <div class="action-group">
       <h3 class="action-group-title">Git-операции</h3>
       <div class="action-buttons">
-        <a href="<?= htmlspecialchars($project['entry_point']) ?>" class="btn btn--primary">Открыть проект</a>
+        <button type="button" class="btn btn--primary" disabled title="Скоро: bin/git-project-sync.sh">⬇ Получить версию с Git-сервера</button>
+        <button type="button" class="btn" disabled title="Скоро: bin/git-project-sync.sh">⬆ Загрузить локальную версию на Git-сервер</button>
+        <button type="button" class="btn" disabled title="Скоро: bin/git-project-migrate.sh">🔀 Merge</button>
       </div>
+      <p class="action-hint">Пока выполняется через bin/git-project-sync.sh</p>
     </div>
     <div class="action-group">
       <h3 class="action-group-title">Просмотр</h3>
       <div class="action-buttons">
-        <a href="<?= htmlspecialchars($project['entry_point']) ?>" class="btn" target="_blank">Визуальное отображение</a>
+        <?php if ($project['entry_point'] !== null): ?>
+          <a href="<?= htmlspecialchars($project['entry_point']) ?>" class="btn" target="_blank" rel="noopener">🌐 Открыть проект для визуального отображения</a>
+        <?php else: ?>
+          <button type="button" class="btn" disabled title="Нет docroot с index">🌐 Открыть проект для визуального отображения</button>
+        <?php endif; ?>
       </div>
     </div>
     <div class="action-group">
       <h3 class="action-group-title">Информация</h3>
       <div class="action-buttons">
-        <a href="#" class="btn">Логи коммитов</a>
-        <a href="<?= htmlspecialchars($project['entry_point']) ?>" class="btn">Файловый менеджер</a>
+        <button type="button" class="btn" disabled title="Скоро">📜 Просмотр логов коммитов</button>
+        <button type="button" class="btn" disabled title="Скоро">📁 Открыть в файловом менеджере</button>
       </div>
     </div>
     <div class="action-group">
       <h3 class="action-group-title">Настройки</h3>
       <div class="action-buttons">
-        <a href="#" class="btn">Изменить описание</a>
-        <a href="#" class="btn">Редактировать мета-данные</a>
+        <button type="button" class="btn" disabled title="Скоро">✏️ Изменить описание проекта</button>
+        <button type="button" class="btn" disabled title="Скоро">⚙️ Редактировать мета-данные</button>
       </div>
     </div>
   </section>

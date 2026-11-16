@@ -71,19 +71,19 @@ if (!$isLoopback) {
     }
 }
 
-// --- 1) Сам хаб: / и /assets/* ----------------------------------------------
+// --- 1) Сам хаб: / и /index.php ----------------------------------------------
 if ($uri === '/' || $uri === '/index.php') {
-    // Отдаём новую панель управления из public/index.php
-    $file = __DIR__ . '/public/index.php';
+    // Главная и страница проекта — новый UI.
+    $file = __DIR__ . '/index.php';
     if (is_file($file)) {
         $_SERVER['SCRIPT_FILENAME'] = $file;
         require $file;
         return true;
     }
-    return false; // fallback на корень, если public/index.php вдруг удалён
+    return false; // fallback на корень
 }
 if ($uri === '/assets' || str_starts_with($uri, '/assets/')) {
-    return false; // статика хаба: assets/css/, assets/img/
+    return false; // статика хаба: assets/style.css
 }
 
 // --- 1.5) API и админ-панель хаба (из папки public/) ------------------------
@@ -102,6 +102,21 @@ if (str_starts_with($uri, '/api/')) {
         require $file;
         return true;
     }
+}
+
+// --- 1.6) Legacy-панель управления: /panel.php (бывшая главная) --------------
+// Функционал не удалён: хосты, sync, миграция, аудит, клонирование — здесь.
+if ($uri === '/panel.php') {
+    $file = __DIR__ . '/public/index.php';
+    if (is_file($file)) {
+        $_SERVER['SCRIPT_FILENAME'] = $file;
+        require $file;
+        return true;
+    }
+    http_response_code(404);
+    header('Content-Type: text/plain; charset=utf-8');
+    echo "404 Not Found\n";
+    return true;
 }
 
 // --- 2) Запрет прямого доступа к служебным файлам хаба ----------------------
