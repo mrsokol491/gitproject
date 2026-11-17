@@ -68,8 +68,14 @@ body {
 .badge--unknown { background: rgba(155, 143, 184, 0.15); color: var(--muted); }
 
 .card-desc {
-  color: var(--muted); font-size: 0.875rem; margin-bottom: 0.75rem;
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  color: var(--muted);
+  font-size: 0.875rem;
+  margin-bottom: 0.75rem;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
 }
 .card-meta { display: flex; gap: 1rem; flex-wrap: wrap; font-size: 0.8rem; color: var(--muted); }
 
@@ -199,7 +205,16 @@ body {
 .mp-host--gitverse { background: rgba(124,58,237,0.22); color: var(--primary-light); }
 .mp-host--github { background: rgba(232,228,243,0.14); color: var(--text); }
 .mp-host--gitflic { background: rgba(56,189,248,0.18); color: #7dd3fc; }
-.mp-card-desc { color: var(--muted); font-size: 0.85rem; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.mp-card-desc {
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+}
 .mp-card-tags { display: flex; gap: 0.4rem; flex-wrap: wrap; }
 .mp-cat, .mp-lang, .mp-cloned, .mp-arch { font-size: 0.7rem; padding: 0.12rem 0.45rem; border-radius: 6px; }
 .mp-cat { background: rgba(124,58,237,0.15); color: var(--primary-light); }
@@ -286,4 +301,27 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .mp-card { transition: none; }
   .mp-card:hover, .mp-card:focus-visible { transform: none; }
+}
+
+.mp-copy-field {
+  width: 100%;
+  margin-top: 0.5rem;
+  background: #120e24;
+  border: 1px solid var(--primary);
+  border-radius: var(--radius-sm);
+  color: var(--primary-light);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  padding: 0.6rem 0.7rem;
+  resize: vertical;
+}
+.mp-copy-field:focus {
+  outline: none;
+  border-color: var(--primary-light);
+  box-shadow: 0 0 0 2px var(--primary-glow);
+}
+.mp-copy-field::selection {
+  background: var(--primary);
+  color: #ffffff;
 }

@@ -1,4 +1,5 @@
-// marketplace.js — предложения, клонирование, копирование, фильтры.
+// assets/js/marketplace.js
+// предложения, клонирование, копирование, фильтры.
 const $ = (id) => document.getElementById(id);
 const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
 
@@ -100,21 +101,41 @@ if (cloneBtn) {
   });
 }
 
+function ensureCopyField(anchor) {
+  let field = $('mp-copy-field');
+  if (!field) {
+    field = document.createElement('textarea');
+    field.id = 'mp-copy-field';
+    field.className = 'mp-copy-field';
+    field.readOnly = true;
+    field.rows = 2;
+    field.spellcheck = false;
+    field.setAttribute('aria-label', 'Команда git clone для ручного копирования');
+    anchor.insertAdjacentElement('afterend', field);
+  }
+  return field;
+}
+
 const copyBtn = $('mp-copy');
 if (copyBtn) {
   copyBtn.addEventListener('click', async () => {
     const cmd = copyBtn.dataset.cmd || '';
-    try {
-      await navigator.clipboard.writeText(cmd);
-      toast('Команда скопирована');
-    } catch {
-      const ta = document.createElement('textarea');
-      ta.value = cmd;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      ta.remove();
-      toast('Команда скопирована');
+    const field = ensureCopyField(copyBtn);
+    if (window.isSecureContext && navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(cmd);
+        field.hidden = true;
+        toast('Команда скопирована');
+        return;
+      } catch {
+        // отказ буфера обмена — переходим к ручному копированию
+      }
     }
+    field.value = cmd;
+    field.hidden = false;
+    field.focus();
+    field.select();
+    field.setSelectionRange(0, cmd.length);
+    toast('Команда выделена — нажмите Ctrl+C');
   });
 }
