@@ -119,10 +119,24 @@ if ($uri === '/panel.php') {
     return true;
 }
 
+// --- 1.7) Маркетплейс: /marketplace и /marketplace/item/<id>/ ----------------
+if ($uri === '/marketplace' || str_starts_with($uri, '/marketplace/')) {
+    $file = __DIR__ . '/public/marketplace.php';
+    if (is_file($file)) {
+        $_SERVER['SCRIPT_FILENAME'] = $file;
+        require $file;
+        return true;
+    }
+    http_response_code(404);
+    header('Content-Type: text/plain; charset=utf-8');
+    echo "404 Not Found\n";
+    return true;
+}
+
 // --- 2) Запрет прямого доступа к служебным файлам хаба ----------------------
 $forbidden = [
     '.env', '.git', '.gitignore',
-    'bin', 'data', 'projects',
+    'bin', 'data', 'projects', 'lib', 'config', 'views',
     'README.md', 'STANDARD.md', 'gitproject-workspace-guide.md',
 ];
 foreach ($forbidden as $blocked) {

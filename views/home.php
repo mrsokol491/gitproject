@@ -13,7 +13,7 @@
 
   <header class="header">
     <h1>GitProject Workspace Hub</h1>
-    <p class="sub">Рабочее пространство @sokol491</p>
+    <p class="sub">Рабочее пространство @sokol491 · <a class="header-link" href="/marketplace/">🛒 Маркетплейс</a></p>
   </header>
 
   <?php if ($projects === []): ?>

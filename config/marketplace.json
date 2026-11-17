@@ -1,0 +1,28 @@
+{
+  "items": [
+    {
+      "host": "github",
+      "owner": "shadcn-ui",
+      "slug": "ui",
+      "category": "ux-ui",
+      "tags": ["components", "react", "tailwind"],
+      "note": "Эталон подхода: компоненты копируются в проект, а не тянутся зависимостью"
+    },
+    {
+      "host": "github",
+      "owner": "filamentphp",
+      "slug": "filament",
+      "category": "dev-tools",
+      "tags": ["php", "laravel", "admin"],
+      "note": "Админки Laravel за часы: таблицы, формы, виджеты из коробки"
+    },
+    {
+      "host": "gitverse",
+      "owner": "Sokol491",
+      "slug": "gitproject",
+      "category": "dev-tools",
+      "tags": ["php", "git", "workspace"],
+      "note": "Наш хаб: мульти-хост workspace, каналы обновлений stable/edge"
+    }
+  ]
+}
