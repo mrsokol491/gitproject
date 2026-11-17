@@ -5,13 +5,14 @@ declare(strict_types=1);
 
 /**
  * bin/marketplace.php — CLI маркетплейса (курирование владельцем).
- * Команды: init | import | refresh [--force] [--limit=N] |
- *          add <host> <owner> <slug> [--cat=X] [--note=...] |
- *          list [--pending] | approve <id> | reject <id>
- * Прогресс — в stderr, итоговые значения — в stdout (cli-wizard-ux-patterns).
+ * Команды: init | import | refresh [--force] [--limit=N] | refresh-hub | refresh-item <id> |
+ *          add <host> <owner> <slug> [--cat=X] [--note=...] | list [--pending] | approve <id> | reject <id>
+ * Прогресс — в stderr, итоговые значения — в stdout.
  */
 
 require __DIR__ . '/../lib/marketplace-core.php';
+
+const MP_TTL = 21600; // 6 ч: cron раз в 6 ч освежает кэш каждый прогон
 
 function mpOut(string $s): void
 {
@@ -36,6 +37,36 @@ function mpOpt(array $argv, string $name, ?string $default = null): ?string
 function mpFlag(array $argv, string $name): bool
 {
     return in_array('--' . $name, $argv, true);
+}
+
+function mpDoRefresh(PDO $pdo, array $rows, bool $force): array
+{
+    $done = 0;
+    $skipped = 0;
+    $failed = 0;
+    foreach ($rows as $item) {
+        if (!$force && $item['last_fetch'] !== null && strtotime((string) $item['last_fetch']) > time() - MP_TTL) {
+            $skipped++;
+            continue;
+        }
+        $label = $item['host_id'] . '/' . $item['owner'] . '/' . $item['slug'];
+        $c = mpFetchItem($item);
+        $totalFail = $c['readme_html'] === null && $c['stars'] === null && $c['description'] === null;
+        if ($totalFail) {
+            mpMarkError($pdo, (int) $item['id'], (string) $c['fetch_error']);
+            mpErr('✗ ' . $label . ': ' . $c['fetch_error']);
+            $failed++;
+            continue;
+        }
+        mpSaveCache($pdo, (int) $item['id'], $c);
+        if ($c['branch'] !== $item['default_branch']) {
+            $pdo->prepare('UPDATE mp_items SET default_branch = :b, updated_at = datetime(\'now\') WHERE id = :id')
+                ->execute([':b' => $c['branch'], ':id' => (int) $item['id']]);
+        }
+        mpErr('✓ ' . $label . ($c['fetch_error'] !== null ? ' (частично: ' . $c['fetch_error'] . ')' : ''));
+        $done++;
+    }
+    return [$done, $skipped, $failed];
 }
 
 $cmd = $argv[1] ?? 'help';
@@ -98,34 +129,42 @@ switch ($cmd) {
             WHERE i.status = \'approved\'
             ORDER BY (c.fetched_at IS NULL) DESC, c.fetched_at ASC
             LIMIT ' . $limit)->fetchAll();
-        $done = 0;
-        $skipped = 0;
-        $failed = 0;
-        foreach ($rows as $item) {
-            if (!$force && $item['last_fetch'] !== null && strtotime((string) $item['last_fetch']) > time() - 86400) {
-                $skipped++;
-                continue;
-            }
-            $label = $item['host_id'] . '/' . $item['owner'] . '/' . $item['slug'];
-            $c = mpFetchItem($item);
-            $totalFail = $c['readme_html'] === null && $c['stars'] === null && $c['description'] === null;
-            if ($totalFail) {
-                mpMarkError($pdo, (int) $item['id'], (string) $c['fetch_error']);
-                mpErr('✗ ' . $label . ': ' . $c['fetch_error']);
-                $failed++;
-                continue;
-            }
-            mpSaveCache($pdo, (int) $item['id'], $c);
-            if ($c['branch'] !== $item['default_branch']) {
-                $pdo->prepare('UPDATE mp_items SET default_branch = :b, updated_at = datetime(\'now\') WHERE id = :id')
-                    ->execute([':b' => $c['branch'], ':id' => (int) $item['id']]);
-            }
-            mpErr('✓ ' . $label . ($c['fetch_error'] !== null ? ' (частично: ' . $c['fetch_error'] . ')' : ''));
-            $done++;
-        }
+        [$done, $skipped, $failed] = mpDoRefresh($pdo, $rows, $force);
         flock($lock, LOCK_UN);
         fclose($lock);
-        mpOut('Обновлено: ' . $done . ', пропущено (TTL 24ч): ' . $skipped . ', ошибок: ' . $failed);
+        mpOut('Обновлено: ' . $done . ', пропущено (TTL 6ч): ' . $skipped . ', ошибок: ' . $failed);
+        exit($failed > 0 ? 1 : 0);
+
+    case 'refresh-hub':
+        $rows = $pdo->query('SELECT i.*, c.fetched_at AS last_fetch
+            FROM mp_items i LEFT JOIN mp_cache c ON c.item_id = i.id
+            WHERE i.status = \'approved\' AND i.slug = \'gitproject\'
+            ORDER BY i.id')->fetchAll();
+        if ($rows === []) {
+            mpOut('Запись хаба в каталоге не найдена — нечего освежать');
+            exit(0);
+        }
+        [$done, $skipped, $failed] = mpDoRefresh($pdo, $rows, true);
+        mpOut('Хаб-записи обновлены: ' . $done . ', ошибок: ' . $failed);
+        exit($failed > 0 ? 1 : 0);
+
+    case 'refresh-item':
+        $id = (int) ($argv[2] ?? 0);
+        if ($id < 1) {
+            mpErr('✗ Укажите id: marketplace.php refresh-item <id>');
+            exit(1);
+        }
+        $st = $pdo->prepare('SELECT i.*, c.fetched_at AS last_fetch
+            FROM mp_items i LEFT JOIN mp_cache c ON c.item_id = i.id
+            WHERE i.id = :id AND i.status = \'approved\'');
+        $st->execute([':id' => $id]);
+        $rows = $st->fetchAll();
+        if ($rows === []) {
+            mpErr('✗ Запись не найдена или не одобрена');
+            exit(1);
+        }
+        [$done, $skipped, $failed] = mpDoRefresh($pdo, $rows, true);
+        mpOut('Обновлено: ' . $done . ', ошибок: ' . $failed);
         exit($failed > 0 ? 1 : 0);
 
     case 'add':
@@ -159,13 +198,13 @@ switch ($cmd) {
 
     case 'list':
         $where = mpFlag($argv, 'pending') ? 'WHERE i.status = \'pending\'' : '';
-        $rows = $pdo->query('SELECT i.id, i.host_id, i.owner, i.slug, i.status, c.stars, c.fetched_at
+        $rows = $pdo->query('SELECT i.id, i.host_id, i.owner, i.slug, i.status, c.stars, c.fetched_at, c.fetch_error
             FROM mp_items i LEFT JOIN mp_cache c ON c.item_id = i.id ' . $where . ' ORDER BY i.id')->fetchAll();
-        printf("%-4s %-9s %-36s %-9s %7s  %s\n", 'ID', 'ХОСТ', 'OWNER/SLUG', 'СТАТУС', 'STARS', 'FETCHED');
+        printf("%-4s %-9s %-36s %-9s %7s  %-20s %s\n", 'ID', 'ХОСТ', 'OWNER/SLUG', 'СТАТУС', 'STARS', 'FETCHED', 'ERROR');
         foreach ($rows as $r) {
-            printf("%-4s %-9s %-36s %-9s %7s  %s\n",
+            printf("%-4s %-9s %-36s %-9s %7s  %-20s %s\n",
                 $r['id'], $r['host_id'], $r['owner'] . '/' . $r['slug'], $r['status'],
-                $r['stars'] ?? '—', $r['fetched_at'] ?? '—');
+                $r['stars'] ?? '—', $r['fetched_at'] ?? '—', $r['fetch_error'] ?? '');
         }
         break;
 
@@ -189,9 +228,11 @@ switch ($cmd) {
         mpErr('Использование: marketplace.php <команда>');
         mpErr('  init                          — создать схему БД');
         mpErr('  import                        — импорт config/marketplace.json (approved)');
-        mpErr('  refresh [--force] [--limit=N] — обновить кэш (TTL 24ч, батч 20, lock)');
+        mpErr('  refresh [--force] [--limit=N] — обновить кэш (TTL 6ч, батч 20, lock)');
+        mpErr('  refresh-hub                   — принудительно освежить записи хаба (slug=gitproject)');
+        mpErr('  refresh-item <id>             — принудительно освежить одну запись');
         mpErr('  add <host> <owner> <slug> [--cat=X] [--note=...] — добавить запись');
-        mpErr('  list [--pending]              — список записей');
+        mpErr('  list [--pending]              — список записей (с fetch_error)');
         mpErr('  approve <id> | reject <id>    — модерация предложений');
         mpErr('Хосты: gitverse, github, gitflic. Категории: ' . implode(', ', MP_CATEGORIES));
         mpErr('GitHub без токена: 60 API-запросов/ч — не более 20 GitHub-записей за прогон.');
