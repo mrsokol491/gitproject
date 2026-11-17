@@ -6,7 +6,8 @@ declare(strict_types=1);
  * API версий хаба: status | refresh | update | backups | rollback.
  * Статус читается из файлов .git без exec; действия делегируются bin-скриптам.
  * Портативно: edge берётся из gitverse, иначе origin, иначе первого remote с tracking-ссылкой.
- * Метка версии: data/version.txt, иначе тег на HEAD, иначе <stable>-r<hash6>.
+ * current_label выводится из git: тег на HEAD, иначе <stable>-r<hash6>.
+ * data/version.txt — журнал применённого канала (applied_label), не источник истины.
  */
 
 header('Content-Type: application/json; charset=utf-8');
@@ -134,8 +135,9 @@ $stableSha = $stableTag !== null ? $tagCommit($stableTag) : null;
 
 // --- Метки версий -------------------------------------------------------------
 $versionFile  = $hubRoot . '/data/version.txt';
-$currentLabel = is_file($versionFile) ? trim((string) file_get_contents($versionFile)) : '';
-if ($currentLabel === '' && $localSha !== null) {
+$appliedLabel = is_file($versionFile) ? trim((string) file_get_contents($versionFile)) : '';
+$currentLabel = '';
+if ($localSha !== null) {
     $tagAtHead = null;
     foreach ($stableTags as $t) {
         if ($tagCommit($t) === $localSha) {
@@ -144,6 +146,8 @@ if ($currentLabel === '' && $localSha !== null) {
         }
     }
     $currentLabel = $tagAtHead ?? ($stableTag !== null ? $stableTag . '-r' . substr($localSha, 0, 6) : substr($localSha, 0, 7));
+} else {
+    $currentLabel = $appliedLabel !== '' ? $appliedLabel : 'неизвестно';
 }
 $edgeLabel = $stableTag !== null && $edgeSha !== null
     ? ($edgeSha === $stableSha ? $stableTag : $stableTag . '-r' . substr($edgeSha, 0, 6))
@@ -154,12 +158,13 @@ if ($action === 'status') {
     respond(true, [
         'branch'           => $branch,
         'current_label'    => $currentLabel,
+        'applied_label'    => $appliedLabel !== '' ? $appliedLabel : null,
         'local_sha'        => $localSha !== null ? substr($localSha, 0, 7) : null,
         'remote'           => $edgeRemote,
         'stable'           => $stableTag !== null ? ['label' => $stableTag, 'sha' => substr((string) $stableSha, 0, 7)] : null,
         'edge'             => $edgeLabel !== null ? ['label' => $edgeLabel, 'sha' => substr((string) $edgeSha, 0, 7)] : null,
         'update_available' => $edgeSha !== null && $localSha !== null && $edgeSha !== $localSha,
-        'note'             => 'Данные последнего fetch. Нажмите «Проверить» для fetch.',
+        'note'             => 'current_label выводится из git; applied_label — журнал последнего обновления.',
     ]);
 }
 
