@@ -1,296 +1,114 @@
 #!/usr/bin/env bash
-# gitproject-sync-hub.sh — синхронизация и публикация репозитория workspace (хаба) ~/gitproject.
-# Аналог bin/git-project-sync.sh, но для репозитория самой оболочки.
-#
-# Вызовы:
-#   gitproject-sync-hub.sh [-m "сообщение"] — полный цикл: fetch, сверка, коммит локальных
-#       изменений (защита запрещённых путей), merge upstream (приоритет локального,
-#       merge -X ours), push локальная:upstream, сверка хэшей.
-#   gitproject-sync-hub.sh status — состояние хаба.
-#   gitproject-sync-hub.sh fix    — подготовка: init -b master, origin, .gitignore, data/.gitkeep.
-#
-# В коммит хаба НИКОГДА не попадают: .env, data/ (кроме .gitkeep), projects/,
-# логи, служебные файлы SQLite. Запрещены push --force и переписывание истории.
-# Коды выхода: 0 успех; 2 окружение; 3 конфликт; 4 push/хэши; 5 запрещённые пути.
-
-set -uo pipefail
-
-RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
-BLUE='\033[0;34m'; CYAN='\033[0;36m'; GRAY='\033[0;90m'; BOLD='\033[1m'; RESET='\033[0m'
-
-print_header()  { echo -e "${BLUE}${BOLD}$1${RESET}"; }
-print_success() { echo -e "${GREEN}$1${RESET}"; }
-print_error()   { echo -e "${RED}$1${RESET}" >&2; }
-print_warn()    { echo -e "${YELLOW}$1${RESET}"; }
-print_info()    { echo -e "${CYAN}$1${RESET}"; }
-print_gray()    { echo -e "${GRAY}$1${RESET}"; }
-
-HUB="$HOME/gitproject"
-ENV_FILE="$HUB/.env"
-HUB_SLUG="${HUB_UPDATE_SLUG:-gitproject}"   # фактический slug на хосте обновлений
-
-# Имя remote для хаба: берём из HUB_UPDATE_HOST или первый готовый remote
-_hub_update_host="${HUB_UPDATE_HOST:-gitverse.ru}"
-_hub_update_host_id="$(echo "$_hub_update_host" | sed -E 's/\.ru$//; s/\.dev$//; s/\.com$//')"
-hub_remote="${HUB_UPDATE_REMOTE:=$_hub_update_host_id}"
-
-# Отображаемое имя хоста обновлений (для вывода в консоль)
-_hub_display_host() {
-    case "$_hub_update_host" in
-        gitverse.ru)     echo "GitVerse" ;;
-        gitflic.ru)      echo "GitFlic" ;;
-        git.sourcecraft.dev) echo "SourceCraft" ;;
-        github.com)      echo "GitHub" ;;
-        gitlab.com)      echo "GitLab" ;;
-        bitbucket.org)   echo "Bitbucket" ;;
-        gitea.com)       echo "Gitea" ;;
-        codebase.mos.ru) echo "CodeBase" ;;
-        *)               echo "$_hub_update_host" ;;
-    esac
+# gitproject-update.sh — обновление хаба из GitVerse: stable (релиз-тег) или edge (master).
+# Обновление: merge -X theirs. Даунгрейд: общие файлы к цели, локальные новые сохраняются.
+# Идемпотентность: общие файлы совпадают → только метка версии. Backup + stash. Без force-push.
+# Портативно: remote gitverse создаётся сам; origin на GitVerse используется как есть.
+# После обновления освежает запись хаба в маркетплейсе (refresh-hub).
+set -euo pipefail
+HUB="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+REMOTE="gitverse"; REMOTE_URL="https://gitverse.ru/Sokol491/gitproject.git"; BRANCH="master"
+CHANNEL="${1:-stable}"; ASSUME_YES=0
+[ "${2:-}" = "--yes" ] && ASSUME_YES=1
+log(){ printf '%s\n' "$*" >&2; }
+die(){ log "✗ ОШИБКА: $*"; exit 1; }
+refresh_marketplace_hub() {
+  if command -v php >/dev/null 2>&1 && [ -f "$HUB/bin/marketplace.php" ]; then
+    php "$HUB/bin/marketplace.php" refresh-hub >&2 || true
+  fi
 }
-
-# Мульти-хост: выбираем первый доступный remote
-first_remote="$(git -C "$HUB" remote | head -1)"
-[ -z "$first_remote" ] && { print_error "У хаба нет настроенных remote"; exit 1; }
-
-load_env_soft() {
-    # Пользователь хаба на хосте обновлений (динамически по домену)
-    case "$_hub_update_host" in
-        gitverse.ru)   HUB_USER_VAR="GITVERSE_HUB_USER" ;;
-        gitflic.ru)    HUB_USER_VAR="GITFLIC_HUB_USER" ;;
-        git.sourcecraft.dev) HUB_USER_VAR="SOURCECRAFT_HUB_USER" ;;
-        github.com)    HUB_USER_VAR="GITHUB_HUB_USER" ;;
-        *)             HUB_USER_VAR="GITVERSE_HUB_USER" ;;
-    esac
-    eval "HUB_USER=\"\${${HUB_USER_VAR}:-sokol491}\""
-}
-
-remote_url() {
-    local u
-    if [ -d "$HUB/.git" ] && u="$(git -C "$HUB" remote get-url "$hub_remote" 2>/dev/null)" && [ -n "$u" ]; then
-        printf '%s' "$u"
-    else
-        # Строим URL динамически по домену хоста обновлений
-        printf 'https://%s/%s/%s.git' "$_hub_update_host" "$HUB_USER" "$HUB_SLUG"
-    fi
-}
-
-is_local_repo() { [ -d "$HUB/.git" ] && git -C "$HUB" rev-parse --is-inside-work-tree >/dev/null 2>&1; }
-
-remote_repo_exists() {
-    local output
-    output="$(git ls-remote "$(remote_url)" 2>&1)"
-    [[ ! "$output" =~ "Repository not found" && ! "$output" =~ "fatal:" && ! "$output" =~ "error:" ]]
-}
-
-write_gitignore() {
-    cat > "$HUB/.gitignore" <<'EOF'
-# Секреты
-.env
-# Логи и приватные данные хаба
-/data/*
-!/data/.gitkeep
-# Контейнер репозиториев других проектов
-/projects/
-# Логи и служебные файлы SQLite
-*.log
-*.sqlite
-*.sqlite-journal
-*.sqlite-wal
-*.sqlite-shm
-# Резервные копии файлов перед правками
-*.bak-*
-EOF
-}
-
-cmd_fix() {
-    if is_local_repo; then
-        print_success "локальный git: да"
-    else
-        git -C "$HUB" init -b master && print_success "локальный git: инициализирован (master)"
-    fi
-    if ! { git -C "$HUB" config --get user.name >/dev/null && git -C "$HUB" config --get user.email >/dev/null; }; then
-        print_warn "ВНИМАНИЕ: не настроена идентичность git (guide раздел 4)"
-    fi
-    if ! git -C "$HUB" remote get-url "$hub_remote" >/dev/null 2>&1; then
-        git -C "$HUB" remote add "$hub_remote" "$(remote_url)" && print_success "origin: добавлен ($(remote_url))"
-    else
-        print_info "origin: $(git -C "$HUB" remote get-url "$hub_remote")"
-    fi
-    if [ ! -f "$HUB/.gitignore" ]; then
-        write_gitignore && print_success ".gitignore: создан по шаблону хаба"
-    else
-        grep -q '^/projects/' "$HUB/.gitignore" || print_warn "ВНИМАНИЕ: в .gitignore нет строки /projects/"
-        grep -q '^\.env' "$HUB/.gitignore" || print_warn "ВНИМАНИЕ: в .gitignore нет строки .env"
-    fi
-    mkdir -p "$HUB/data"
-    [ -f "$HUB/data/.gitkeep" ] || touch "$HUB/data/.gitkeep"
-    if remote_repo_exists; then
-        print_success "$(_hub_display_host): репозиторий хаба существует, remote доступен"
-    else
-        print_warn "$(_hub_display_host): репозитория хаба нет — создайте через Web-UI (guide раздел 7)"
-    fi
-}
-
-cmd_status() {
-    if ! is_local_repo; then
-        print_warn "хаб: не git-репозиторий (выполните: git-project-update.sh fix)"
-        return 0
-    fi
-    local branch up dirty ahead behind
-    branch="$(git -C "$HUB" branch --show-current 2>/dev/null)"
-    [ -n "$branch" ] || branch="(без коммитов)"
-    up="$(git -C "$HUB" rev-parse --abbrev-ref '@{u}' 2>/dev/null || true)"
-    dirty="$(git -C "$HUB" status --porcelain 2>/dev/null | wc -l)"
-    ahead="-"; behind="-"
-    if [ -n "$up" ] && git -C "$HUB" rev-parse HEAD >/dev/null 2>&1; then
-        ahead="$(git -C "$HUB" log --oneline "${up}..HEAD" 2>/dev/null | wc -l)"
-        behind="$(git -C "$HUB" log --oneline "HEAD..${up}" 2>/dev/null | wc -l)"
-    fi
-    print_header "хаб:            $HUB"
-    print_info    "ветка:          $branch${up:+ -> ${up#"$hub_remote"/}}"
-    print_info    "ahead/behind:   $ahead/$behind (по последнему fetch)"
-    print_info    "грязных файлов: $dirty"
-    if remote_repo_exists; then
-        print_success "$(_hub_display_host):        репозиторий хаба существует ($(remote_url))"
-    else
-        print_error "$(_hub_display_host):        репозитория хаба нет ($(remote_url))"
-    fi
-}
-
-cmd_sync() {
-    local commit_msg="${1:-}"
-    cd "$HUB" || exit 2
-    if ! is_local_repo; then
-        print_error "ОШИБКА: $HUB не является git-репозиторием."
-        print_info "Подсказка: git-project-update.sh fix"
-        exit 2
-    fi
-    if ! { git config --get user.name >/dev/null && git config --get user.email >/dev/null; }; then
-        print_error "ОШИБКА: не настроена идентичность git (user.name / user.email)."
-        exit 2
-    fi
-
-    local branch upstream remote_branch remote_ref
-    branch="$(git branch --show-current)"
-    if [ -z "$branch" ]; then
-        print_error "ОШИБКА: detached HEAD — синхронизация невозможна."
-        exit 2
-    fi
-    upstream="$(git rev-parse --abbrev-ref '@{u}' 2>/dev/null || true)"
-    if [ -n "$upstream" ]; then
-        remote_branch="${upstream#"$hub_remote"/}"
-    else
-        remote_branch="$branch"
-    fi
-    remote_ref="$hub_remote/$remote_branch"
-
-    print_header "== СВЕРКА: $HUB_SLUG (локально $branch -> $(_hub_display_host) $remote_branch) =="
-
-    if ! remote_repo_exists; then
-        print_error "ОШИБКА: репозиторий хаба на $(_hub_display_host) отсутствует ($(remote_url))."
-        print_info "Создайте через Web-UI (guide раздел 7): имя $HUB_SLUG, пустой, без README."
-        exit 2
-    fi
-
-    if ! git fetch "$hub_remote" >/dev/null 2>&1; then
-        print_error "ОШИБКА: git fetch $hub_remote не удался (сеть/доступ). Проверьте credential helper."
-        exit 2
-    fi
-
-    local has_remote=0 has_local=0
-    git rev-parse HEAD >/dev/null 2>&1 && has_local=1
-    git show-ref --verify --quiet "refs/remotes/$remote_ref" && has_remote=1
-
-    local local_head ahead_list behind_list remote_head
-    local_head="$(git rev-parse --short HEAD 2>/dev/null || echo '(нет коммитов)')"
-    ahead_list=""; behind_list=""
-    if [ "$has_local" -eq 1 ]; then
-        ahead_list="$(git log --oneline "${remote_ref}..HEAD" 2>/dev/null || true)"
-    fi
-    if [ "$has_remote" -eq 1 ] && [ "$has_local" -eq 1 ]; then
-        remote_head="$(git rev-parse --short "$remote_ref")"
-        behind_list="$(git log --oneline "HEAD..${remote_ref}" 2>/dev/null || true)"
-        print_info "Локально:  $local_head | На $(_hub_display_host) ($remote_branch): $remote_head"
-    else
-        print_info "Локально:  $local_head | На $(_hub_display_host): ветка $remote_branch отсутствует (будет создана)"
-    fi
-
-    local ahead_n=0 behind_n=0
-    [ -n "$ahead_list" ] && ahead_n="$(wc -l <<<"$ahead_list")"
-    [ -n "$behind_list" ] && behind_n="$(wc -l <<<"$behind_list")"
-    print_info "Коммитов локально, которых нет на $(_hub_display_host): $ahead_n"
-    [ -n "$ahead_list" ] && echo "$ahead_list" | head -n 10 | sed 's/^/  > /'
-    print_info "Коммитов на $(_hub_display_host), которых нет локально:  $behind_n"
-    [ -n "$behind_list" ] && echo "$behind_list" | head -n 10 | sed 's/^/  < /'
-
-    if [ -n "$(git status --porcelain)" ]; then
-        print_info "-- Коммит локальных изменений --"
-        git add -A
-        local forbidden
-        forbidden="$(git diff --cached --name-only \
-            | grep -E '^\.env($|[^.])|^\.env\.(local|prod|production)$|^data/|^projects/|\.log$|\.sqlite(-journal|-wal|-shm)?$|\.ged$' \
-            | grep -vE '^data/\.gitkeep$|\.env\.example$' || true)"
-        if [ -n "$forbidden" ]; then
-            print_error "ОШИБКА: в staging попали запрещённые пути — коммит отменён:"
-            echo "$forbidden" | sed 's/^/  ! /' >&2
-            git reset -q
-            exit 5
-        fi
-        local msg="$commit_msg"
-        [ -z "$msg" ] && msg="sync: $HUB_SLUG $(date +%Y-%m-%d_%H:%M) — локальные изменения"
-        git commit -q -m "$msg"
-        print_success "Создан коммит: $(git log --oneline -1)"
-    else
-        print_gray "-- Рабочий каталог чист, некоммиченных изменений нет --"
-        if [ "$has_local" -eq 0 ]; then
-            print_error "ОШИБКА: нет ни коммитов, ни изменений — публиковать нечего."
-            exit 2
-        fi
-    fi
-
-    if [ "$has_remote" -eq 1 ] && [ "$behind_n" -gt 0 ]; then
-        print_info "-- Интеграция $remote_ref (конфликты — в пользу локальной версии) --"
-        if ! git merge -X ours "$remote_ref" \
-            -m "merge: интеграция $remote_ref, приоритет локальных изменений"; then
-            print_error "ОШИБКА: слияние остановилось (конфликт вне содержимого). Разрешите вручную:"
-            print_info "  git status / git add ... / git commit, затем повторите синхронизацию."
-            exit 3
-        fi
-    fi
-
-    print_info "-- Публикация на $(_hub_display_host): $branch -> $remote_branch --"
-    if [ "$has_remote" -eq 1 ]; then
-        git push "$hub_remote" "$branch:$remote_branch" || exit 4
-    else
-        git push -u "$hub_remote" "$branch:$remote_branch" || exit 4
-    fi
-
-    local local_now remote_now
-    local_now="$(git rev-parse HEAD)"
-    remote_now="$(git ls-remote "$hub_remote" "refs/heads/$remote_branch" | awk '{print $1}')"
-    if [ -n "$remote_now" ] && [ "$local_now" = "$remote_now" ]; then
-        print_success "УСПЕХ: $HUB_SLUG/$branch -> $remote_branch синхронизирован, хэш ${local_now:0:7} совпадает с $(_hub_display_host)."
-        exit 0
-    fi
-    print_error "ВНИМАНИЕ: хэши не совпали (локально ${local_now:0:7}, на $(_hub_display_host) ${remote_now:0:7})."
-    print_info "Повторите синхронизацию или проверьте вывод push выше."
-    exit 4
-}
-
-load_env_soft
-
-MODE="${1:-sync}"
-if [ "$MODE" = "status" ] || [ "$MODE" = "fix" ]; then
-    shift 2>/dev/null || true
-    case "$MODE" in
-        status) cmd_status; exit 0 ;;
-        fix)    cmd_fix;    exit 0 ;;
-    esac
+case "$CHANNEL" in stable|edge) ;; *) die "канал: stable|edge" ;; esac
+cd -- "$HUB"
+git rev-parse --is-inside-work-tree >/dev/null 2>&1 || die "не git-репозиторий"
+if git remote get-url "$REMOTE" >/dev/null 2>&1; then
+  CUR="$(git remote get-url "$REMOTE")"
+  if [ "$CUR" != "$REMOTE_URL" ]; then
+    log "ℹ remote $REMOTE: выравниваю URL на $REMOTE_URL"
+    git remote set-url "$REMOTE" "$REMOTE_URL"
+  fi
+elif [ "$(git remote get-url origin 2>/dev/null || true)" = "$REMOTE_URL" ]; then
+  REMOTE="origin"
+  log "ℹ Использую remote origin (клон с GitVerse)"
+else
+  log "ℹ Добавляю remote $REMOTE → $REMOTE_URL"
+  git remote add "$REMOTE" "$REMOTE_URL"
 fi
-
-COMMIT_MSG=""
-if [ "${1:-}" = "-m" ]; then
-    COMMIT_MSG="${2:-}"
+GD="$(git rev-parse --absolute-git-dir)"
+if [ -e "$GD/MERGE_HEAD" ] || [ -d "$GD/rebase-merge" ] || [ -d "$GD/rebase-apply" ]; then
+  die "незавершённый merge/rebase: сначала --abort"
 fi
-cmd_sync "$COMMIT_MSG"
+git fetch "$REMOTE" "$BRANCH" --tags --force >&2 || die "fetch не удался"
+LOCAL_SHA="$(git rev-parse HEAD)"
+EDGE_SHA="$(git rev-parse "refs/remotes/$REMOTE/$BRANCH")"
+STABLE_TAG="$(git tag --list --sort=-v:refname | while IFS= read -r t; do
+  case "$t" in *-*) continue ;; esac
+  ts="$(git rev-list -n1 "$t" 2>/dev/null || true)"
+  [ -n "$ts" ] || continue
+  if git merge-base --is-ancestor "$ts" "$EDGE_SHA" 2>/dev/null; then printf '%s' "$t"; break; fi
+done)"
+[ -n "$STABLE_TAG" ] || die "стабильных тегов нет"
+STABLE_SHA="$(git rev-list -n1 "$STABLE_TAG")"
+if [ "$CHANNEL" = stable ]; then
+  TARGET_SHA="$STABLE_SHA"; TARGET_LABEL="$STABLE_TAG"
+else
+  TARGET_SHA="$EDGE_SHA"; TARGET_LABEL="$STABLE_TAG-r$(git rev-parse --short=6 "$EDGE_SHA")"
+fi
+BEHIND="$(git rev-list --count "$LOCAL_SHA..$TARGET_SHA" 2>/dev/null || echo '?')"
+AHEAD="$(git rev-list --count "$TARGET_SHA..$LOCAL_SHA" 2>/dev/null || echo '?')"
+DIRTY="$(git status --porcelain --untracked-files=no)"
+IS_ANCESTOR=0
+git merge-base --is-ancestor "$TARGET_SHA" "$LOCAL_SHA" 2>/dev/null && IS_ANCESTOR=1
+COMMON_DIFF="$(git diff --name-only --diff-filter=d "$TARGET_SHA" "$LOCAL_SHA" -- $(git ls-tree -r --name-only "$TARGET_SHA") 2>/dev/null || true)"
+log "Канал: $CHANNEL | цель: $TARGET_LABEL (${TARGET_SHA:0:7}) | remote: $REMOTE"
+log "Локально: ${LOCAL_SHA:0:7} | позади: $BEHIND, впереди: $AHEAD"
+if [ -z "$COMMON_DIFF" ] && [ -z "$DIRTY" ]; then
+  mkdir -p "$HUB/data"
+  printf '%s\n' "$TARGET_LABEL" > "$HUB/data/version.txt"
+  log "✓ Уже на $TARGET_LABEL (общие файлы совпадают), метка записана"
+  refresh_marketplace_hub
+  exit 0
+fi
+DOWNGRADE=0
+if [ "$IS_ANCESTOR" -eq 1 ]; then
+  DOWNGRADE=1
+  log "⚠ Даунгрейд: $TARGET_LABEL старше HEAD — общие файлы вернутся к цели, локальные новые сохранятся"
+fi
+if [ "$ASSUME_YES" -ne 1 ]; then
+  [ -t 0 ] || die "нужен --yes без tty"
+  printf 'Обновить до %s? (Д/Н): ' "$TARGET_LABEL" >&2
+  IFS= read -r a || true
+  case "$a" in Д|д|Y|y) ;; *) die "отменено" ;; esac
+fi
+STAMP="$(date +%Y%m%d-%H%M%S)"
+BACKUP="backup/pre-update-$STAMP"
+git show-ref --verify --quiet "refs/heads/$BACKUP" && BACKUP="$BACKUP-$$"
+git branch -- "$BACKUP" "$LOCAL_SHA"
+log "Backup: $BACKUP"
+if [ -n "$DIRTY" ]; then
+  git stash push -m "pre-update-$STAMP" >&2 || die "stash не удался"
+  log "Правки в stash (вернуть: git stash pop)"
+fi
+if [ "$DOWNGRADE" -eq 1 ]; then
+  git read-tree -u --reset "$TARGET_SHA" >&2
+  while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    git cat-file -e "$TARGET_SHA:$f" 2>/dev/null && continue
+    blob="$(git rev-parse "$LOCAL_SHA:$f")"
+    mode="$(git ls-tree "$LOCAL_SHA" -- "$f" | awk '{print $1}')"
+    git update-index --add --cacheinfo "$mode,$blob,$f"
+    git checkout-index -f -- "$f"
+  done < <(git diff --name-only --diff-filter=A "$TARGET_SHA" "$LOCAL_SHA")
+  if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+    git commit -qm "update: downgrade $CHANNEL -> $TARGET_LABEL (локальные файлы сохранены)" >&2
+  else
+    git commit -q --allow-empty -m "update: downgrade $CHANNEL -> $TARGET_LABEL" >&2
+  fi
+else
+  if ! git merge --no-edit -X theirs "$TARGET_SHA" -m "update: $CHANNEL -> $TARGET_LABEL" >&2; then
+    git merge --abort 2>/dev/null || true
+    die "конфликт: откат, backup $BACKUP"
+  fi
+fi
+mkdir -p "$HUB/data"
+printf '%s\n' "$TARGET_LABEL" > "$HUB/data/version.txt"
+log "✓ Обновлено до $TARGET_LABEL ($(git rev-parse --short=7 HEAD)), backup: $BACKUP"
+refresh_marketplace_hub
