@@ -6,9 +6,17 @@
 <title>GitProject Workspace Hub</title>
 <link rel="stylesheet" href="/assets/style.css">
 </head>
-<body>
+<body data-slug="<?= htmlspecialchars($project['name'] ?? '') ?>">
 <div class="container">
-
+  <section class="hub-update" id="hub-update" hidden>
+    <div class="hub-update-text" id="hub-update-text"></div>
+    <div class="hub-update-buttons">
+      <button type="button" class="btn btn--primary" id="hub-check">🔍 Проверить обновления</button>
+      <button type="button" class="btn" id="hub-stable" hidden>⬇ Стабильная</button>
+      <button type="button" class="btn btn--danger" id="hub-edge" hidden>⚠ Edge (риск)</button>
+    </div>
+    <pre class="hub-log" id="hub-log" hidden></pre>
+  </section>
 <?php if ($project === null): ?>
 
   <header class="header">
@@ -171,5 +179,6 @@
 <?php endif; ?>
 
 </div>
+<script type="module" src="/assets/js/project-page.js?v=2"></script>
 </body>
 </html>

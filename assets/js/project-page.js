@@ -1,10 +1,16 @@
-// project-page.js — кнопки страницы проекта и баннер обновления хаба.
-// Консолидированная версия v0.0.3: базовые кнопки + автопроверка (троттлинг 24ч)
-// + откат к backup-веткам + экспорт zip + удаление локально.
-// Требования к разметке: баннер #hub-update на ОБЕИХ экранах (главная и проект),
-// data-slug на <body>, кнопки #export-project и #delete-local на странице проекта.
-const slug = document.body.dataset.slug || '';
+// project-page.js — устойчивая версия: guard'ы на каждый элемент,
+// slug из data-slug ИЛИ из URL /hub/project/<slug>/, модуль не падает при неполной разметке.
+const slug = document.body.dataset.slug || (() => {
+  const m = location.pathname.match(/^\/hub\/project\/([^/]+)\/?$/);
+  return m ? decodeURIComponent(m[1]) : '';
+})();
 const $ = (id) => document.getElementById(id);
+
+function on(id, evt, fn) {
+  const el = $(id);
+  if (el) { el.addEventListener(evt, fn); }
+  return el;
+}
 
 function escapeHtml(str) {
   return String(str ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
@@ -17,6 +23,7 @@ async function api(url, options = {}) {
 }
 
 function showLog(el, text) {
+  if (!el) { return; }
   el.hidden = false;
   el.textContent = text;
   el.scrollTop = el.scrollHeight;
@@ -26,6 +33,7 @@ function showLog(el, text) {
 async function hubStatus(refresh = false) {
   const box = $('hub-update');
   const text = $('hub-update-text');
+  if (!box || !text) { return; }
   box.hidden = false;
   if (refresh) {
     text.textContent = 'Fetch GitVerse...';
@@ -40,10 +48,14 @@ async function hubStatus(refresh = false) {
   text.innerHTML = 'Текущая: <strong>' + escapeHtml(d.current_label) + '</strong>'
     + ' · Стабильная: <strong>' + escapeHtml(stable) + '</strong>'
     + ' · Edge: <strong>' + escapeHtml(edge) + '</strong>';
-  $('hub-stable').hidden = !d.stable;
-  $('hub-edge').hidden = !d.edge;
-  $('hub-stable').textContent = '⬇ Стабильная ' + stable;
-  $('hub-edge').textContent = '⚠ Edge ' + edge + ' (риск)';
+  if ($('hub-stable')) {
+    $('hub-stable').hidden = !d.stable;
+    $('hub-stable').textContent = '⬇ Стабильная ' + stable;
+  }
+  if ($('hub-edge')) {
+    $('hub-edge').hidden = !d.edge;
+    $('hub-edge').textContent = '⚠ Edge ' + edge + ' (риск)';
+  }
 }
 
 async function hubUpdate(channel) {
@@ -54,66 +66,65 @@ async function hubUpdate(channel) {
   } else if (!window.confirm('Обновить хаб до стабильной версии?')) {
     return;
   }
-  const log = $('hub-log');
-  showLog(log, 'Обновление (' + channel + ')...');
+  showLog($('hub-log'), 'Обновление (' + channel + ')...');
   const r = await api('/api/hub_version.php?action=update', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ channel, confirm: confirmWord }),
   });
-  showLog(log, (r.ok ? '✅ ' + (r.data.version || '') + '\n' : '❌ ' + r.error + '\n') + (r.data?.log || ''));
+  showLog($('hub-log'), (r.ok ? '✅ ' + (r.data.version || '') + '\n' : '❌ ' + r.error + '\n') + (r.data?.log || ''));
   if (r.ok) { hubStatus(); }
 }
 
-$('hub-check').addEventListener('click', async () => {
-  const box = $('hub-update');
-  $('hub-update-text').textContent = 'Fetch GitVerse...';
-  box.hidden = false;
-  await api('/api/hub_version.php?action=refresh&force=1', { method: 'POST' });
-  hubStatus();
-});
-$('hub-stable').addEventListener('click', () => hubUpdate('stable'));
-$('hub-edge').addEventListener('click', () => hubUpdate('edge'));
-
-// --- Откат ---
-const rollbackBtn = document.createElement('button');
-rollbackBtn.type = 'button';
-rollbackBtn.className = 'btn';
-rollbackBtn.id = 'hub-rollback';
-rollbackBtn.textContent = '↩ Откат';
-document.querySelector('.hub-update-buttons').appendChild(rollbackBtn);
-
-rollbackBtn.addEventListener('click', async () => {
-  const r = await api('/api/hub_version.php?action=backups');
-  if (!r.ok || r.data.backups.length === 0) { window.alert('Точек отката нет'); return; }
-  const list = r.data.backups.map((b, i) => (i + 1) + ': ' + b.branch + ' (' + b.date + ')').join('\n');
-  const pick = window.prompt('Точки отката:\n' + list + '\n\nНомер для отката (пусто — отмена):');
-  const idx = parseInt(pick || '', 10) - 1;
-  if (!(idx >= 0 && idx < r.data.backups.length)) { return; }
-  const b = r.data.backups[idx];
-  if (!window.confirm('Откатить хаб к ' + b.branch + '? Текущее состояние сохранится в backup.')) { return; }
-  const log = $('hub-log');
-  showLog(log, 'Откат...');
-  const rr = await api('/api/hub_version.php?action=rollback', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ branch: b.branch }),
+if ($('hub-update') && $('hub-check') && $('hub-stable') && $('hub-edge')) {
+  on('hub-check', 'click', async () => {
+    $('hub-update-text').textContent = 'Fetch GitVerse...';
+    $('hub-update').hidden = false;
+    await api('/api/hub_version.php?action=refresh&force=1', { method: 'POST' });
+    hubStatus();
   });
-  showLog(log, (rr.ok ? '✅ Откат выполнен\n' : '❌ ' + rr.error + '\n') + (rr.data?.log || ''));
-  if (rr.ok) { hubStatus(); }
-});
+  on('hub-stable', 'click', () => hubUpdate('stable'));
+  on('hub-edge', 'click', () => hubUpdate('edge'));
 
-// Автопроверка при входе: сервер сам решает, нужен ли fetch (троттлинг 24ч).
-hubStatus(true);
+  const wrap = document.querySelector('.hub-update-buttons');
+  if (wrap) {
+    const rollbackBtn = document.createElement('button');
+    rollbackBtn.type = 'button';
+    rollbackBtn.className = 'btn';
+    rollbackBtn.id = 'hub-rollback';
+    rollbackBtn.textContent = '↩ Откат';
+    wrap.appendChild(rollbackBtn);
+    rollbackBtn.addEventListener('click', async () => {
+      const r = await api('/api/hub_version.php?action=backups');
+      if (!r.ok || r.data.backups.length === 0) { window.alert('Точек отката нет'); return; }
+      const list = r.data.backups.map((b, i) => (i + 1) + ': ' + b.branch + ' (' + b.date + ')').join('\n');
+      const pick = window.prompt('Точки отката:\n' + list + '\n\nНомер для отката (пусто — отмена):');
+      const idx = parseInt(pick || '', 10) - 1;
+      if (!(idx >= 0 && idx < r.data.backups.length)) { return; }
+      const b = r.data.backups[idx];
+      if (!window.confirm('Откатить хаб к ' + b.branch + '? Текущее состояние сохранится в backup.')) { return; }
+      showLog($('hub-log'), 'Откат...');
+      const rr = await api('/api/hub_version.php?action=rollback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ branch: b.branch }),
+      });
+      showLog($('hub-log'), (rr.ok ? '✅ Откат выполнен\n' : '❌ ' + rr.error + '\n') + (rr.data?.log || ''));
+      if (rr.ok) { hubStatus(); }
+    });
+  }
+  hubStatus(true);
+} else {
+  console.warn('project-page: баннер #hub-update отсутствует — обновление хаба доступно через CLI');
+}
 
 // --- Кнопки проекта ----------------------------------------------------------
 if (slug) {
   document.querySelectorAll('[data-op]').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const op = btn.dataset.op;
-      const log = $('git-log');
       btn.disabled = true;
-      showLog(log, op + '...');
+      showLog($('git-log'), op + '...');
       const mode = op === 'merge' ? 'all' : op;
       const remote = op === 'pull' ? 'gitverse' : '';
       const r = await api('/api/sync.php', {
@@ -121,61 +132,14 @@ if (slug) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ slug, mode, remote }),
       });
-      showLog(log, (r.ok ? '✅ Успех\n' : '❌ ' + r.error + '\n') + (r.data?.log || ''));
+      showLog($('git-log'), (r.ok ? '✅ Успех\n' : '❌ ' + r.error + '\n') + (r.data?.log || ''));
       btn.disabled = false;
     });
   });
 
-  $('show-commits').addEventListener('click', async () => {
-    const list = $('commits-list');
-    list.hidden = false;
-    list.textContent = 'Загрузка...';
-    const r = await api('/api/project_actions.php?action=log&slug=' + encodeURIComponent(slug));
-    if (!r.ok) { list.textContent = '✗ ' + r.error; return; }
-    list.innerHTML = r.data.commits.map((c) =>
-      '<div class="commit-row"><span class="commit-sha">' + escapeHtml(c.sha) + '</span>'
-      + '<span class="commit-date">' + escapeHtml(c.date) + '</span>'
-      + '<span class="commit-subject">' + escapeHtml(c.subject) + '</span></div>'
-    ).join('');
-  });
-
-  $('edit-desc').addEventListener('click', () => { $('desc-form').hidden = !$('desc-form').hidden; });
-  $('save-desc').addEventListener('click', async () => {
-    const r = await api('/api/project_actions.php?action=description', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ slug, description: $('desc-input').value }),
-    });
-    if (r.ok) { window.location.reload(); } else { window.alert('✗ ' + r.error); }
-  });
-
-  $('export-project').addEventListener('click', async () => {
-    const btn = $('export-project');
-    btn.disabled = true;
-    btn.textContent = '⏳ Экспорт...';
-    const r = await api('/api/project_actions.php?action=export&slug=' + encodeURIComponent(slug), { method: 'POST' });
-    btn.disabled = false;
-    btn.textContent = '📦 Экспорт проекта (zip)';
-    if (r.ok) {
-      window.location.href = r.data.download_url;
-    } else {
-      window.alert('✗ ' + r.error);
-    }
-  });
-
-  $('delete-local').addEventListener('click', async () => {
-    const word = window.prompt('Удаление проекта ' + slug + ' с диска необратимо.\nВведите DELETE-LOCAL для подтверждения:');
-    if (word !== 'DELETE-LOCAL') { return; }
-    const r = await api('/api/projects_remove.php?slug=' + encodeURIComponent(slug), {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ confirm: 'DELETE-LOCAL' }),
-    });
-    if (r.ok) { window.location.href = '/'; } else { window.alert('✗ ' + r.error); }
-  });
-    // --- Статус репозитория ---
-  $('git-status').addEventListener('click', async () => {
+  on('git-status', 'click', async () => {
     const box = $('status-box');
+    if (!box) { return; }
     box.hidden = false;
     box.textContent = 'Загрузка…';
     const r = await api('/api/project_actions.php?action=status&slug=' + encodeURIComponent(slug));
@@ -191,15 +155,61 @@ if (slug) {
     box.innerHTML = html;
   });
 
+  on('show-commits', 'click', async () => {
+    const list = $('commits-list');
+    if (!list) { return; }
+    list.hidden = false;
+    list.textContent = 'Загрузка...';
+    const r = await api('/api/project_actions.php?action=log&slug=' + encodeURIComponent(slug));
+    if (!r.ok) { list.textContent = '✗ ' + r.error; return; }
+    list.innerHTML = r.data.commits.map((c) =>
+      '<div class="commit-row"><span class="commit-sha">' + escapeHtml(c.sha) + '</span>'
+      + '<span class="commit-date">' + escapeHtml(c.date) + '</span>'
+      + '<span class="commit-subject">' + escapeHtml(c.subject) + '</span></div>'
+    ).join('');
+  });
+
+  on('edit-desc', 'click', () => { const f = $('desc-form'); if (f) { f.hidden = !f.hidden; } });
+  on('save-desc', 'click', async () => {
+    const r = await api('/api/project_actions.php?action=description', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slug, description: $('desc-input').value }),
+    });
+    if (r.ok) { window.location.reload(); } else { window.alert('✗ ' + r.error); }
+  });
+
+  on('export-project', 'click', async () => {
+    const btn = $('export-project');
+    btn.disabled = true;
+    btn.textContent = '⏳ Экспорт...';
+    const r = await api('/api/project_actions.php?action=export&slug=' + encodeURIComponent(slug), { method: 'POST' });
+    btn.disabled = false;
+    btn.textContent = '📦 Экспорт проекта (zip)';
+    if (r.ok) { window.location.href = r.data.download_url; } else { window.alert('✗ ' + r.error); }
+  });
+
+  on('delete-local', 'click', async () => {
+    const word = window.prompt('Удаление проекта ' + slug + ' с диска необратимо.\nВведите DELETE-LOCAL для подтверждения:');
+    if (word !== 'DELETE-LOCAL') { return; }
+    const r = await api('/api/projects_remove.php?slug=' + encodeURIComponent(slug), {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirm: 'DELETE-LOCAL' }),
+    });
+    if (r.ok) { window.location.href = '/'; } else { window.alert('✗ ' + r.error); }
+  });
+
   // --- Файловый менеджер (read-only) ---
   const fmState = { path: '' };
   async function fmLoad(path) {
+    if (!$('fm-box') || !$('fm-list') || !$('fm-crumbs')) { return; }
     fmState.path = path;
     const list = $('fm-list');
     const view = $('fm-view');
     $('fm-box').hidden = false;
-    $('fm-back').hidden = true;
-    view.hidden = true;
+    if ($('fm-back')) { $('fm-back').hidden = true; }
+    if (view) { view.hidden = true; }
     list.hidden = false;
     list.textContent = 'Загрузка…';
     const r = await api('/api/project_actions.php?action=files&slug=' + encodeURIComponent(slug) + '&path=' + encodeURIComponent(path));
@@ -218,26 +228,29 @@ if (slug) {
       + (e.dir ? '' : ' <span class="fm-size">' + e.size + ' B</span>') + '</button>'
     ).join('') || '<p class="fm-empty">Каталог пуст</p>';
   }
-  $('fm-open').addEventListener('click', () => {
-    if ($('fm-box').hidden) { fmLoad(''); } else { $('fm-box').hidden = true; }
+  on('fm-open', 'click', () => {
+    const box = $('fm-box');
+    if (!box) { return; }
+    if (box.hidden) { fmLoad(''); } else { box.hidden = true; }
   });
-  $('fm-crumbs').addEventListener('click', (ev) => {
+  on('fm-crumbs', 'click', (ev) => {
     const c = ev.target.closest('.fm-crumb');
     if (c) { fmLoad(c.dataset.path); }
   });
-  $('fm-back').addEventListener('click', () => {
-    $('fm-view').hidden = true;
-    $('fm-list').hidden = false;
-    $('fm-back').hidden = true;
+  on('fm-back', 'click', () => {
+    if ($('fm-view')) { $('fm-view').hidden = true; }
+    if ($('fm-list')) { $('fm-list').hidden = false; }
+    if ($('fm-back')) { $('fm-back').hidden = true; }
   });
-  $('fm-list').addEventListener('click', async (ev) => {
+  on('fm-list', 'click', async (ev) => {
     const row = ev.target.closest('.fm-row');
     if (!row) { return; }
     const path = fmState.path === '' ? row.dataset.name : fmState.path + '/' + row.dataset.name;
     if (row.dataset.dir === '1') { fmLoad(path); return; }
     const view = $('fm-view');
+    if (!view) { return; }
     $('fm-list').hidden = true;
-    $('fm-back').hidden = false;
+    if ($('fm-back')) { $('fm-back').hidden = false; }
     view.hidden = false;
     view.textContent = 'Загрузка…';
     const r = await api('/api/project_actions.php?action=file&slug=' + encodeURIComponent(slug) + '&path=' + encodeURIComponent(path));
@@ -245,8 +258,9 @@ if (slug) {
   });
 
   // --- Мета-данные ---
-  $('edit-meta').addEventListener('click', async () => {
+  on('edit-meta', 'click', async () => {
     const form = $('meta-form');
+    if (!form) { return; }
     if (!form.hidden) { form.hidden = true; return; }
     const r = await api('/api/project_actions.php?action=meta&slug=' + encodeURIComponent(slug));
     if (!r.ok) { window.alert('✗ ' + r.error); return; }
@@ -256,7 +270,7 @@ if (slug) {
     $('meta-keywords').value = (r.data.keywords || []).join(', ');
     form.hidden = false;
   });
-  $('save-meta').addEventListener('click', async () => {
+  on('save-meta', 'click', async () => {
     const r = await api('/api/project_actions.php?action=metadata&slug=' + encodeURIComponent(slug), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
