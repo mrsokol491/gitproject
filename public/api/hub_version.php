@@ -3,8 +3,10 @@
 declare(strict_types=1);
 
 /**
- * API версий хаба: GET ?action=status | POST ?action=update {channel, confirm}.
- * Читает .git без exec для статуса; обновление делегирует bin/gitproject-update.sh.
+ * API версий хаба: status | refresh | update | backups | rollback.
+ * Статус читается из файлов .git без exec; действия делегируются bin-скриптам.
+ * Портативно: edge берётся из gitverse, иначе origin, иначе первого remote с tracking-ссылкой.
+ * Метка версии: data/version.txt, иначе тег на HEAD, иначе <stable>-r<hash6>.
  */
 
 header('Content-Type: application/json; charset=utf-8');
@@ -60,17 +62,55 @@ if (!is_dir($gd)) {
     respond(false, [], 'Хаб не является git-репозиторием', 'NOT_GIT');
 }
 
-$head   = gitRead($gd, 'HEAD') ?? '';
-$branch = str_starts_with($head, 'ref: refs/heads/') ? substr(trim(substr($head, 5)), 11) : null;
-$localSha = $branch !== null ? refSha($gd, 'refs/heads/' . $branch) : (preg_match('/^[0-9a-f]{40}$/', $head) === 1 ? $head : null);
-$edgeSha  = $branch !== null ? refSha($gd, 'refs/remotes/gitverse/' . $branch) : null;
+$head     = gitRead($gd, 'HEAD') ?? '';
+$branch   = str_starts_with($head, 'ref: refs/heads/') ? substr(trim(substr($head, 5)), 11) : null;
+$localSha = $branch !== null
+    ? refSha($gd, 'refs/heads/' . $branch)
+    : (preg_match('/^[0-9a-f]{40}$/', $head) === 1 ? $head : null);
 
-// Теги из packed-refs и loose refs/tags
+// --- Remote для edge: gitverse -> origin -> первый с tracking-ссылкой ---------
+$config = gitRead($gd, 'config') ?? '';
+preg_match_all('/^\[remote "([^"]+)"\]/m', $config, $rm);
+$remotes = $rm[1] ?? [];
+$preferred = [];
+foreach (['gitverse', 'origin'] as $p) {
+    if (in_array($p, $remotes, true)) {
+        $preferred[] = $p;
+    }
+}
+foreach ($remotes as $r) {
+    if (!in_array($r, $preferred, true)) {
+        $preferred[] = $r;
+    }
+}
+$edgeSha = null;
+$edgeRemote = null;
+if ($branch !== null) {
+    foreach ($preferred as $r) {
+        $sha = refSha($gd, 'refs/remotes/' . $r . '/' . $branch);
+        if ($sha !== null) {
+            $edgeSha = $sha;
+            $edgeRemote = $r;
+            break;
+        }
+    }
+}
+
+// --- Теги: packed-refs + loose, с peeled-ссылками аннотированных тегов --------
 $tags = [];
+$peel = [];
 $packed = gitRead($gd, 'packed-refs') ?? '';
+$lastTag = null;
 foreach (explode("\n", $packed) as $line) {
-    if (preg_match('/^([0-9a-f]{40})\s+refs\/tags\/(.+)$/', trim($line), $m) === 1 && !str_ends_with($m[2], '^{}')) {
+    $line = trim($line);
+    if (preg_match('/^([0-9a-f]{40})\s+refs\/tags\/(.+)$/', $line, $m) === 1 && !str_ends_with($m[2], '^{}')) {
         $tags[$m[2]] = $m[1];
+        $lastTag = $m[2];
+        continue;
+    }
+    if ($lastTag !== null && preg_match('/^\^([0-9a-f]{40})$/', $line, $m) === 1) {
+        $peel[$lastTag] = $m[1];
+        $lastTag = null;
     }
 }
 if (is_dir($gd . '/refs/tags')) {
@@ -84,32 +124,46 @@ if (is_dir($gd . '/refs/tags')) {
         }
     }
 }
-$stableTags = array_filter(array_keys($tags), static fn(string $t): bool => preg_match('/^\d+\.\d+\.\d+$/', $t) === 1);
+$tagCommit = static function (string $t) use ($tags, $peel): string {
+    return $peel[$t] ?? $tags[$t];
+};
+$stableTags = array_values(array_filter(array_keys($tags), static fn(string $t): bool => preg_match('/^\d+\.\d+\.\d+$/', $t) === 1));
 usort($stableTags, static fn(string $a, string $b): int => version_compare($b, $a));
 $stableTag = $stableTags[0] ?? null;
-$stableSha = $stableTag !== null ? $tags[$stableTag] : null;
+$stableSha = $stableTag !== null ? $tagCommit($stableTag) : null;
 
-$versionFile = $hubRoot . '/data/version.txt';
+// --- Метки версий -------------------------------------------------------------
+$versionFile  = $hubRoot . '/data/version.txt';
 $currentLabel = is_file($versionFile) ? trim((string) file_get_contents($versionFile)) : '';
 if ($currentLabel === '' && $localSha !== null) {
-    $currentLabel = substr($localSha, 0, 7);
+    $tagAtHead = null;
+    foreach ($stableTags as $t) {
+        if ($tagCommit($t) === $localSha) {
+            $tagAtHead = $t;
+            break;
+        }
+    }
+    $currentLabel = $tagAtHead ?? ($stableTag !== null ? $stableTag . '-r' . substr($localSha, 0, 6) : substr($localSha, 0, 7));
 }
-$edgeLabel = $stableTag !== null && $edgeSha !== null ? $stableTag . '-r' . substr($edgeSha, 0, 6) : null;
+$edgeLabel = $stableTag !== null && $edgeSha !== null
+    ? ($edgeSha === $stableSha ? $stableTag : $stableTag . '-r' . substr($edgeSha, 0, 6))
+    : null;
 
-// --- GET status ---------------------------------------------------------------
+// --- GET status ----------------------------------------------------------------
 if ($action === 'status') {
     respond(true, [
-        'branch'         => $branch,
-        'current_label'  => $currentLabel,
-        'local_sha'      => $localSha !== null ? substr($localSha, 0, 7) : null,
-        'stable'         => $stableTag !== null ? ['label' => $stableTag, 'sha' => substr((string) $stableSha, 0, 7)] : null,
-        'edge'           => $edgeLabel !== null ? ['label' => $edgeLabel, 'sha' => substr((string) $edgeSha, 0, 7)] : null,
+        'branch'           => $branch,
+        'current_label'    => $currentLabel,
+        'local_sha'        => $localSha !== null ? substr($localSha, 0, 7) : null,
+        'remote'           => $edgeRemote,
+        'stable'           => $stableTag !== null ? ['label' => $stableTag, 'sha' => substr((string) $stableSha, 0, 7)] : null,
+        'edge'             => $edgeLabel !== null ? ['label' => $edgeLabel, 'sha' => substr((string) $edgeSha, 0, 7)] : null,
         'update_available' => $edgeSha !== null && $localSha !== null && $edgeSha !== $localSha,
-        'note'           => 'Данные последнего fetch. Нажмите «Проверить» для fetch.',
+        'note'             => 'Данные последнего fetch. Нажмите «Проверить» для fetch.',
     ]);
 }
 
-// --- POST refresh: лёгкий fetch через скрипт (только теги+ветка) ---------------
+// --- POST refresh ---------------------------------------------------------------
 if ($action === 'refresh') {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         respond(false, [], 'Метод не разрешён', 'METHOD_NOT_ALLOWED');
@@ -130,7 +184,7 @@ if ($action === 'refresh') {
     respond(true, ['log' => $log]);
 }
 
-// --- POST update ---------------------------------------------------------------
+// --- POST update ------------------------------------------------------------------
 if ($action === 'update') {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         respond(false, [], 'Метод не разрешён', 'METHOD_NOT_ALLOWED');
@@ -145,7 +199,6 @@ if ($action === 'update') {
     if (!in_array($channel, ['stable', 'edge'], true)) {
         respond(false, [], 'Канал: stable или edge', 'INVALID_CHANNEL');
     }
-    // Для edge — явное подтверждение словом (урок cli-wizard-ux-patterns)
     if ($channel === 'edge' && $confirm !== 'EDGE') {
         respond(false, [], 'Для edge введите confirm=EDGE (нестабильная версия)', 'CONFIRM_REQUIRED');
     }
@@ -165,7 +218,7 @@ if ($action === 'update') {
     respond(true, ['log' => $log, 'version' => $newLabel]);
 }
 
-// --- GET backups: список точек отката ------------------------------------------
+// --- GET backups -------------------------------------------------------------------
 if ($action === 'backups') {
     $script = $hubRoot . '/bin/gitproject-rollback.sh';
     if (!is_executable($script)) {
@@ -184,7 +237,7 @@ if ($action === 'backups') {
     respond(true, ['backups' => $rows]);
 }
 
-// --- POST rollback ---------------------------------------------------------------
+// --- POST rollback -------------------------------------------------------------------
 if ($action === 'rollback') {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         respond(false, [], 'Метод не разрешён', 'METHOD_NOT_ALLOWED');
