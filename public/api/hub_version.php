@@ -118,9 +118,11 @@ if ($action === 'refresh') {
     if (!is_executable($script)) {
         respond(false, [], 'bin/gitproject-fetch.sh не найден', 'SCRIPT_ERROR');
     }
+    $force = isset($_GET['force']) && $_GET['force'] === '1';
+    $cmd = escapeshellarg($script) . ($force ? ' --force' : '');
     $output = [];
     $rc = 0;
-    exec(escapeshellarg($script) . ' 2>&1', $output, $rc);
+    exec($cmd . ' 2>&1', $output, $rc);
     $log = stripAnsi(implode("\n", $output));
     if ($rc !== 0) {
         respond(false, ['log' => $log], 'Fetch не удался', 'FETCH_FAILED');
@@ -161,6 +163,53 @@ if ($action === 'update') {
     }
     $newLabel = is_file($versionFile) ? trim((string) file_get_contents($versionFile)) : '';
     respond(true, ['log' => $log, 'version' => $newLabel]);
+}
+
+// --- GET backups: список точек отката ------------------------------------------
+if ($action === 'backups') {
+    $script = $hubRoot . '/bin/gitproject-rollback.sh';
+    if (!is_executable($script)) {
+        respond(false, [], 'bin/gitproject-rollback.sh не найден', 'SCRIPT_ERROR');
+    }
+    $output = [];
+    $rc = 0;
+    exec(escapeshellarg($script) . ' list 2>&1', $output, $rc);
+    $rows = [];
+    foreach ($output as $line) {
+        $parts = explode("\t", $line, 3);
+        if (count($parts) === 3 && str_starts_with($parts[0], 'backup/pre-')) {
+            $rows[] = ['branch' => $parts[0], 'sha' => $parts[1], 'date' => $parts[2]];
+        }
+    }
+    respond(true, ['backups' => $rows]);
+}
+
+// --- POST rollback ---------------------------------------------------------------
+if ($action === 'rollback') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        respond(false, [], 'Метод не разрешён', 'METHOD_NOT_ALLOWED');
+    }
+    $raw = (string) file_get_contents('php://input');
+    if (strlen($raw) > 2048) {
+        respond(false, [], 'Тело запроса слишком большое', 'BODY_TOO_LARGE');
+    }
+    $input  = json_decode($raw, true);
+    $branch = is_array($input) ? (string) ($input['branch'] ?? '') : '';
+    if (preg_match('/^backup\/pre-[a-z]+-\d{8}-\d{6}(-\d+)?$/', $branch) !== 1) {
+        respond(false, [], 'Допустимы только ветки backup/pre-*', 'INVALID_BRANCH');
+    }
+    $script = $hubRoot . '/bin/gitproject-rollback.sh';
+    if (!is_executable($script)) {
+        respond(false, [], 'bin/gitproject-rollback.sh не найден', 'SCRIPT_ERROR');
+    }
+    $output = [];
+    $rc = 0;
+    exec(escapeshellarg($script) . ' ' . escapeshellarg($branch) . ' --yes 2>&1', $output, $rc);
+    $log = stripAnsi(implode("\n", $output));
+    if ($rc !== 0) {
+        respond(false, ['log' => $log], 'Откат не удался', 'ROLLBACK_FAILED');
+    }
+    respond(true, ['log' => $log]);
 }
 
 respond(false, [], 'Неизвестное действие', 'INVALID_ACTION');

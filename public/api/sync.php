@@ -53,8 +53,15 @@ if ($mode === 'all') {
 
 $output = [];
 $returnCode = 0;
+// Предохранитель: долгий sync не должен висеть в HTTP до таймаута сервера.
+// Полноценный job-паттерн (sync_jobs + батчи) — следующий этап v0.0.4.
+$cmd = 'timeout 120 ' . $cmd;
 exec($cmd . ' 2>&1', $output, $returnCode);
 
+if ($returnCode === 124) {
+    echo json_encode(['ok' => false, 'error' => 'Операция длится больше 120 с. Запустите в терминале: bin/git-project-sync.sh ' . $slug, 'error_code' => 'SYNC_TIMEOUT', 'data' => ['log' => strip_ansi(implode("\n", $output))]], JSON_UNESCAPED_UNICODE);
+    exit(1);
+}
 if ($returnCode === 0) {
     echo json_encode(['ok' => true, 'data' => ['message' => 'Успех', 'log' => strip_ansi(implode("\n", $output))]], JSON_UNESCAPED_UNICODE);
 } else {

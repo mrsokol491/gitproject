@@ -106,4 +106,50 @@ if ($action === 'description') {
     respond(true, ['description' => $desc, 'file' => basename($metaFile)]);
 }
 
+if ($action === 'export') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        respond(false, [], 'Метод не разрешён', 'METHOD_NOT_ALLOWED');
+    }
+    if (!is_dir($realRepo . '/.git')) {
+        respond(false, [], 'Проект не является git-репозиторием', 'NOT_GIT');
+    }
+    $script = $hubRoot . '/bin/gitproject-export.sh';
+    if (!is_executable($script)) {
+        respond(false, [], 'bin/gitproject-export.sh не найден', 'SCRIPT_ERROR');
+    }
+    $output = [];
+    $rc = 0;
+    exec(escapeshellarg($script) . ' ' . escapeshellarg($slug) . ' 2>/dev/null', $output, $rc);
+    $path = trim(implode('', $output));
+    if ($rc !== 0 || $path === '' || !is_file($path)) {
+        respond(false, [], 'Экспорт не удался (лимит 100 МБ или ошибка git)', 'EXPORT_FAILED');
+    }
+    respond(true, [
+        'file' => basename($path),
+        'size' => (int) filesize($path),
+        'download_url' => '/api/project_actions.php?action=download&slug=' . rawurlencode($slug) . '&file=' . rawurlencode(basename($path)),
+    ]);
+}
+
+if ($action === 'download') {
+    $file = (string) ($_GET['file'] ?? '');
+    if (preg_match('/^[a-zA-Z0-9_-]+-\d{8}-\d{6}(-\d+)?\.zip$/', $file) !== 1) {
+        respond(false, [], 'Некорректное имя файла', 'INVALID_FILE');
+    }
+    if (!str_starts_with($file, $slug . '-')) {
+        respond(false, [], 'Файл не принадлежит проекту', 'FILE_MISMATCH');
+    }
+    $dir = realpath($hubRoot . '/data/exports');
+    $real = realpath($hubRoot . '/data/exports/' . $file);
+    if ($dir === false || $real === false || !str_starts_with($real, $dir . '/') || !is_file($real)) {
+        respond(false, [], 'Файл не найден', 'NOT_FOUND');
+    }
+    header('Content-Type: application/zip');
+    header('Content-Disposition: attachment; filename="' . basename($real) . '"');
+    header('Content-Length: ' . (string) filesize($real));
+    header('X-Content-Type-Options: nosniff');
+    readfile($real);
+    exit;
+}
+
 respond(false, [], 'Неизвестное действие', 'INVALID_ACTION');

@@ -155,3 +155,7 @@ body {
   .card, .btn { transition: none; }
   .card:hover, .card:focus-visible { transform: none; }
 }
+
+/* --- Опасная зона --- */
+.action-group--danger { border-color: rgba(239, 68, 68, 0.4); }
+.action-group--danger .action-group-title { color: var(--danger); }

@@ -129,6 +129,7 @@
       <div class="action-buttons">
         <button type="button" class="btn" disabled title="Скоро">📜 Просмотр логов коммитов</button>
         <button type="button" class="btn" disabled title="Скоро">📁 Открыть в файловом менеджере</button>
+        <button type="button" class="btn" id="export-project">📦 Экспорт проекта (zip)</button>
       </div>
     </div>
     <div class="action-group">
@@ -137,6 +138,13 @@
         <button type="button" class="btn" disabled title="Скоро">✏️ Изменить описание проекта</button>
         <button type="button" class="btn" disabled title="Скоро">⚙️ Редактировать мета-данные</button>
       </div>
+    </div>
+        <div class="action-group action-group--danger">
+      <h3 class="action-group-title">Опасная зона</h3>
+      <div class="action-buttons">
+        <button type="button" class="btn btn--danger" id="delete-local">🗑 Удалить локально</button>
+      </div>
+      <p class="action-hint">Удаление с хостов — через /panel.php (там выбор remote). Локальное удаление необратимо.</p>
     </div>
   </section>
 

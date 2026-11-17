@@ -1,4 +1,8 @@
 // project-page.js — кнопки страницы проекта и баннер обновления хаба.
+// Консолидированная версия v0.0.3: базовые кнопки + автопроверка (троттлинг 24ч)
+// + откат к backup-веткам + экспорт zip + удаление локально.
+// Требования к разметке: баннер #hub-update на ОБЕИХ экранах (главная и проект),
+// data-slug на <body>, кнопки #export-project и #delete-local на странице проекта.
 const slug = document.body.dataset.slug || '';
 const $ = (id) => document.getElementById(id);
 
@@ -61,10 +65,46 @@ async function hubUpdate(channel) {
   if (r.ok) { hubStatus(); }
 }
 
-$('hub-check').addEventListener('click', () => hubStatus(true));
+$('hub-check').addEventListener('click', async () => {
+  const box = $('hub-update');
+  $('hub-update-text').textContent = 'Fetch GitVerse...';
+  box.hidden = false;
+  await api('/api/hub_version.php?action=refresh&force=1', { method: 'POST' });
+  hubStatus();
+});
 $('hub-stable').addEventListener('click', () => hubUpdate('stable'));
 $('hub-edge').addEventListener('click', () => hubUpdate('edge'));
-hubStatus();
+
+// --- Откат ---
+const rollbackBtn = document.createElement('button');
+rollbackBtn.type = 'button';
+rollbackBtn.className = 'btn';
+rollbackBtn.id = 'hub-rollback';
+rollbackBtn.textContent = '↩ Откат';
+document.querySelector('.hub-update-buttons').appendChild(rollbackBtn);
+
+rollbackBtn.addEventListener('click', async () => {
+  const r = await api('/api/hub_version.php?action=backups');
+  if (!r.ok || r.data.backups.length === 0) { window.alert('Точек отката нет'); return; }
+  const list = r.data.backups.map((b, i) => (i + 1) + ': ' + b.branch + ' (' + b.date + ')').join('\n');
+  const pick = window.prompt('Точки отката:\n' + list + '\n\nНомер для отката (пусто — отмена):');
+  const idx = parseInt(pick || '', 10) - 1;
+  if (!(idx >= 0 && idx < r.data.backups.length)) { return; }
+  const b = r.data.backups[idx];
+  if (!window.confirm('Откатить хаб к ' + b.branch + '? Текущее состояние сохранится в backup.')) { return; }
+  const log = $('hub-log');
+  showLog(log, 'Откат...');
+  const rr = await api('/api/hub_version.php?action=rollback', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ branch: b.branch }),
+  });
+  showLog(log, (rr.ok ? '✅ Откат выполнен\n' : '❌ ' + rr.error + '\n') + (rr.data?.log || ''));
+  if (rr.ok) { hubStatus(); }
+});
+
+// Автопроверка при входе: сервер сам решает, нужен ли fetch (троттлинг 24ч).
+hubStatus(true);
 
 // --- Кнопки проекта ----------------------------------------------------------
 if (slug) {
@@ -107,5 +147,30 @@ if (slug) {
       body: JSON.stringify({ slug, description: $('desc-input').value }),
     });
     if (r.ok) { window.location.reload(); } else { window.alert('✗ ' + r.error); }
+  });
+
+  $('export-project').addEventListener('click', async () => {
+    const btn = $('export-project');
+    btn.disabled = true;
+    btn.textContent = '⏳ Экспорт...';
+    const r = await api('/api/project_actions.php?action=export&slug=' + encodeURIComponent(slug), { method: 'POST' });
+    btn.disabled = false;
+    btn.textContent = '📦 Экспорт проекта (zip)';
+    if (r.ok) {
+      window.location.href = r.data.download_url;
+    } else {
+      window.alert('✗ ' + r.error);
+    }
+  });
+
+  $('delete-local').addEventListener('click', async () => {
+    const word = window.prompt('Удаление проекта ' + slug + ' с диска необратимо.\nВведите DELETE-LOCAL для подтверждения:');
+    if (word !== 'DELETE-LOCAL') { return; }
+    const r = await api('/api/projects_remove.php?slug=' + encodeURIComponent(slug), {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirm: 'DELETE-LOCAL' }),
+    });
+    if (r.ok) { window.location.href = '/'; } else { window.alert('✗ ' + r.error); }
   });
 }
