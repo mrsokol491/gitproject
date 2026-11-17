@@ -7,7 +7,7 @@
 + ✅ GitVerse (gitverse.ru) — платформа от Сбера (реестр ПО РФ)
 + ✅ GitFlic (gitflic.ru) — платформа от Астра (реестр ПО РФ)
 + ✅ SourceCraft (sourcecraft.dev) — платформа от Яндекса (реестр ПО РФ)
-+ ⚠️ GitHub (github.com) — международный Git-хостинг (в процессе)
++ ✅ GitHub (github.com) — международный Git-хостинг (в процессе)
 + ⚠️ GitLab (gitlab.com) — международный Git-хостинг (в процессе)
 + ⚠️ Bitbucket (bitbucket.org) — международный Git-хостинг (в процессе)
 + ⚠️ Gitea (gitea.com) — международный Git-хостинг (в процессе)
