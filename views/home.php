@@ -6,7 +6,7 @@
 <title>GitProject Workspace Hub</title>
 <link rel="stylesheet" href="/assets/style.css">
 </head>
-<body data-slug="<?= htmlspecialchars($project['name'] ?? '') ?>">
+<body data-slug="<?= htmlspecialchars($project['name'] ?? '') ?>" data-remote="<?= htmlspecialchars($project['git_remote'] ?? '') ?>">
 <div class="container">
   <section class="hub-update" id="hub-update" hidden>
     <div class="hub-update-text" id="hub-update-text"></div>
@@ -61,6 +61,16 @@
     </h1>
   </header>
 
+  <section class="hub-update" id="proj-update" hidden>
+    <div class="hub-update-text" id="proj-update-text"></div>
+    <div class="hub-update-buttons">
+      <button type="button" class="btn btn--primary" id="proj-check">🔍 Проверить сервер</button>
+      <button type="button" class="btn" id="proj-pull" hidden>⬇ Обновить из сервера</button>
+      <button type="button" class="btn" id="proj-push" hidden>⬆ Опубликовать на сервер</button>
+    </div>
+    <pre class="hub-log" id="proj-log" hidden></pre>
+  </section>
+
   <section class="project-info">
     <?php if ($project['description'] !== ''): ?>
     <div class="info-row">
@@ -110,6 +120,7 @@
         <span class="sync-icon sync-none">⚪ Нет данных о сервере (выполните fetch)</span>
       <?php endif; ?>
     </div>
+    <p class="mp-stats-note">Панель ниже показывает состояние последнего fetch. Актуальное сравнение с сервером — «🔍 Проверить сервер» выше.</p>
   </section>
 
   <section class="project-actions">

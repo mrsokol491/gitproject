@@ -369,4 +369,66 @@ function paMetaFile(string $repo): ?string
     return null;
 }
 
+// --- GET check: живое сравнение с сервером (fetch + ahead/behind) -------------
+if ($action === 'check') {
+    if (!is_dir($realRepo . '/.git')) {
+        respond(false, [], 'Проект не является git-репозиторием', 'NOT_GIT');
+    }
+    $force = isset($_GET['force']) && $_GET['force'] === '1';
+    $markDir = $hubRoot . '/data/project-check';
+    if (!is_dir($markDir)) {
+        @mkdir($markDir, 0770, true);
+    }
+    $mark = $markDir . '/' . $slug . '.txt';
+    $g = 'git -C ' . escapeshellarg($realRepo) . ' ';
+    $run = static function (string $cmd): array {
+        $o = [];
+        $rc = 0;
+        exec('timeout 30 ' . $cmd . ' 2>&1', $o, $rc);
+        return [$rc, trim(implode("\n", $o))];
+    };
+    [, $branch] = $run($g . 'branch --show-current');
+    [, $remoteRaw] = $run($g . 'remote');
+    $remotes = array_values(array_filter(array_map('trim', explode("\n", $remoteRaw)), static fn(string $r): bool => preg_match('/^[A-Za-z0-9_-]+$/', $r) === 1));
+    $primary = in_array('origin', $remotes, true) ? 'origin' : ($remotes[0] ?? '');
+    $result = [
+        'branch' => $branch, 'remote' => $primary, 'remotes' => $remotes,
+        'local' => null, 'server' => null, 'ahead' => null, 'behind' => null,
+        'state' => 'no-remote', 'fetched' => false, 'checked_at' => gmdate('c'),
+    ];
+    if ($branch === '' || $primary === '') {
+        respond(true, $result);
+    }
+    $last = is_file($mark) ? (int) trim((string) file_get_contents($mark)) : 0;
+    if ($force || (time() - $last) > 900) {
+        [$rcF] = $run($g . 'fetch ' . escapeshellarg($primary) . ' ' . escapeshellarg($branch) . ' --tags --force');
+        $result['fetched'] = $rcF === 0;
+        if ($rcF === 0) {
+            file_put_contents($mark, (string) time(), LOCK_EX);
+        }
+    }
+    [$rcL, $localSha] = $run($g . 'rev-parse HEAD');
+    $ref = 'refs/remotes/' . $primary . '/' . $branch;
+    [$rcS, $serverSha] = $run($g . 'rev-parse ' . escapeshellarg($ref));
+    $dateArg = escapeshellarg('--date=format:%d.%m.%Y %H:%M');
+    if ($rcL === 0) {
+        [, $d] = $run($g . 'log -1 ' . $dateArg . ' --format=%cd HEAD');
+        $result['local'] = ['sha' => substr($localSha, 0, 7), 'date' => $d];
+    }
+    if ($rcS === 0) {
+        [, $d] = $run($g . 'log -1 ' . $dateArg . ' --format=%cd ' . escapeshellarg($ref));
+        $result['server'] = ['sha' => substr($serverSha, 0, 7), 'date' => $d];
+    }
+    if ($rcL === 0 && $rcS === 0) {
+        [, $b] = $run($g . 'rev-list --count ' . escapeshellarg('HEAD..' . $ref));
+        [, $a] = $run($g . 'rev-list --count ' . escapeshellarg($ref . '..HEAD'));
+        $result['behind'] = (int) $b;
+        $result['ahead'] = (int) $a;
+        $result['state'] = $localSha === $serverSha ? 'synced' : ((int) $a === 0 ? 'behind' : ((int) $b === 0 ? 'ahead' : 'diverged'));
+    } elseif ($rcL === 0) {
+        $result['state'] = 'no-server-branch';
+    }
+    respond(true, $result);
+}
+
 respond(false, [], 'Неизвестное действие', 'INVALID_ACTION');

@@ -126,7 +126,7 @@ if (slug) {
       btn.disabled = true;
       showLog($('git-log'), op + '...');
       const mode = op === 'merge' ? 'all' : op;
-      const remote = op === 'pull' ? 'gitverse' : '';
+      const remote = op === 'pull' ? (document.body.dataset.remote || 'origin') : '';
       const r = await api('/api/sync.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -288,4 +288,67 @@ if (slug) {
       window.alert('✗ ' + r.error);
     }
   });
+  // --- Баннер обновления проекта (живое сравнение с сервером) ---
+  const projRemote = document.body.dataset.remote || 'origin';
+  async function projCheck(force) {
+    const box = $('proj-update');
+    const text = $('proj-update-text');
+    if (!box || !text) { return; }
+    box.hidden = false;
+    text.textContent = force ? 'Проверка сервера (fetch)…' : 'Проверка…';
+    const r = await api('/api/project_actions.php?action=check&slug=' + encodeURIComponent(slug) + (force ? '&force=1' : ''));
+    if (!r.ok) { text.textContent = '✗ ' + r.error; return; }
+    const d = r.data;
+    const pull = $('proj-pull');
+    const push = $('proj-push');
+    if (d.state === 'no-remote') {
+      text.innerHTML = '⚪ Remote не настроен. Добавьте: <code>bin/git-project-remote.sh ' + escapeHtml(slug) + ' --add &lt;домен&gt;</code>';
+      if (pull) { pull.hidden = true; }
+      if (push) { push.hidden = true; }
+      return;
+    }
+    const L = d.local ? d.local.sha + ' · ' + d.local.date : '—';
+    const S = d.server ? d.server.sha + ' · ' + d.server.date : '—';
+    let state;
+    if (d.state === 'synced') { state = '🟢 Синхронизировано'; }
+    else if (d.state === 'behind') { state = '🟡 Сервер новее на ' + d.behind + ' коммит(ов) — доступно обновление'; }
+    else if (d.state === 'ahead') { state = '🔴 Локальная новее на ' + d.ahead + ' коммит(ов) — можно опубликовать'; }
+    else if (d.state === 'diverged') { state = '🔴 Истории разошлись: ↓' + d.behind + ' ↑' + d.ahead; }
+    else { state = '⚪ Ветки на сервере нет'; }
+    text.innerHTML = 'Локальная: <strong>' + escapeHtml(L) + '</strong> · Сервер (' + escapeHtml(d.remote) + '): <strong>' + escapeHtml(S) + '</strong><br>' + state
+      + (d.fetched ? '' : ' <span class="mp-fresh">(кэш проверки ≤15 мин; кнопка — свежий fetch)</span>');
+    if (pull) {
+      pull.hidden = !(d.state === 'behind' || d.state === 'diverged');
+      pull.textContent = '⬇ Обновить из сервера (' + d.remote + ')';
+    }
+    if (push) { push.hidden = !(d.state === 'ahead' || d.state === 'diverged'); }
+  }
+  on('proj-check', 'click', () => projCheck(true));
+  on('proj-pull', 'click', async () => {
+    const btn = $('proj-pull');
+    btn.disabled = true;
+    showLog($('proj-log'), 'Обновление из ' + projRemote + '…');
+    const r = await api('/api/sync.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slug, mode: 'pull', remote: projRemote }),
+    });
+    showLog($('proj-log'), (r.ok ? '✅ Обновлено\n' : '❌ ' + r.error + '\n') + (r.data?.log || ''));
+    btn.disabled = false;
+    projCheck(true);
+  });
+  on('proj-push', 'click', async () => {
+    const btn = $('proj-push');
+    btn.disabled = true;
+    showLog($('proj-log'), 'Публикация на все remote…');
+    const r = await api('/api/sync.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slug, mode: 'push' }),
+    });
+    showLog($('proj-log'), (r.ok ? '✅ Опубликовано\n' : '❌ ' + r.error + '\n') + (r.data?.log || ''));
+    btn.disabled = false;
+    projCheck(true);
+  });
+  projCheck(false);
 }
