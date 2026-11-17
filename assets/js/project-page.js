@@ -352,3 +352,110 @@ if (slug) {
   });
   projCheck(false);
 }
+
+// --- Хосты и API-ключи (главная страница) ---
+let hostCsrf = '';
+async function hostsLoad() {
+  const tbody = document.querySelector('#hosts-table tbody');
+  if (!tbody) { return; }
+  tbody.innerHTML = '<tr><td colspan="6" class="hosts-empty">Загрузка…</td></tr>';
+  const r = await api('/api/hosts_manage.php?action=list');
+  if (!r.ok) {
+    tbody.innerHTML = '<tr><td colspan="6" class="hosts-empty">✗ ' + escapeHtml(r.error) + '</td></tr>';
+    return;
+  }
+  hostCsrf = r.data.csrf || '';
+  tbody.innerHTML = r.data.hosts.map((h) =>
+    '<tr>'
+    + '<td><strong>' + escapeHtml(h.id) + '</strong></td>'
+    + '<td>' + escapeHtml(h.host) + '</td>'
+    + '<td><span class="' + (h.status === 'ready' ? 'mp-cloned' : 'mp-arch') + '">' + escapeHtml(h.status) + '</span></td>'
+    + '<td>' + escapeHtml(h.registry) + '</td>'
+    + '<td>' + (h.configured ? '<span class="mp-cloned">✓ настроен</span>' : '<span class="mp-arch">✗ нет</span>') + '</td>'
+    + '<td class="hosts-actions">'
+    + '<button type="button" class="btn host-edit" data-id="' + escapeHtml(h.id) + '" data-domain="' + escapeHtml(h.host) + '" data-prefix="' + escapeHtml(h.prefix) + '">🔑 Ключ</button> '
+    + '<button type="button" class="btn btn--danger host-del" data-id="' + escapeHtml(h.id) + '">✕</button>'
+    + '</td></tr>'
+  ).join('');
+}
+
+function hostFormOpen(prefill) {
+  const form = $('host-form');
+  form.hidden = false;
+  $('hf-id').value = prefill?.id || '';
+  $('hf-id').disabled = Boolean(prefill);
+  $('hf-domain').value = prefill?.domain || '';
+  $('hf-prefix').value = prefill?.prefix || '';
+  $('hf-user').value = '';
+  $('hf-token').value = '';
+  $('hf-token').placeholder = prefill ? 'API-токен (пусто = не менять)' : 'API-токен';
+  $('hf-msg').textContent = '';
+  $('hf-domain').focus();
+}
+
+const hostsToggle = $('hosts-toggle');
+if (hostsToggle) {
+  hostsToggle.addEventListener('click', () => {
+    const box = $('hosts-box');
+    box.hidden = !box.hidden;
+    if (!box.hidden) { hostsLoad(); }
+  });
+  $('host-add-open').addEventListener('click', () => hostFormOpen(null));
+  $('hf-cancel').addEventListener('click', () => { $('host-form').hidden = true; });
+  $('hosts-table').addEventListener('click', (ev) => {
+    const edit = ev.target.closest('.host-edit');
+    if (edit) {
+      hostFormOpen({ id: edit.dataset.id, domain: edit.dataset.domain, prefix: edit.dataset.prefix });
+      return;
+    }
+    const del = ev.target.closest('.host-del');
+    if (del) {
+      const id = del.dataset.id;
+      const code = window.prompt('Удаление хоста ' + id + ' сотрёт его ключи из .env.\nВведите DELETE-' + id.toUpperCase() + ':');
+      if (code !== 'DELETE-' + id.toUpperCase()) { return; }
+      api('/api/hosts_manage.php?action=delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ csrf: hostCsrf, host_id: id, confirm: code }),
+      }).then((r) => {
+        toast(r.ok ? r.data.message : r.error, r.ok);
+        if (r.ok) { hostsLoad(); }
+      });
+    }
+  });
+  $('host-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const msg = $('hf-msg');
+    const btn = $('hf-save');
+    btn.disabled = true;
+    msg.textContent = 'Сохранение…';
+    msg.className = 'mp-msg';
+    api('/api/hosts_manage.php?action=add', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        csrf: hostCsrf,
+        host_id: $('hf-id').value.trim(),
+        domain: $('hf-domain').value.trim(),
+        prefix: $('hf-prefix').value.trim().toUpperCase(),
+        registry: $('hf-registry').value,
+        scope: $('hf-scope').value,
+        user: $('hf-user').value.trim(),
+        token: $('hf-token').value,
+      }),
+    }).then((r) => {
+      btn.disabled = false;
+      if (r.ok) {
+        msg.textContent = '✅ ' + r.data.message;
+        msg.className = 'mp-msg mp-msg--ok';
+        $('host-form').hidden = true;
+        hostsLoad();
+        toast(r.data.message);
+      } else {
+        msg.textContent = '✗ ' + r.error;
+        msg.className = 'mp-msg mp-msg--err';
+        toast(r.error, false);
+      }
+    });
+  });
+}
