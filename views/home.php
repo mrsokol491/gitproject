@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>GitProject Workspace Hub</title>
-<link rel="stylesheet" href="/assets/style.css">
+<link rel="stylesheet" href="/assets/style.css?v=2">
 </head>
 <body data-slug="<?= htmlspecialchars($project['name'] ?? '') ?>" data-remote="<?= htmlspecialchars($project['git_remote'] ?? '') ?>">
 <div class="container">
@@ -190,6 +190,6 @@
 <?php endif; ?>
 
 </div>
-<script type="module" src="/assets/js/project-page.js?v=2"></script>
+<script type="module" src="/assets/js/project-page.js?v=4"></script>
 </body>
 </html>

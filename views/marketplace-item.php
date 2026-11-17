@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="csrf-token" content="<?= htmlspecialchars($csrf) ?>">
 <title><?= $item !== null ? htmlspecialchars($item['slug']) . ' · Маркетплейс' : 'Не найдено · Маркетплейс' ?></title>
-<link rel="stylesheet" href="/assets/style.css">
+<link rel="stylesheet" href="/assets/style.css?v=2">
 </head>
 <body class="mp-body"<?= $item !== null ? ' data-item-id="' . (int) $item['id'] . '"' : '' ?>>
 <div class="mp-shell">

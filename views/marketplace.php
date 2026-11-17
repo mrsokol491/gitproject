@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="csrf-token" content="<?= htmlspecialchars($csrf) ?>">
 <title>Маркетплейс · GitProject</title>
-<link rel="stylesheet" href="/assets/style.css">
+<link rel="stylesheet" href="/assets/style.css?v=2">
 </head>
 <body class="mp-body">
 <div class="mp-shell">

@@ -344,3 +344,6 @@ body {
 .fm-view { background: #120e24; border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.75rem; line-height: 1.5; padding: 0.75rem; max-height: 420px; overflow: auto; white-space: pre-wrap; word-break: break-word; }
 .desc-form input { background: #120e24; border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-family: inherit; font-size: 0.875rem; padding: 0.6rem; }
 .desc-form input:focus { outline: none; border-color: var(--primary-light); }
+
+/* hidden-атрибут обязан побеждать author display (.btn, flex-формы, панели) */
+[hidden] { display: none !important; }
