@@ -173,4 +173,105 @@ if (slug) {
     });
     if (r.ok) { window.location.href = '/'; } else { window.alert('✗ ' + r.error); }
   });
+    // --- Статус репозитория ---
+  $('git-status').addEventListener('click', async () => {
+    const box = $('status-box');
+    box.hidden = false;
+    box.textContent = 'Загрузка…';
+    const r = await api('/api/project_actions.php?action=status&slug=' + encodeURIComponent(slug));
+    if (!r.ok) { box.textContent = '✗ ' + r.error; return; }
+    const d = r.data;
+    let html = '<div class="status-row"><span>Ветка</span><strong>' + escapeHtml(d.branch || 'detached HEAD') + '</strong></div>';
+    html += '<div class="status-row"><span>Незакоммиченных</span><strong>' + d.dirty_count + '</strong></div>';
+    d.remotes.forEach((rm) => {
+      html += '<div class="status-row"><span>' + escapeHtml(rm.name) + '</span><strong>'
+        + (rm.behind === null ? 'ветки нет' : '↓' + rm.behind + ' ↑' + rm.ahead) + '</strong></div>';
+    });
+    if (d.dirty.length) { html += '<pre class="hub-log">' + escapeHtml(d.dirty.join('\n')) + '</pre>'; }
+    box.innerHTML = html;
+  });
+
+  // --- Файловый менеджер (read-only) ---
+  const fmState = { path: '' };
+  async function fmLoad(path) {
+    fmState.path = path;
+    const list = $('fm-list');
+    const view = $('fm-view');
+    $('fm-box').hidden = false;
+    $('fm-back').hidden = true;
+    view.hidden = true;
+    list.hidden = false;
+    list.textContent = 'Загрузка…';
+    const r = await api('/api/project_actions.php?action=files&slug=' + encodeURIComponent(slug) + '&path=' + encodeURIComponent(path));
+    if (!r.ok) { list.textContent = '✗ ' + r.error; return; }
+    const segs = path === '' ? [] : path.split('/');
+    let acc = '';
+    let crumbs = '<button type="button" class="fm-crumb" data-path="">' + escapeHtml(slug) + '</button>';
+    segs.forEach((s) => {
+      acc = acc === '' ? s : acc + '/' + s;
+      crumbs += ' / <button type="button" class="fm-crumb" data-path="' + escapeHtml(acc) + '">' + escapeHtml(s) + '</button>';
+    });
+    $('fm-crumbs').innerHTML = crumbs;
+    list.innerHTML = r.data.entries.map((e) =>
+      '<button type="button" class="fm-row" data-name="' + escapeHtml(e.name) + '" data-dir="' + (e.dir ? '1' : '0') + '">'
+      + (e.dir ? '📁' : '📄') + ' ' + escapeHtml(e.name)
+      + (e.dir ? '' : ' <span class="fm-size">' + e.size + ' B</span>') + '</button>'
+    ).join('') || '<p class="fm-empty">Каталог пуст</p>';
+  }
+  $('fm-open').addEventListener('click', () => {
+    if ($('fm-box').hidden) { fmLoad(''); } else { $('fm-box').hidden = true; }
+  });
+  $('fm-crumbs').addEventListener('click', (ev) => {
+    const c = ev.target.closest('.fm-crumb');
+    if (c) { fmLoad(c.dataset.path); }
+  });
+  $('fm-back').addEventListener('click', () => {
+    $('fm-view').hidden = true;
+    $('fm-list').hidden = false;
+    $('fm-back').hidden = true;
+  });
+  $('fm-list').addEventListener('click', async (ev) => {
+    const row = ev.target.closest('.fm-row');
+    if (!row) { return; }
+    const path = fmState.path === '' ? row.dataset.name : fmState.path + '/' + row.dataset.name;
+    if (row.dataset.dir === '1') { fmLoad(path); return; }
+    const view = $('fm-view');
+    $('fm-list').hidden = true;
+    $('fm-back').hidden = false;
+    view.hidden = false;
+    view.textContent = 'Загрузка…';
+    const r = await api('/api/project_actions.php?action=file&slug=' + encodeURIComponent(slug) + '&path=' + encodeURIComponent(path));
+    view.textContent = r.ok ? r.data.content : '✗ ' + r.error;
+  });
+
+  // --- Мета-данные ---
+  $('edit-meta').addEventListener('click', async () => {
+    const form = $('meta-form');
+    if (!form.hidden) { form.hidden = true; return; }
+    const r = await api('/api/project_actions.php?action=meta&slug=' + encodeURIComponent(slug));
+    if (!r.ok) { window.alert('✗ ' + r.error); return; }
+    $('meta-version').value = r.data.version || '';
+    $('meta-homepage').value = r.data.homepage || '';
+    $('meta-license').value = r.data.license || '';
+    $('meta-keywords').value = (r.data.keywords || []).join(', ');
+    form.hidden = false;
+  });
+  $('save-meta').addEventListener('click', async () => {
+    const r = await api('/api/project_actions.php?action=metadata&slug=' + encodeURIComponent(slug), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        version: $('meta-version').value,
+        homepage: $('meta-homepage').value,
+        license: $('meta-license').value,
+        keywords: $('meta-keywords').value,
+      }),
+    });
+    if (r.ok) {
+      $('meta-form').hidden = true;
+      window.alert('✅ Сохранено в ' + r.data.file);
+    } else {
+      window.alert('✗ ' + r.error);
+    }
+  });
 }

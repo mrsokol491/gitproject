@@ -152,4 +152,221 @@ if ($action === 'download') {
     exit;
 }
 
+// --- GET status: ветка, грязь, ahead/behind по remote -------------------------
+if ($action === 'status') {
+    if (!is_dir($realRepo . '/.git')) {
+        respond(false, [], 'Проект не является git-репозиторием', 'NOT_GIT');
+    }
+    $run = static function (string $cmd): array {
+        $out = [];
+        $rc = 0;
+        exec($cmd . ' 2>&1', $out, $rc);
+        return [$rc, implode("\n", $out)];
+    };
+    $g = 'git -C ' . escapeshellarg($realRepo) . ' ';
+    [, $branchRaw] = $run($g . 'branch --show-current');
+    $branch = trim($branchRaw);
+    [, $dirtyRaw] = $run($g . 'status --porcelain');
+    $dirtyLines = $dirtyRaw === '' ? [] : explode("\n", $dirtyRaw);
+    [, $remoteRaw] = $run($g . 'remote');
+    $remotes = [];
+    foreach (array_filter(explode("\n", $remoteRaw)) as $r) {
+        $r = trim($r);
+        if (preg_match('/^[A-Za-z0-9_-]+$/', $r) !== 1) {
+            continue;
+        }
+        $ref = 'refs/remotes/' . $r . '/' . $branch;
+        [$rcB, $behind] = $run($g . 'rev-list --count ' . escapeshellarg('HEAD..' . $ref));
+        [$rcA, $ahead] = $run($g . 'rev-list --count ' . escapeshellarg($ref . '..HEAD'));
+        $remotes[] = [
+            'name' => $r,
+            'behind' => $rcB === 0 ? (int) $behind : null,
+            'ahead' => $rcA === 0 ? (int) $ahead : null,
+        ];
+    }
+    respond(true, [
+        'branch' => $branch,
+        'dirty_count' => count($dirtyLines),
+        'dirty' => array_slice($dirtyLines, 0, 50),
+        'remotes' => $remotes,
+    ]);
+}
+
+// --- GET files: листинг каталога (read-only) ----------------------------------
+if ($action === 'files') {
+    $rel = (string) ($_GET['path'] ?? '');
+    $target = paPathWithin($realRepo, $rel);
+    if ($target === null || !is_dir($target)) {
+        respond(false, [], 'Каталог не найден', 'NOT_FOUND');
+    }
+    $entries = [];
+    foreach (scandir($target) ?: [] as $e) {
+        if ($e === '.' || $e === '..' || paHidden($e)) {
+            continue;
+        }
+        $p = $target . '/' . $e;
+        $isDir = is_dir($p);
+        $entries[] = ['name' => $e, 'dir' => $isDir, 'size' => $isDir ? null : (int) filesize($p)];
+        if (count($entries) >= 500) {
+            break;
+        }
+    }
+    usort($entries, static function (array $a, array $b): int {
+        if ($a['dir'] !== $b['dir']) {
+            return $a['dir'] ? -1 : 1;
+        }
+        return strcasecmp($a['name'], $b['name']);
+    });
+    respond(true, ['path' => $rel, 'entries' => $entries]);
+}
+
+// --- GET file: просмотр текстового файла --------------------------------------
+if ($action === 'file') {
+    $rel = (string) ($_GET['path'] ?? '');
+    $target = paPathWithin($realRepo, $rel);
+    if ($target === null || !is_file($target)) {
+        respond(false, [], 'Файл не найден', 'NOT_FOUND');
+    }
+    $size = (int) filesize($target);
+    if ($size > 262144) {
+        respond(false, [], 'Файл больше 256 КБ — просмотр запрещён', 'TOO_LARGE');
+    }
+    $content = (string) file_get_contents($target);
+    if (preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', substr($content, 0, 8000)) === 1
+        || preg_match('//u', $content) !== 1) {
+        respond(false, [], 'Бинарный или не-UTF-8 файл — просмотр запрещён', 'BINARY');
+    }
+    respond(true, ['path' => $rel, 'size' => $size, 'content' => $content]);
+}
+
+// --- GET meta: текущие мета-поля ----------------------------------------------
+if ($action === 'meta') {
+    $metaFile = paMetaFile($realRepo);
+    if ($metaFile === null) {
+        respond(false, [], 'Нет composer.json или package.json', 'NO_META');
+    }
+    $data = json_decode((string) file_get_contents($metaFile), true);
+    if (!is_array($data)) {
+        respond(false, [], 'Мета-файл повреждён', 'BAD_META');
+    }
+    $kw = $data['keywords'] ?? [];
+    $lic = $data['license'] ?? '';
+    respond(true, [
+        'file' => basename($metaFile),
+        'version' => (string) ($data['version'] ?? ''),
+        'homepage' => (string) ($data['homepage'] ?? ''),
+        'license' => is_array($lic) ? implode(', ', $lic) : (string) $lic,
+        'keywords' => is_array($kw) ? array_values(array_filter($kw, 'is_string')) : [],
+    ]);
+}
+
+// --- POST metadata: атомарная запись мета-полей -------------------------------
+if ($action === 'metadata') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        respond(false, [], 'Метод не разрешён', 'METHOD_NOT_ALLOWED');
+    }
+    $metaFile = paMetaFile($realRepo);
+    if ($metaFile === null) {
+        respond(false, [], 'Нет composer.json или package.json', 'NO_META');
+    }
+    $data = json_decode((string) file_get_contents($metaFile), true);
+    if (!is_array($data)) {
+        respond(false, [], 'Мета-файл повреждён', 'BAD_META');
+    }
+    $in = is_array($input) ? $input : [];
+    $version = trim((string) ($in['version'] ?? ''));
+    $homepage = trim((string) ($in['homepage'] ?? ''));
+    $license = trim((string) ($in['license'] ?? ''));
+    $keywords = array_values(array_filter(array_map('trim', explode(',', (string) ($in['keywords'] ?? ''))), static fn(string $s): bool => $s !== ''));
+    if ($version !== '' && preg_match('/^[0-9A-Za-z.\-+]{1,50}$/', $version) !== 1) {
+        respond(false, [], 'Версия: до 50 символов, буквы/цифры/./-/-+', 'VALIDATION');
+    }
+    if ($homepage !== '' && preg_match('#^https?://\S{1,200}$#', $homepage) !== 1) {
+        respond(false, [], 'Homepage: http(s)-ссылка до 200 символов', 'VALIDATION');
+    }
+    if (strlen($license) > 100) {
+        respond(false, [], 'License: до 100 символов', 'VALIDATION');
+    }
+    if (count($keywords) > 20) {
+        respond(false, [], 'Keywords: не более 20', 'VALIDATION');
+    }
+    foreach ($keywords as $k) {
+        if (strlen($k) > 50) {
+            respond(false, [], 'Keyword длиннее 50 символов', 'VALIDATION');
+        }
+    }
+    foreach (['version' => $version, 'homepage' => $homepage, 'license' => $license] as $key => $val) {
+        if ($val === '') {
+            unset($data[$key]);
+        } else {
+            $data[$key] = $val;
+        }
+    }
+    if ($keywords === []) {
+        unset($data['keywords']);
+    } else {
+        $data['keywords'] = $keywords;
+    }
+    $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    if ($json === false) {
+        respond(false, [], 'Ошибка кодирования JSON', 'JSON_ERROR');
+    }
+    $tmp = tempnam(dirname($metaFile), 'meta_');
+    if ($tmp === false || file_put_contents($tmp, $json . "\n", LOCK_EX) === false) {
+        if ($tmp !== false) {
+            @unlink($tmp);
+        }
+        respond(false, [], 'Ошибка записи', 'WRITE_FAILED');
+    }
+    if (!rename($tmp, $metaFile)) {
+        @unlink($tmp);
+        respond(false, [], 'Ошибка rename', 'WRITE_FAILED');
+    }
+    respond(true, ['file' => basename($metaFile), 'version' => $version, 'homepage' => $homepage, 'license' => $license, 'keywords' => $keywords]);
+}
+
+/** Путь внутри проекта: без '..'/абсолютных, скрытые сегменты запрещены. */
+function paPathWithin(string $repo, string $rel): ?string
+{
+    if (strlen($rel) > 500) {
+        return null;
+    }
+    $rel = str_replace('\\', '/', $rel);
+    if (str_starts_with($rel, '/')) {
+        return null;
+    }
+    foreach (explode('/', $rel) as $s) {
+        if ($s === '' || $s === '.') {
+            continue;
+        }
+        if ($s === '..' || paHidden($s)) {
+            return null;
+        }
+    }
+    $real = realpath($repo . '/' . $rel);
+    if ($real === false || !str_starts_with($real . '/', $repo . '/')) {
+        return null;
+    }
+    return $real;
+}
+
+function paHidden(string $name): bool
+{
+    if (in_array($name, ['.git', 'data', 'storage', 'node_modules', 'vendor'], true)) {
+        return true;
+    }
+    return str_starts_with($name, '.env');
+}
+
+function paMetaFile(string $repo): ?string
+{
+    if (is_file($repo . '/composer.json')) {
+        return $repo . '/composer.json';
+    }
+    if (is_file($repo . '/package.json')) {
+        return $repo . '/package.json';
+    }
+    return null;
+}
+
 respond(false, [], 'Неизвестное действие', 'INVALID_ACTION');

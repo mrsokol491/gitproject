@@ -108,11 +108,13 @@
     <div class="action-group">
       <h3 class="action-group-title">Git-операции</h3>
       <div class="action-buttons">
-        <button type="button" class="btn btn--primary" disabled title="Скоро: bin/git-project-sync.sh">⬇ Получить версию с Git-сервера</button>
-        <button type="button" class="btn" disabled title="Скоро: bin/git-project-sync.sh">⬆ Загрузить локальную версию на Git-сервер</button>
-        <button type="button" class="btn" disabled title="Скоро: bin/git-project-migrate.sh">🔀 Merge</button>
+        <button type="button" class="btn btn--primary" data-op="pull">⬇ Получить версию с Git-сервера</button>
+        <button type="button" class="btn" data-op="push">⬆ Загрузить локальную версию на Git-сервер</button>
+        <button type="button" class="btn" data-op="merge">🔀 Merge (все remote)</button>
+        <button type="button" class="btn" id="git-status">📊 Статус репозитория</button>
       </div>
-      <p class="action-hint">Пока выполняется через bin/git-project-sync.sh</p>
+      <div class="status-box" id="status-box" hidden></div>
+      <pre class="hub-log" id="git-log" hidden></pre>
     </div>
     <div class="action-group">
       <h3 class="action-group-title">Просмотр</h3>
@@ -127,16 +129,34 @@
     <div class="action-group">
       <h3 class="action-group-title">Информация</h3>
       <div class="action-buttons">
-        <button type="button" class="btn" disabled title="Скоро">📜 Просмотр логов коммитов</button>
-        <button type="button" class="btn" disabled title="Скоро">📁 Открыть в файловом менеджере</button>
+        <button type="button" class="btn" id="show-commits">📜 Просмотр логов коммитов</button>
         <button type="button" class="btn" id="export-project">📦 Экспорт проекта (zip)</button>
+        <button type="button" class="btn" id="fm-open">📁 Файловый менеджер</button>
+      </div>
+      <div class="commits-list" id="commits-list" hidden></div>
+      <div class="fm-box" id="fm-box" hidden>
+        <div class="fm-crumbs" id="fm-crumbs"></div>
+        <button type="button" class="btn fm-back" id="fm-back" hidden>← К списку</button>
+        <div class="fm-list" id="fm-list"></div>
+        <pre class="fm-view" id="fm-view" hidden></pre>
       </div>
     </div>
     <div class="action-group">
       <h3 class="action-group-title">Настройки</h3>
       <div class="action-buttons">
-        <button type="button" class="btn" disabled title="Скоро">✏️ Изменить описание проекта</button>
-        <button type="button" class="btn" disabled title="Скоро">⚙️ Редактировать мета-данные</button>
+        <button type="button" class="btn" id="edit-desc">✏️ Изменить описание проекта</button>
+        <button type="button" class="btn" id="edit-meta">⚙️ Редактировать мета-данные</button>
+      </div>
+      <div class="desc-form" id="desc-form" hidden>
+        <textarea id="desc-input" rows="3" maxlength="500"><?= htmlspecialchars($project['description']) ?></textarea>
+        <button type="button" class="btn btn--primary" id="save-desc">Сохранить</button>
+      </div>
+      <div class="desc-form" id="meta-form" hidden>
+        <input type="text" id="meta-version" maxlength="50" placeholder="Версия (1.2.3)">
+        <input type="url" id="meta-homepage" maxlength="200" placeholder="Homepage (https://…)">
+        <input type="text" id="meta-license" maxlength="100" placeholder="Лицензия (MIT)">
+        <input type="text" id="meta-keywords" maxlength="1100" placeholder="Keywords через запятую">
+        <button type="button" class="btn btn--primary" id="save-meta">Сохранить мета-данные</button>
       </div>
     </div>
         <div class="action-group action-group--danger">
