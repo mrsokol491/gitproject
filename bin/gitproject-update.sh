@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
-# gitproject-update.sh — обновление хаба из GitVerse: stable (последний релиз-тег) или edge (master).
-# Обновление: merge -X theirs (сервер побеждает в конфликтах, локальная история сохраняется).
-# Даунгрейд: общие файлы возвращаются к цели, локальные новые файлы сохраняются, отдельный коммит.
-# Идемпотентность: если общие файлы уже совпадают с целью — только метка версии, без коммитов.
-# Перед изменениями: backup-ветка + stash незакоммиченных правок. Без force-push.
+# gitproject-update.sh — обновление хаба из GitVerse: stable (релиз-тег) или edge (master).
+# Обновление: merge -X theirs. Даунгрейд: общие файлы к цели, локальные новые сохраняются.
+# Идемпотентность: общие файлы совпадают → только метка версии. Backup + stash. Без force-push.
+# Портативно: remote gitverse создаётся сам; origin на GitVerse используется как есть.
 set -euo pipefail
 HUB="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-REMOTE="gitverse"; BRANCH="master"
+REMOTE="gitverse"; REMOTE_URL="https://gitverse.ru/Sokol491/gitproject.git"; BRANCH="master"
 CHANNEL="${1:-stable}"; ASSUME_YES=0
 [ "${2:-}" = "--yes" ] && ASSUME_YES=1
 log(){ printf '%s\n' "$*" >&2; }
@@ -14,6 +13,19 @@ die(){ log "✗ ОШИБКА: $*"; exit 1; }
 case "$CHANNEL" in stable|edge) ;; *) die "канал: stable|edge" ;; esac
 cd -- "$HUB"
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 || die "не git-репозиторий"
+if git remote get-url "$REMOTE" >/dev/null 2>&1; then
+  CUR="$(git remote get-url "$REMOTE")"
+  if [ "$CUR" != "$REMOTE_URL" ]; then
+    log "ℹ remote $REMOTE: выравниваю URL на $REMOTE_URL"
+    git remote set-url "$REMOTE" "$REMOTE_URL"
+  fi
+elif [ "$(git remote get-url origin 2>/dev/null || true)" = "$REMOTE_URL" ]; then
+  REMOTE="origin"
+  log "ℹ Использую remote origin (клон с GitVerse)"
+else
+  log "ℹ Добавляю remote $REMOTE → $REMOTE_URL"
+  git remote add "$REMOTE" "$REMOTE_URL"
+fi
 GD="$(git rev-parse --absolute-git-dir)"
 if [ -e "$GD/MERGE_HEAD" ] || [ -d "$GD/rebase-merge" ] || [ -d "$GD/rebase-apply" ]; then
   die "незавершённый merge/rebase: сначала --abort"
@@ -39,9 +51,8 @@ AHEAD="$(git rev-list --count "$TARGET_SHA..$LOCAL_SHA" 2>/dev/null || echo '?')
 DIRTY="$(git status --porcelain --untracked-files=no)"
 IS_ANCESTOR=0
 git merge-base --is-ancestor "$TARGET_SHA" "$LOCAL_SHA" 2>/dev/null && IS_ANCESTOR=1
-# Общие файлы уже как на цели? (изменения/удаления относительно цели, кроме локальных добавлений)
 COMMON_DIFF="$(git diff --name-only --diff-filter=d "$TARGET_SHA" "$LOCAL_SHA" -- $(git ls-tree -r --name-only "$TARGET_SHA") 2>/dev/null || true)"
-log "Канал: $CHANNEL | цель: $TARGET_LABEL (${TARGET_SHA:0:7})"
+log "Канал: $CHANNEL | цель: $TARGET_LABEL (${TARGET_SHA:0:7}) | remote: $REMOTE"
 log "Локально: ${LOCAL_SHA:0:7} | позади: $BEHIND, впереди: $AHEAD"
 if [ -z "$COMMON_DIFF" ] && [ -z "$DIRTY" ]; then
   mkdir -p "$HUB/data"
@@ -52,7 +63,7 @@ fi
 DOWNGRADE=0
 if [ "$IS_ANCESTOR" -eq 1 ]; then
   DOWNGRADE=1
-  log "⚠ Даунгрейд: $TARGET_LABEL старше HEAD — общие файлы вернутся к цели, локальные новые файлы сохранятся"
+  log "⚠ Даунгрейд: $TARGET_LABEL старше HEAD — общие файлы вернутся к цели, локальные новые сохранятся"
 fi
 if [ "$ASSUME_YES" -ne 1 ]; then
   [ -t 0 ] || die "нужен --yes без tty"
