@@ -7,6 +7,7 @@ declare(strict_types=1);
  * Сканирует projects/, собирает метаданные, определяет, какой экран показать.
  * HTML — в views/home.php, стили — в assets/style.css.
  * Git-данные читаются из файлов .git без exec (STANDARD.md §9: disable_functions).
+ * HUB_ROOT позволяет docroot-лицу клона показывать рабочее пространство хаба.
  */
 
 function dirSize(string $dir): int
@@ -154,7 +155,7 @@ function gitVersions(string $root): array
     return $result;
 }
 
-$workspaceRoot = __DIR__;
+$workspaceRoot = (string) ($_SERVER['HUB_ROOT'] ?? __DIR__);
 $projectsRoot  = $workspaceRoot . '/projects';
 
 $docrootCandidates = ['public', 'Project', 'project', 'www', 'web', 'html'];
