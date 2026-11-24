@@ -32,6 +32,14 @@
     "registry": "foreign",
     "description": "GitHub — международный Git-хостинг"
   },
+    "moshub": {
+    "host": "hub.mos.ru",
+    "status": "integrating",
+    "env_prefix": "MOSHUB",
+    "url_template": "https://hub.mos.ru/{owner}/{slug}.git",
+    "registry": "rf",
+    "description": "Mos.hub — Московская облачная платформа с ИИ-ассистентом «КоДИТ» и антивирусным сканированием (в процессе)"
+  },
   "gitlab": {
     "host": "gitlab.com",
     "status": "integrating",
@@ -71,13 +79,5 @@
     "url_template": "https://gosh.sh/{owner}/{slug}.git",
     "registry": "foreign",
     "description": "GOSH — Git Open Source Hodler (в процессе)"
-  },
-  "moshub": {
-    "host": "hub.mos.ru",
-    "status": "integrating",
-    "env_prefix": "MOSHUB",
-    "url_template": "https://hub.mos.ru/{owner}/{slug}.git",
-    "registry": "rf",
-    "description": "Mos.hub — Московская облачная платформа с ИИ-ассистентом «КоДИТ» и антивирусным сканированием (в процессе)"
   }
 }
