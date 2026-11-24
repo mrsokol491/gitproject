@@ -59,16 +59,21 @@ async function hubStatus(refresh = false) {
   const edgeEqualsStable = Boolean(d.stable && d.edge) && (
     d.edge_equals_stable === true || d.stable.sha === d.edge.sha || d.stable.label === d.edge.label
   );
+  // Уже на стабильной: current_label === stable или is_stable_descendant
+  const isAlreadyStable = d.current_label === stable || d.is_stable_descendant === true;
+  
   text.innerHTML = 'Текущая: <strong>' + escapeHtml(d.current_label) + '</strong>';
   const stableBtn = $('hub-stable');
   if (stableBtn) {
-    stableBtn.hidden = !d.stable;
+    stableBtn.hidden = !d.stable || isAlreadyStable;
     stableBtn.textContent = '⬇ Стабильная ' + stable;
-    stableBtn.title = d.is_downgrade
-      ? 'Файлы будут откатаны к стабильной ' + stable + ' (локально впереди ' + (d.ahead_of_stable || 0) + ' коммитов, они сохранятся в backup)'
-      : (edgeEqualsStable
-        ? 'Стабильная и edge совпадают (' + stable + ') — обновлений вне релиза нет'
-        : 'Обновить хаб до стабильной версии ' + stable);
+    stableBtn.title = isAlreadyStable
+      ? 'Файлы уже соответствуют стабильной версии ' + stable
+      : (d.is_downgrade
+        ? 'Файлы будут откатаны к стабильной ' + stable + ' (локально впереди ' + (d.ahead_of_stable || 0) + ' коммитов, они сохранятся в backup)'
+        : (edgeEqualsStable
+          ? 'Стабильная и edge совпадают (' + stable + ') — обновлений вне релиза нет'
+          : 'Обновить хаб до стабильной версии ' + stable));
   }
   const edgeBtn = $('hub-edge');
   if (edgeBtn) {
