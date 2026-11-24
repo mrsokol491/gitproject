@@ -600,7 +600,11 @@ function mpPlainExcerpt(string $md, int $len): string
     return $t;
 }
 
-/** Fetch одной записи: мета -> ветка -> README -> описание -> аватар. */
+/**
+ * Fetch одной записи: мета (опционально) -> ветка -> README через raw/blob -> описание -> аватар.
+ * README запрашивается ВСЕГДА через raw/blob: лимиты/падения API не фатальны —
+ * без меты запись отдаётся с README и предупреждением, статистика null.
+ */
 function mpFetchItem(array $item): array
 {
     $hosts = mpHosts();
@@ -620,29 +624,18 @@ function mpFetchItem(array $item): array
     }
     $owner = $item['owner'];
     $slug = $item['slug'];
-    $branch = $c['branch'];
-    $metaDesc = '';
-    $repoAvatar = '';
 
-    if ($item['host_id'] === 'gitflic') {
-        $sha = mpGitFlicSha($owner, $slug, $branch);
-        if ($sha === null) {
-            $c['fetch_error'] = 'git ls-remote: репозиторий недоступен';
-            return $c;
-        }
-        $c['branch'] = $branch;
-        $rawBase = sprintf('https://gitflic.ru/project/%s/%s/blob/raw?commit=%s&file=', $owner, $slug, $sha);
-    } else {
+    $meta = null;
+    if ($item['host_id'] !== 'gitflic' && $host['api'] !== null) {
         $resp = mpHttp(sprintf($host['api'], $owner, $slug), 262144);
-        if ($resp === null) {
-            $c['fetch_error'] = 'API недоступен (лимит или сеть)';
-            return $c;
+        if ($resp !== null) {
+            $dec = json_decode($resp['body'], true);
+            if (is_array($dec)) {
+                $meta = $dec;
+            }
         }
-        $meta = json_decode($resp['body'], true);
-        if (!is_array($meta)) {
-            $c['fetch_error'] = 'API: не JSON';
-            return $c;
-        }
+    }
+    if ($meta !== null) {
         if ($item['host_id'] === 'gitverse') {
             $c['stars'] = isset($meta['stars_count']) ? (int) $meta['stars_count'] : null;
             $c['forks'] = isset($meta['forks_count']) ? (int) $meta['forks_count'] : null;
@@ -651,7 +644,6 @@ function mpFetchItem(array $item): array
             $lr = $meta['last_release'] ?? null;
             $c['last_release'] = is_array($lr) ? (string) ($lr['tag_name'] ?? $lr['name'] ?? '') : (is_string($lr) ? $lr : null);
             $c['pushed_at'] = isset($meta['updated_at']) ? (string) $meta['updated_at'] : null;
-            $repoAvatar = (string) ($meta['avatar_url'] ?? '');
         } else {
             $c['stars'] = isset($meta['stargazers_count']) ? (int) $meta['stargazers_count'] : null;
             $c['forks'] = isset($meta['forks_count']) ? (int) $meta['forks_count'] : null;
@@ -665,30 +657,62 @@ function mpFetchItem(array $item): array
         $topics = isset($meta['topics']) && is_array($meta['topics'])
             ? array_values(array_filter($meta['topics'], 'is_string')) : [];
         $c['topics_json'] = (string) (json_encode($topics, JSON_UNESCAPED_UNICODE) ?: '[]');
-        $metaDesc = trim((string) ($meta['description'] ?? ''));
-        if (isset($meta['default_branch']) && is_string($meta['default_branch']) && $meta['default_branch'] !== '') {
-            $branch = $meta['default_branch'];
-        }
-        $c['branch'] = $branch;
-        $rawBase = sprintf($host['raw'], $owner, $slug, $branch);
     }
 
+    $branches = [];
+    if ($meta !== null && isset($meta['default_branch']) && is_string($meta['default_branch']) && $meta['default_branch'] !== '') {
+        $branches[] = $meta['default_branch'];
+    }
+    $branches[] = $c['branch'];
+    $branches[] = 'master';
+    $branches[] = 'main';
+    $branches = array_values(array_unique($branches));
+
     $md = null;
-    foreach (['README.md', 'readme.md', 'README.MD', 'Readme.md'] as $name) {
-        $resp = mpHttp($rawBase . $name, 524288);
-        if ($resp !== null && $resp['body'] !== '') {
-            $md = $resp['body'];
-            break;
+    $rawBase = '';
+    $usedBranch = $branches[0];
+    $readmeNames = ['README.md', 'readme.md', 'README.MD', 'Readme.md'];
+
+    if ($item['host_id'] === 'gitflic') {
+        $sha = mpGitFlicSha($owner, $slug, $usedBranch);
+        if ($sha !== null) {
+            $rawBase = sprintf('https://gitflic.ru/project/%s/%s/blob/raw?commit=%s&file=', $owner, $slug, $sha);
+            foreach ($readmeNames as $name) {
+                $r = mpHttp($rawBase . $name, 524288);
+                if ($r !== null && $r['body'] !== '') {
+                    $md = $r['body'];
+                    break;
+                }
+            }
+        }
+    } else {
+        foreach ($branches as $b) {
+            $base = sprintf($host['raw'], $owner, $slug, $b);
+            foreach ($readmeNames as $name) {
+                $r = mpHttp($base . $name, 524288);
+                if ($r !== null && $r['body'] !== '') {
+                    $md = $r['body'];
+                    $rawBase = $base;
+                    $usedBranch = $b;
+                    break 2;
+                }
+            }
         }
     }
+    $c['branch'] = $usedBranch;
+
     if ($md === null) {
-        $c['fetch_error'] = 'README не найден';
+        $c['fetch_error'] = ($meta === null ? 'API недоступен и ' : '') . 'README не найден через raw/blob';
         return $c;
     }
     $c['readme_html'] = mpMarkdown($md, $rawBase);
     $c['readme_excerpt'] = mpPlainExcerpt($md, 240);
+    $metaDesc = $meta !== null ? trim((string) ($meta['description'] ?? '')) : '';
     $c['description'] = $metaDesc !== '' ? $metaDesc : mpPlainExcerpt($md, 200);
-
+    if ($meta === null) {
+        $c['fetch_error'] = 'API недоступен: README показан без статистики (raw/blob)';
+    }
+    $repoAvatar = $meta !== null ? (string) ($meta['avatar_url'] ?? '') : '';
     $avatarUrl = mpExtractAvatar($md, $rawBase, $repoAvatar);
     if ($avatarUrl !== null) {
         $c['avatar_url'] = $avatarUrl;
