@@ -1,5 +1,6 @@
 // project-page.js — страница проекта и баннер обновлений хаба (сайдбар).
-// Хосты и токены обслуживает workspace.js (вид hosts).
+// Сравнение с сервером: один живой блок внутри панели информации (строки версий рисует JS).
+// Взаимоисключение вывода: статус <-> лог операций, коммиты <-> файловый менеджер.
 const slug = document.body.dataset.slug || (() => {
   const m = location.pathname.match(/^\/hub\/project\/([^/]+)\/?$/);
   return m ? decodeURIComponent(m[1]) : '';
@@ -27,6 +28,11 @@ function showLog(el, text) {
   el.hidden = false;
   el.textContent = text;
   el.scrollTop = el.scrollHeight;
+}
+
+function hide(id) {
+  const el = $(id);
+  if (el) { el.hidden = true; }
 }
 
 // --- Баннер обновлений хаба (в сайдбаре) --------------------------------------
@@ -122,6 +128,7 @@ if (slug) {
     btn.addEventListener('click', async () => {
       const op = btn.dataset.op;
       btn.disabled = true;
+      hide('status-box');
       showLog($('git-log'), op + '...');
       const mode = op === 'merge' ? 'all' : op;
       const remote = op === 'pull' ? (document.body.dataset.remote || 'origin') : '';
@@ -138,6 +145,7 @@ if (slug) {
   on('git-status', 'click', async () => {
     const box = $('status-box');
     if (!box) { return; }
+    hide('git-log');
     box.hidden = false;
     box.textContent = 'Загрузка…';
     const r = await api('/api/project_actions.php?action=status&slug=' + encodeURIComponent(slug));
@@ -156,6 +164,7 @@ if (slug) {
   on('show-commits', 'click', async () => {
     const list = $('commits-list');
     if (!list) { return; }
+    hide('fm-box');
     list.hidden = false;
     list.textContent = 'Загрузка...';
     const r = await api('/api/project_actions.php?action=log&slug=' + encodeURIComponent(slug));
@@ -229,7 +238,7 @@ if (slug) {
   on('fm-open', 'click', () => {
     const box = $('fm-box');
     if (!box) { return; }
-    if (box.hidden) { fmLoad(''); } else { box.hidden = true; }
+    if (box.hidden) { hide('commits-list'); fmLoad(''); } else { box.hidden = true; }
   });
   on('fm-crumbs', 'click', (ev) => {
     const c = ev.target.closest('.fm-crumb');
@@ -287,7 +296,7 @@ if (slug) {
     }
   });
 
-  // --- Баннер обновления проекта ---
+  // --- Единый живой блок сравнения с сервером ---
   const projRemote = document.body.dataset.remote || 'origin';
   async function projCheck(force) {
     const box = $('proj-update');
@@ -301,21 +310,28 @@ if (slug) {
     const pull = $('proj-pull');
     const push = $('proj-push');
     if (d.state === 'no-remote') {
-      text.innerHTML = '⚪ Remote не настроен. Добавьте: <code>bin/git-project-remote.sh ' + escapeHtml(slug) + ' --add &lt;домен&gt;</code>';
+      text.innerHTML = '<div class="sync-status"><span class="sync-icon sync-none">⚪ Remote не настроен</span></div>'
+        + '<p class="mp-stats-note">Добавьте: <code>bin/git-project-remote.sh ' + escapeHtml(slug) + ' --add &lt;домен&gt;</code></p>';
       if (pull) { pull.hidden = true; }
       if (push) { push.hidden = true; }
       return;
     }
     const L = d.local ? d.local.sha + ' · ' + d.local.date : '—';
     const S = d.server ? d.server.sha + ' · ' + d.server.date : '—';
-    let state;
-    if (d.state === 'synced') { state = '🟢 Синхронизировано'; }
-    else if (d.state === 'behind') { state = '🟡 Сервер новее на ' + d.behind + ' коммит(ов) — доступно обновление'; }
-    else if (d.state === 'ahead') { state = '🔴 Локальная новее на ' + d.ahead + ' коммит(ов) — можно опубликовать'; }
-    else if (d.state === 'diverged') { state = '🔴 Истории разошлись: ↓' + d.behind + ' ↑' + d.ahead; }
-    else { state = '⚪ Ветки на сервере нет'; }
-    text.innerHTML = 'Локальная: <strong>' + escapeHtml(L) + '</strong> · Сервер (' + escapeHtml(d.remote) + '): <strong>' + escapeHtml(S) + '</strong><br>' + state
-      + (d.fetched ? '' : ' <span class="mp-fresh">(кэш проверки ≤15 мин; кнопка — свежий fetch)</span>');
+    let cls = 'none';
+    let label = '⚪ Ветки на сервере нет';
+    if (d.state === 'synced') { cls = 'ok'; label = '✅ Синхронизировано'; }
+    else if (d.state === 'behind') { cls = 'warn'; label = '⚠️ Сервер новее на ' + d.behind + ' коммит(ов) — доступно обновление'; }
+    else if (d.state === 'ahead') { cls = 'warn'; label = '⚠️ Локальная новее на ' + d.ahead + ' коммит(ов) — можно опубликовать'; }
+    else if (d.state === 'diverged') { cls = 'warn'; label = '⚠️ Истории разошлись: ↓' + d.behind + ' ↑' + d.ahead; }
+    text.innerHTML = '<div class="version-row">'
+      + '<div class="version-item"><span class="info-label">Локальная' + (d.branch ? ' (' + escapeHtml(d.branch) + ')' : '') + '</span>'
+      + '<span class="info-value version-tag">' + escapeHtml(L) + '</span></div>'
+      + '<div class="version-item"><span class="info-label">Git-сервер' + (d.remote ? ' (' + escapeHtml(d.remote) + ')' : '') + '</span>'
+      + '<span class="info-value version-tag">' + escapeHtml(S) + '</span></div>'
+      + '</div>'
+      + '<div class="sync-status"><span class="sync-icon sync-' + cls + '">' + label + '</span></div>'
+      + (d.fetched ? '' : '<p class="mp-stats-note">Кэш проверки ≤15 мин; кнопка «Проверить сервер» делает свежий fetch.</p>');
     if (pull) {
       pull.hidden = !(d.state === 'behind' || d.state === 'diverged');
       pull.textContent = '⬇ Обновить из сервера (' + d.remote + ')';

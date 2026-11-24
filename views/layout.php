@@ -4,11 +4,8 @@ declare(strict_types=1);
 
 /**
  * Каркас интерфейса v0.3: сайдбар + header + рабочее поле.
- * Рабочее поле переключает 4 mutually-exclusive вида:
- *   home (проекты), hosts (хосты и токены), market (маркетплейс), git-add (клонирование по URL).
- * Входные переменные: $ws_side, $ws_view, $ws_title, $ws_crumb, $ws_pills, $ws_search_ph.
- * Баннер обновлений хаба живёт в сайдбаре под прежними ID (#hub-update и др.),
- * поэтому project-page.js работает без правок.
+ * Виды: home (проекты), hosts (хосты и токены), market (маркетплейс), git-add (клонирование по URL).
+ * Легаси-панель удалена: её функции покрыты видами и CLI-скриптами bin/.
  */
 
 $ws_side = $ws_side ?? ['projects' => 0, 'market' => 0, 'hosts' => 0];
@@ -45,7 +42,6 @@ $ws_content = $ws_view_files[$ws_view] ?? $ws_view_files['home'];
     <a class="ws-item<?= $ws_view === 'market' ? ' ws-item--on' : '' ?>" href="/?view=market">🛒 Каталог <span class="ws-count"><?= (int) $ws_side['market'] ?></span></a>
     <div class="ws-sec">System</div>
     <a class="ws-item<?= $ws_view === 'hosts' ? ' ws-item--on' : '' ?>" href="/?view=hosts">🔑 Хосты и токены <span class="ws-count"><?= (int) $ws_side['hosts'] ?></span></a>
-    <a class="ws-item" href="/panel.php">🛠 Панель управления</a>
   </nav>
   <div class="ws-hub" id="hub-update">
     <div class="ws-hub-title">Hub</div>
@@ -65,7 +61,7 @@ $ws_content = $ws_view_files[$ws_view] ?? $ws_view_files['home'];
     <div class="ws-pills" id="ws-pills"><?= $ws_pills ?></div>
     <div class="ws-head-right">
       <input type="search" class="ws-search" id="ws-search" placeholder="<?= htmlspecialchars($ws_search_ph) ?>" maxlength="80">
-      <a class="ws-gear" href="/panel.php" title="Панель управления">⚙</a>
+      <a class="ws-gear" href="/?view=hosts" title="Хосты и токены">⚙</a>
       <span class="ws-user">@sokol491</span>
     </div>
   </header>
@@ -75,7 +71,7 @@ $ws_content = $ws_view_files[$ws_view] ?? $ws_view_files['home'];
 </div>
 
 <div class="mp-toast" id="mp-toast" hidden></div>
-<script type="module" src="/assets/js/project-page.js?v=6"></script>
+<script type="module" src="/assets/js/project-page.js?v=7"></script>
 <script type="module" src="/assets/js/workspace.js?v=2"></script>
 </body>
 </html>

@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 /**
- * Вид home: таблица проектов в рабочем поле.
- * В переменных: $projects (массив), $project (текущий проект на странице проекта, null на списке).
+ * Вид home: таблица проектов; страница проекта — один живой блок сравнения с сервером
+ * внутри панели информации (без дублирующего статического блока и без верхнего баннера).
  */
 
 if ($project === null): ?>
@@ -80,16 +80,6 @@ if ($project === null): ?>
 <footer class="ws-foot">Состояние синхронизации — по tracking-ссылкам последнего fetch каждого проекта. Точное сравнение — на странице проекта.</footer>
 
 <?php else: ?>
-  <section class="hub-update proj-banner" id="proj-update" hidden>
-    <div class="hub-update-text" id="proj-update-text"></div>
-    <div class="hub-update-buttons">
-      <button type="button" class="btn btn--primary" id="proj-check">🔍 Проверить сервер</button>
-      <button type="button" class="btn" id="proj-pull" hidden>⬇ Обновить из сервера</button>
-      <button type="button" class="btn" id="proj-push" hidden>⬆ Опубликовать на сервер</button>
-    </div>
-    <pre class="hub-log" id="proj-log" hidden></pre>
-  </section>
-
   <header class="project-header">
     <h1 class="project-title"><span class="dot dot--<?= $project['dot'] ?>"></span><?= htmlspecialchars($project['name']) ?></h1>
   </header>
@@ -106,26 +96,18 @@ if ($project === null): ?>
     <div class="info-row"><span class="info-label">Размер</span><span class="info-value"><?= htmlspecialchars($project['size_human']) ?></span></div>
     <div class="info-row"><span class="info-label">Обновлено</span><span class="info-value"><?= htmlspecialchars($project['modified_full']) ?></span></div>
     <hr class="info-divider">
-    <div class="version-row">
-      <div class="version-item">
-        <span class="info-label">Локальная<?= $project['branch'] !== null ? ' (' . htmlspecialchars($project['branch']) . ')' : '' ?></span>
-        <span class="info-value version-tag"><?= htmlspecialchars($project['local_version'] ?? '—') ?><?= $project['local_date'] !== null ? ' · ' . htmlspecialchars($project['local_date']) : '' ?></span>
+    <div id="proj-update">
+      <div class="hosts-head">
+        <span class="info-label">Сравнение с сервером</span>
+        <button type="button" class="btn btn--primary" id="proj-check">🔍 Проверить сервер</button>
       </div>
-      <div class="version-item">
-        <span class="info-label">Git-сервер<?= $project['git_remote'] !== null ? ' (' . htmlspecialchars($project['git_remote']) . ')' : '' ?></span>
-        <span class="info-value version-tag"><?= htmlspecialchars($project['git_version'] ?? '—') ?><?= $project['git_date'] !== null ? ' · ' . htmlspecialchars($project['git_date']) : '' ?></span>
+      <div id="proj-update-text">Загрузка…</div>
+      <div class="hub-update-buttons">
+        <button type="button" class="btn" id="proj-pull" hidden>⬇ Обновить из сервера</button>
+        <button type="button" class="btn" id="proj-push" hidden>⬆ Опубликовать на сервер</button>
       </div>
+      <pre class="hub-log" id="proj-log" hidden></pre>
     </div>
-    <div class="sync-status">
-      <?php if ($project['synced'] === true): ?>
-        <span class="sync-icon sync-ok">✅ Синхронизировано</span>
-      <?php elseif ($project['synced'] === false): ?>
-        <span class="sync-icon sync-warn">⚠️ Есть обновления</span>
-      <?php else: ?>
-        <span class="sync-icon sync-none">⚪ Нет данных о сервере (выполните fetch)</span>
-      <?php endif; ?>
-    </div>
-    <p class="mp-stats-note">Панель показывает состояние последнего fetch. Актуальное сравнение с сервером — «🔍 Проверить сервер» выше.</p>
   </section>
 
   <section class="project-actions">
@@ -188,7 +170,7 @@ if ($project === null): ?>
       <div class="action-buttons">
         <button type="button" class="btn btn--danger" id="delete-local">🗑 Удалить локально</button>
       </div>
-      <p class="action-hint">Удаление с хостов — через /panel.php (там выбор remote). Локальное удаление необратимо.</p>
+      <p class="action-hint">Удаление с хостов — через CLI bin/git-project-remote.sh и migrate. Локальное удаление необратимо.</p>
     </div>
   </section>
 <?php endif; ?>

@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 /**
  * Вид hosts: таблица хостов и форма добавления/обновления.
- * CSRF берётся из мета-тега, токен генерируется через сессию marketplace.
+ * Заголовки на существующих классах hosts-title / mp-stats-note (пропорции интерфейса).
  */
 
 $csrf = $csrf ?? '';
-?><h1 class="ws-view-title">🔑 Хосты и API-ключи</h1>
-<p class="ws-view-sub">Конфигурация Git-хостов хранится в <code>config/hosts.json</code>, ключи — в <code>.env</code> (права 600). Правки мгновенно подхватываются скриптами синхронизации.</p>
+?><h2 class="hosts-title">🔑 Хосты и API-ключи</h2>
+<p class="mp-stats-note">Конфигурация Git-хостов хранится в <code>config/hosts.json</code>, ключи — в <code>.env</code> (права 600). Правки мгновенно подхватываются скриптами синхронизации.</p>
 
 <section class="hosts-box">
   <div class="hosts-head">
