@@ -4,11 +4,9 @@ declare(strict_types=1);
 
 /**
  * API версий хаба: status | refresh | update | backups | rollback.
- * Статус читается из .git; теги resolves через git for-each-ref с peel (%(*objectname)),
- * иначе аннотированные loose-теги дают SHA tag-объекта и метка деградирует в <tag>-r<hash>.
- * Файловый разбор packed-refs/loose — fallback, если exec недоступен.
- * Портативно: edge берётся из gitverse, иначе origin, иначе первого remote с tracking-ссылкой.
- * current_label выводится из git: тег на HEAD, иначе <stable>-r<hash6>.
+ * Статус читается из файлов .git; ancestry-проверка базы тега — через git merge-base.
+ * current_label: тег на HEAD, иначе <база-тег, достижимый из HEAD>-r<hash6>.
+ * edge зануляется, когда edge.sha == stable.sha (кнопка edge не дублирует stable).
  * data/version.txt — журнал применённого канала (applied_label), не источник истины.
  */
 
@@ -60,6 +58,28 @@ function refSha(string $gd, string $ref): ?string
     return null;
 }
 
+/** Новейший стабильный тег, достижимый из данного SHA (база для -r-метки). */
+function baseTagFor(string $sha, array $stableTags, callable $tagCommit, string $hubRoot, ?string $fallback): ?string
+{
+    if (function_exists('exec')) {
+        $n = 0;
+        foreach ($stableTags as $t) {
+            if ($n++ >= 20) {
+                break;
+            }
+            $tc = $tagCommit($t);
+            $out = [];
+            $rc = 1;
+            exec('git -C ' . escapeshellarg($hubRoot) . ' merge-base --is-ancestor ' . escapeshellarg($tc) . ' ' . escapeshellarg($sha) . ' 2>/dev/null', $out, $rc);
+            if ($rc === 0) {
+                return $t;
+            }
+        }
+        return null;
+    }
+    return $fallback;
+}
+
 $gd = $hubRoot . '/.git';
 if (!is_dir($gd)) {
     respond(false, [], 'Хаб не является git-репозиторием', 'NOT_GIT');
@@ -99,80 +119,75 @@ if ($branch !== null) {
     }
 }
 
-// --- Теги: имя -> SHA КОММИТА (peel для аннотированных) -----------------------
+// --- Теги: packed-refs + loose, с peeled-ссылками аннотированных тегов --------
 $tags = [];
-$feCmd = 'git -C ' . escapeshellarg($hubRoot) . ' for-each-ref refs/tags --format='
-    . escapeshellarg("%(refname:short)\t%(objectname)\t%(*objectname)") . ' 2>/dev/null';
-$feOut = [];
-$feRc = 0;
-exec($feCmd, $feOut, $feRc);
-if ($feRc === 0 && $feOut !== []) {
-    foreach ($feOut as $line) {
-        $parts = explode("\t", $line);
-        if (count($parts) < 2 || $parts[0] === '' || $parts[1] === '') {
-            continue;
-        }
-        $peel = $parts[2] ?? '';
-        $tags[$parts[0]] = $peel !== '' ? $peel : $parts[1];
+$peel = [];
+$packed = gitRead($gd, 'packed-refs') ?? '';
+$lastTag = null;
+foreach (explode("\n", $packed) as $line) {
+    $line = trim($line);
+    if (preg_match('/^([0-9a-f]{40})\s+refs\/tags\/(.+)$/', $line, $m) === 1 && !str_ends_with($m[2], '^{}')) {
+        $tags[$m[2]] = $m[1];
+        $lastTag = $m[2];
+        continue;
     }
-} else {
-    // Fallback без exec: packed-refs с peeled-строками + loose.
-    // Аннотированные loose-теги здесь не peel-ятся (ограничение fallback-пути).
-    $peel = [];
-    $packed = gitRead($gd, 'packed-refs') ?? '';
-    $lastTag = null;
-    foreach (explode("\n", $packed) as $line) {
-        $line = trim($line);
-        if (preg_match('/^([0-9a-f]{40})\s+refs\/tags\/(.+)$/', $line, $m) === 1 && !str_ends_with($m[2], '^{}')) {
-            $tags[$m[2]] = $m[1];
-            $lastTag = $m[2];
-            continue;
-        }
-        if ($lastTag !== null && preg_match('/^\^([0-9a-f]{40})$/', $line, $m) === 1) {
-            $peel[$lastTag] = $m[1];
-            $lastTag = null;
-        }
-    }
-    if (is_dir($gd . '/refs/tags')) {
-        foreach (scandir($gd . '/refs/tags') ?: [] as $t) {
-            if ($t === '.' || $t === '..') {
-                continue;
-            }
-            $sha = refSha($gd, 'refs/tags/' . $t);
-            if ($sha !== null) {
-                $tags[$t] = $sha;
-            }
-        }
-    }
-    foreach ($peel as $name => $commitSha) {
-        $tags[$name] = $commitSha;
+    if ($lastTag !== null && preg_match('/^\^([0-9a-f]{40})$/', $line, $m) === 1) {
+        $peel[$lastTag] = $m[1];
+        $lastTag = null;
     }
 }
-
+if (is_dir($gd . '/refs/tags')) {
+    foreach (scandir($gd . '/refs/tags') ?: [] as $t) {
+        if ($t === '.' || $t === '..') {
+            continue;
+        }
+        $sha = refSha($gd, 'refs/tags/' . $t);
+        if ($sha !== null) {
+            $tags[$t] = $sha;
+        }
+    }
+}
+$tagCommit = static function (string $t) use ($tags, $peel): string {
+    return $peel[$t] ?? $tags[$t];
+};
 $stableTags = array_values(array_filter(array_keys($tags), static fn(string $t): bool => preg_match('/^\d+\.\d+\.\d+$/', $t) === 1));
 usort($stableTags, static fn(string $a, string $b): int => version_compare($b, $a));
 $stableTag = $stableTags[0] ?? null;
-$stableSha = $stableTag !== null ? $tags[$stableTag] : null;
+$stableSha = $stableTag !== null ? $tagCommit($stableTag) : null;
 
 // --- Метки версий -------------------------------------------------------------
 $versionFile  = $hubRoot . '/data/version.txt';
 $appliedLabel = is_file($versionFile) ? trim((string) file_get_contents($versionFile)) : '';
+$appliedBase  = preg_match('/^(\d+\.\d+\.\d+)/', $appliedLabel, $am) === 1 ? $am[1] : null;
+
 $currentLabel = '';
 if ($localSha !== null) {
     $tagAtHead = null;
     foreach ($stableTags as $t) {
-        if ($tags[$t] === $localSha) {
+        if ($tagCommit($t) === $localSha) {
             $tagAtHead = $t;
             break;
         }
     }
-    $currentLabel = $tagAtHead ?? ($stableTag !== null ? $stableTag . '-r' . substr($localSha, 0, 6) : substr($localSha, 0, 7));
+    if ($tagAtHead !== null) {
+        $currentLabel = $tagAtHead;
+    } else {
+        $base = baseTagFor($localSha, $stableTags, $tagCommit, $hubRoot, $appliedBase ?? $stableTag);
+        $currentLabel = $base !== null ? $base . '-r' . substr($localSha, 0, 6) : substr($localSha, 0, 7);
+    }
 } else {
     $currentLabel = $appliedLabel !== '' ? $appliedLabel : 'неизвестно';
 }
-$edgeLabel = $stableTag !== null && $edgeSha !== null
-    ? ($edgeSha === $stableSha ? $stableTag : $stableTag . '-r' . substr($edgeSha, 0, 6))
-    : null;
+
+$edgeLabel = null;
+if ($edgeSha !== null && $stableTag !== null) {
+    if ($edgeSha === $stableSha) {
+        $edgeLabel = null; // edge совпадает со stable: кнопка edge не нужна
+    } else {
+        $baseEdge = baseTagFor($edgeSha, $stableTags, $tagCommit, $hubRoot, $stableTag);
+        $edgeLabel = $baseEdge !== null ? $baseEdge . '-r' . substr($edgeSha, 0, 6) : substr($edgeSha, 0, 7);
+    }
+}
 
 // --- GET status ----------------------------------------------------------------
 if ($action === 'status') {
@@ -185,7 +200,7 @@ if ($action === 'status') {
         'stable'           => $stableTag !== null ? ['label' => $stableTag, 'sha' => substr((string) $stableSha, 0, 7)] : null,
         'edge'             => $edgeLabel !== null ? ['label' => $edgeLabel, 'sha' => substr((string) $edgeSha, 0, 7)] : null,
         'update_available' => $edgeSha !== null && $localSha !== null && $edgeSha !== $localSha,
-        'note'             => 'current_label выводится из git; applied_label — журнал последнего обновления.',
+        'note'             => 'current_label выводится из git по базе-тегу, достижимому из HEAD; applied_label — журнал последнего обновления.',
     ]);
 }
 
