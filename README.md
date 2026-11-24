@@ -30,41 +30,50 @@
 
 Требования: PHP 8.1+, git 2.30+, curl, systemd (опционально).
 
-    1. Клонирование хаба (из GitVerse)
+1. Клонирование хаба (из GitVerse)
+```
        git clone https://gitverse.ru/Sokol491/gitproject.git ~/gitproject
        cd ~/gitproject
-
-    2. Создать .env из шаблона и вписать свои значения
+```
+2. Создать .env из шаблона и вписать свои значения
+```
        cp .env.example .env 2>/dev/null || true
        chmod 600 .env
        # Основные настройки GitVerse
        GIT_HOST=gitverse.ru
        GITVERSE_HUB_USER=Sokol491
        NETWORK_PASSWORD=<пароль>
-
-    3. Права на скрипты и подключение credential helper
+```
+3. Права на скрипты и подключение credential helper
+```
        chmod 700 bin/git-credential-multi.sh bin/git-project-*.sh
        git config --global credential.helper "$HOME/gitproject/bin/git-credential-multi.sh"
        git config --global user.name "Ваше Имя"
        git config --global user.email "ваш_email@example.com"
-
-    4. Проверка helper (токен маскируется)
+```
+4. Проверка helper (токен маскируется)
+```
        printf 'protocol=https\nhost=gitverse.ru\npath=Sokol491/gitproject.git\n' \
          | bin/git-credential-multi.sh get | sed -E 's/^(password=).*/\1[скрыто]/'
-
-    5. Запуск хаба
+```
+5. Запуск хаба
+```
        php -S 0.0.0.0:8000 -t ~/gitproject ~/gitproject/router.php
-       или через systemd:
+```
+  или через systemd:
+```
        systemctl --user enable --now gitproject-workspace.service
        sudo loginctl enable-linger $USER
-
-    6. Клонирование проектов в контейнер
+```
+6. Клонирование проектов в контейнер
+```
        git clone https://gitverse.ru/<owner>/<slug>.git ~/gitproject/projects/<slug>
        ~/gitproject/bin/git-project-sync.sh fix <slug>
-
+```
 Обновление окружения хаба — только из репозитория Sokol491 на GitVerse:
+```
     ~/gitproject/bin/git-project-pull.sh
-
+```
 ## Порты и URL
 
 - 8000 — хаб (systemd: gitproject-workspace.service)
