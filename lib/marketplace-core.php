@@ -3,10 +3,10 @@
 declare(strict_types=1);
 
 /**
- * Маркетплейс — ядро: хосты, fetch, санитайзер HTML, markdown, аватарки.
- * README рендерится через whitelist-санитайзер сырого HTML + markdown поверх:
- * разрешённые теги/атрибуты сохраняются, опасные вырезаются, неизвестные экранируются.
- * Без токенов: только публичные endpoint'ы.
+ * Маркетплейс v0.1.0 — ядро: БД, хосты, fetch, markdown, аватарки.
+ * Подключается из bin/marketplace.php (CLI) и public/api/marketplace.php (web).
+ * БЕЗ ТОКЕНОВ: только публичные endpoint'ы (проверено 16-17.11.2026).
+ * Без зависимостей: не требует composer, mbstring, внешних библиотек.
  */
 
 const MP_CATEGORIES = ['dev-tools', 'ux-ui', 'components', 'learning', 'self-hosted'];
@@ -144,7 +144,7 @@ function mpHttp(string $url, int $maxBytes): ?array
     return ['body' => $body, 'ct' => $ct];
 }
 
-/** GitFlic: SHA и ветка по умолчанию через git-протокол, без токена. */
+/** GitFlic: SHA и ветка по умолчанию через git-протокол, без токена (проверено). */
 function mpGitFlicSha(string $owner, string $slug, string &$branch): ?string
 {
     $url = sprintf('https://gitflic.ru/project/%s/%s.git', $owner, $slug);
@@ -213,143 +213,134 @@ function mpResolveUrl(string $url, string $base): ?string
     return $p['scheme'] . '://' . $p['host'] . '/' . $clean($path);
 }
 
-/** Вырезает опасные блоки и обработчики событий до разбора тегов. */
-function mpStripDangerous(string $md): string
+/** Аватар: поле репо -> первая не-бейдж картинка README -> null (монограмма). */
+function mpExtractAvatar(string $md, string $rawBase, string $repoAvatar): ?string
 {
-    $md = (string) preg_replace('#<(script|style|iframe|object|embed|form|textarea|select|button|link|meta|base|svg|math)\b[^>]*>.*?</\1\s*>#is', '', $md);
-    $md = (string) preg_replace('#</?(script|style|iframe|object|embed|form|textarea|select|button|link|meta|base|svg|math)\b[^>]*/?>#i', '', $md);
-    $md = (string) preg_replace('/\son[a-z]+\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)/i', '', $md);
-    return $md;
+    if ($repoAvatar !== '' && preg_match('#^https://#i', $repoAvatar) === 1) {
+        return $repoAvatar;
+    }
+    $cands = [];
+    if (preg_match_all('/!\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/', $md, $m) > 0) {
+        $cands = array_merge($cands, $m[1]);
+    }
+    if (preg_match_all('/<img[^>]+src=["\']([^"\']+)["\']/i', $md, $m) > 0) {
+        $cands = array_merge($cands, $m[1]);
+    }
+    $badges = ['shields.io', 'badgen.net', 'badge.fury.io', 'travis-ci.org', 'circleci.com', '/actions/workflows/', '/workflows/'];
+    foreach ($cands as $u) {
+        $skip = false;
+        foreach ($badges as $b) {
+            if (stripos($u, $b) !== false) {
+                $skip = true;
+                break;
+            }
+        }
+        if ($skip) {
+            continue;
+        }
+        $abs = mpResolveUrl($u, $rawBase);
+        if ($abs !== null && preg_match('#^https://#i', $abs) === 1) {
+            return $abs;
+        }
+    }
+    return null;
 }
 
-/** Санитайзер атрибутов: whitelist, только http(s)/относительные URL, без style и on*. */
-function mpSanitizeAttrs(string $tag, string $raw, string $rawBase): string
+/** Прокси-кэш аватара: whitelist хостов, <=2 МБ, только растровые форматы (SVG отклоняется). */
+function mpProxyAvatar(string $url, int $itemId): ?string
 {
-    $out = '';
-    preg_match_all('/([a-zA-Z_:][-a-zA-Z0-9_:.]*)\s*=\s*("([^"]*)"|\'([^\']*)\'|[^\s>]+)/', $raw, $ms, PREG_SET_ORDER);
-    $global = ['align', 'title', 'alt', 'width', 'height', 'lang', 'dir', 'colspan', 'rowspan', 'start', 'open', 'loading', 'referrerpolicy', 'type', 'media'];
-    $per = [
-        'a' => ['href'],
-        'img' => ['src', 'srcset'],
-        'source' => ['src', 'srcset'],
-        'td' => ['colspan', 'rowspan'],
-        'th' => ['colspan', 'rowspan'],
-        'ol' => ['start'],
-        'details' => ['open'],
-    ];
-    foreach ($ms as $a) {
-        $name = strtolower($a[1]);
-        $val = $a[3] ?? $a[4] ?? $a[2];
-        if (str_starts_with($name, 'on') || $name === 'style' || $name === 'target' || $name === 'rel') {
-            continue;
-        }
-        if (!in_array($name, $global, true) && !in_array($name, $per[$tag] ?? [], true)) {
-            continue;
-        }
-        if ($name === 'href' || $name === 'src') {
-            $url = mpResolveUrl(htmlspecialchars_decode($val, ENT_QUOTES), $rawBase);
-            if ($url === null) {
-                continue;
-            }
-            $val = $url;
-        }
-        if ($name === 'srcset') {
-            $parts = [];
-            foreach (explode(',', $val) as $cand) {
-                $bits = preg_split('/\s+/', trim($cand)) ?: [];
-                $u = mpResolveUrl($bits[0] ?? '', $rawBase);
-                if ($u !== null) {
-                    $parts[] = $u . (isset($bits[1]) ? ' ' . $bits[1] : '');
-                }
-            }
-            if ($parts === []) {
-                continue;
-            }
-            $val = implode(', ', $parts);
-        }
-        if (in_array($name, ['width', 'height', 'colspan', 'rowspan', 'start'], true) && preg_match('/^\d{1,4}$/', $val) !== 1) {
-            continue;
-        }
-        if ($name === 'align' && preg_match('/^(left|right|center|justify)$/i', $val) !== 1) {
-            continue;
-        }
-        $out .= ' ' . $name . '="' . htmlspecialchars($val, ENT_QUOTES) . '"';
+    $host = parse_url($url, PHP_URL_HOST);
+    $allow = ['gitverse.ru', 'gitflic.ru', 'github.com', 'raw.githubusercontent.com',
+        'user-images.githubusercontent.com', 'objects.githubusercontent.com', 'camo.githubusercontent.com'];
+    if (!is_string($host) || !in_array(strtolower($host), $allow, true)) {
+        return null;
     }
-    if ($tag === 'a') {
-        $out .= ' target="_blank" rel="noopener noreferrer"';
+    $resp = mpHttp($url, 2097152);
+    if ($resp === null) {
+        return null;
     }
-    if ($tag === 'img') {
-        $out .= ' loading="lazy" referrerpolicy="no-referrer"';
+    $extMap = ['image/png' => 'png', 'image/jpeg' => 'jpg', 'image/gif' => 'gif',
+        'image/webp' => 'webp', 'image/x-icon' => 'ico', 'image/vnd.microsoft.icon' => 'ico'];
+    $ct = trim(explode(';', $resp['ct'])[0]);
+    if (!isset($extMap[$ct])) {
+        return null;
     }
-    return $out;
+    $dir = mpRoot() . '/data/marketplace/img';
+    if (!is_dir($dir) && !mkdir($dir, 0770, true) && !is_dir($dir)) {
+        return null;
+    }
+    foreach (glob($dir . '/' . $itemId . '.*') ?: [] as $old) {
+        @unlink($old);
+    }
+    $file = $itemId . '.' . $extMap[$ct];
+    $tmp = tempnam($dir, 'av_');
+    if ($tmp === false || file_put_contents($tmp, $resp['body'], LOCK_EX) === false) {
+        if ($tmp !== false) {
+            @unlink($tmp);
+        }
+        return null;
+    }
+    if (!rename($tmp, $dir . '/' . $file)) {
+        @unlink($tmp);
+        return null;
+    }
+    return $file;
 }
 
-/** Один сырой тег: разрешённый — санитайз, неизвестный — экранирование в текст. */
-function mpRenderTag(bool $close, string $tag, string $attrRaw, string $rawBase): string
+/** Локальная монограмма-SVG (безопасна: генерируется нами). */
+function mpMonogram(string $name): string
 {
-    $allowed = ['p', 'br', 'hr', 'img', 'a', 'strong', 'b', 'em', 'i', 'u', 's', 'del', 'code', 'pre',
-        'blockquote', 'ul', 'ol', 'li', 'dl', 'dt', 'dd', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-        'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td', 'caption', 'div', 'span', 'center',
-        'picture', 'source', 'sup', 'sub', 'kbd', 'samp', 'var', 'details', 'summary',
-        'figure', 'figcaption', 'section', 'article', 'header', 'footer', 'abbr', 'mark', 'small', 'wbr'];
-    if (!in_array($tag, $allowed, true)) {
-        return htmlspecialchars('<' . ($close ? '/' : '') . $tag . $attrRaw . '>', ENT_QUOTES);
-    }
-    if ($close) {
-        return '</' . $tag . '>';
-    }
-    $attrs = mpSanitizeAttrs($tag, $attrRaw, $rawBase);
-    $void = in_array($tag, ['br', 'hr', 'img', 'source', 'wbr'], true);
-    return '<' . $tag . $attrs . ($void ? ' /' : '') . '>';
+    $clean = (string) preg_replace('/[^A-Za-z0-9]+/', '', $name);
+    $ini = strtoupper(substr($clean !== '' ? $clean : 'MP', 0, 2));
+    $hue = crc32($name) % 360;
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">'
+        . '<rect width="96" height="96" rx="14" fill="hsl(' . $hue . ', 45%, 28%)"/>'
+        . '<text x="48" y="60" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" '
+        . 'font-size="34" font-weight="700" fill="#e8e4f3" text-anchor="middle">'
+        . htmlspecialchars($ini, ENT_QUOTES) . '</text></svg>';
 }
 
-/** Inline: code-спаны -> сырой HTML в плейсхолдеры -> экранирование текста -> markdown -> возврат тегов. */
-function mpInline(string $raw, string $rawBase): string
+/** Inline-элементы markdown поверх УЖЕ экранированного текста (escape-first). */
+function mpInline(string $e, string $rawBase): string
 {
     $codes = [];
-    $raw = (string) preg_replace_callback('/`([^`]+)`/', static function (array $m) use (&$codes): string {
-        $codes[] = '<code>' . htmlspecialchars($m[1], ENT_QUOTES) . '</code>';
+    $e = (string) preg_replace_callback('/`([^`]+)`/', static function (array $m) use (&$codes): string {
+        $codes[] = '<code>' . $m[1] . '</code>';
         return "\x00" . (count($codes) - 1) . "\x00";
-    }, $raw);
-    $tags = [];
-    $s = (string) preg_replace_callback('#<(/?)([a-zA-Z][a-zA-Z0-9-]*)((?:"[^"]*"|\'[^\']*\'|[^>"\'])*)>#', static function (array $m) use (&$tags, $rawBase): string {
-        $tags[] = mpRenderTag($m[1] === '/', strtolower($m[2]), $m[3], $rawBase);
-        return "\x01" . (count($tags) - 1) . "\x01";
-    }, $raw);
-    $s = htmlspecialchars($s, ENT_QUOTES);
-    $s = (string) preg_replace_callback('/!\[([^\]]*)\]\(([^)\s]+)\)/', static function (array $m) use ($rawBase): string {
+    }, $e);
+    $e = (string) preg_replace_callback('/!\[([^\]]*)\]\(([^)\s]+)\)/', static function (array $m) use ($rawBase): string {
         $url = mpResolveUrl(htmlspecialchars_decode($m[2], ENT_QUOTES), $rawBase);
         if ($url === null) {
             return $m[1];
         }
         return '<img src="' . htmlspecialchars($url, ENT_QUOTES) . '" alt="' . $m[1] . '" loading="lazy" referrerpolicy="no-referrer">';
-    }, $s);
-    $s = (string) preg_replace_callback('/\[([^\]]+)\]\(([^)\s]+)\)/', static function (array $m) use ($rawBase): string {
+    }, $e);
+    $e = (string) preg_replace_callback('/\[([^\]]+)\]\(([^)\s]+)\)/', static function (array $m) use ($rawBase): string {
         $url = mpResolveUrl(htmlspecialchars_decode($m[2], ENT_QUOTES), $rawBase);
         if ($url === null) {
             return $m[1];
         }
         return '<a href="' . htmlspecialchars($url, ENT_QUOTES) . '" target="_blank" rel="noopener noreferrer">' . $m[1] . '</a>';
-    }, $s);
-    $s = (string) preg_replace('/\*\*([^*]+)\*\*/', '<strong>$1</strong>', $s);
-    $s = (string) preg_replace('/__([^_]+)__/', '<strong>$1</strong>', $s);
-    $s = (string) preg_replace('/(?<!\*)\*([^*\s][^*]*)\*(?!\*)/', '<em>$1</em>', $s);
-    $s = (string) preg_replace('/(?<![\w_])_([^_\s][^_]*)_(?![\w_])/', '<em>$1</em>', $s);
-    $s = (string) preg_replace('/~~([^~]+)~~/', '<del>$1</del>', $s);
-    $s = (string) preg_replace_callback('/\x01(\d+)\x01/', static function (array $m) use ($tags): string {
-        return $tags[(int) $m[1]] ?? '';
-    }, $s);
-    $s = (string) preg_replace_callback('/\x00(\d+)\x00/', static function (array $m) use ($codes): string {
+    }, $e);
+    $e = (string) preg_replace('/\*\*([^*]+)\*\*/', '<strong>$1</strong>', $e);
+    $e = (string) preg_replace('/__([^_]+)__/', '<strong>$1</strong>', $e);
+    $e = (string) preg_replace('/(?<!\*)\*([^*\s][^*]*)\*(?!\*)/', '<em>$1</em>', $e);
+    $e = (string) preg_replace('/(?<![\w_])_([^_\s][^_]*)_(?![\w_])/', '<em>$1</em>', $e);
+    $e = (string) preg_replace('/~~([^~]+)~~/', '<del>$1</del>', $e);
+    $e = (string) preg_replace_callback('/\x00(\d+)\x00/', static function (array $m) use ($codes): string {
         return $codes[(int) $m[1]] ?? '';
-    }, $s);
-    return $s;
+    }, $e);
+    return $e;
 }
 
-/** Markdown -> HTML: блоки + inline с whitelist-санитайзером сырого HTML. */
+/**
+ * Markdown -> HTML, escape-first: весь текст экранируется ДО трансформаций,
+ * сырой HTML показывается как текст. Поддержка: заголовки #, списки, цитаты,
+ * fenced-код, таблицы GFM, hr, bold/italic/strike, code, ссылки, картинки.
+ */
 function mpMarkdown(string $md, string $rawBase): string
 {
-    $md = str_replace(["\r\n", "\r", "\x00", "\x01"], ["\n", "\n", '', ''], $md);
-    $md = mpStripDangerous($md);
+    $md = str_replace(["\r\n", "\r", "\x00"], ["\n", "\n", ''], $md);
     if (strlen($md) > 524288) {
         $md = substr($md, 0, 524288);
     }
@@ -363,10 +354,7 @@ function mpMarkdown(string $md, string $rawBase): string
 
     $flushPara = static function () use (&$para, &$out, $rawBase): void {
         if ($para !== []) {
-            $joined = implode(' ', $para);
-            $inner = mpInline($joined, $rawBase);
-            $isBlock = preg_match('/^\s*<(p|div|table|thead|tbody|tr|ul|ol|li|h[1-6]|blockquote|pre|center|picture|details|hr|img|section|article|header|footer|figure|figcaption)\b/i', $joined) === 1;
-            $out[] = $isBlock ? $inner : '<p>' . $inner . '</p>';
+            $out[] = '<p>' . mpInline(htmlspecialchars(implode(' ', $para), ENT_QUOTES), $rawBase) . '</p>';
             $para = [];
         }
     };
@@ -374,7 +362,7 @@ function mpMarkdown(string $md, string $rawBase): string
         if ($list !== null) {
             $lis = '';
             foreach ($items as $it) {
-                $lis .= '<li>' . mpInline($it, $rawBase) . '</li>';
+                $lis .= '<li>' . mpInline(htmlspecialchars($it, ENT_QUOTES), $rawBase) . '</li>';
             }
             $out[] = '<' . $list . '>' . $lis . '</' . $list . '>';
             $list = null;
@@ -383,7 +371,7 @@ function mpMarkdown(string $md, string $rawBase): string
     };
     $flushQuote = static function () use (&$quote, &$out, $rawBase): void {
         if ($quote !== []) {
-            $out[] = '<blockquote><p>' . mpInline(implode(' ', $quote), $rawBase) . '</p></blockquote>';
+            $out[] = '<blockquote><p>' . mpInline(htmlspecialchars(implode(' ', $quote), ENT_QUOTES), $rawBase) . '</p></blockquote>';
             $quote = [];
         }
     };
@@ -394,21 +382,21 @@ function mpMarkdown(string $md, string $rawBase): string
             };
             $html = '<table><thead><tr>';
             foreach ($split($table[0]) as $cell) {
-                $html .= '<th>' . mpInline($cell, $rawBase) . '</th>';
+                $html .= '<th>' . mpInline(htmlspecialchars($cell, ENT_QUOTES), $rawBase) . '</th>';
             }
             $html .= '</tr></thead><tbody>';
             $n = count($table);
             for ($i = 2; $i < $n; $i++) {
                 $html .= '<tr>';
                 foreach ($split($table[$i]) as $cell) {
-                    $html .= '<td>' . mpInline($cell, $rawBase) . '</td>';
+                    $html .= '<td>' . mpInline(htmlspecialchars($cell, ENT_QUOTES), $rawBase) . '</td>';
                 }
                 $html .= '</tr>';
             }
             $out[] = $html . '</tbody></table>';
         } else {
             foreach ($table as $row) {
-                $out[] = '<p>' . mpInline($row, $rawBase) . '</p>';
+                $out[] = '<p>' . mpInline(htmlspecialchars($row, ENT_QUOTES), $rawBase) . '</p>';
             }
         }
         $table = [];
@@ -453,7 +441,7 @@ function mpMarkdown(string $md, string $rawBase): string
         if (preg_match('/^(#{1,6})\s+(.+)$/', $t, $m) === 1) {
             $flushAll();
             $n = strlen($m[1]);
-            $out[] = '<h' . $n . '>' . mpInline($m[2], $rawBase) . '</h' . $n . '>';
+            $out[] = '<h' . $n . '>' . mpInline(htmlspecialchars($m[2], ENT_QUOTES), $rawBase) . '</h' . $n . '>';
             continue;
         }
         if (preg_match('/^(-{3,}|\*{3,}|_{3,})$/', $t) === 1) {
@@ -498,94 +486,7 @@ function mpMarkdown(string $md, string $rawBase): string
     return implode("\n", $out);
 }
 
-/** Аватар: поле репо -> первая не-бейдж картинка README -> null (монограмма). */
-function mpExtractAvatar(string $md, string $rawBase, string $repoAvatar): ?string
-{
-    if ($repoAvatar !== '' && preg_match('#^https://#i', $repoAvatar) === 1) {
-        return $repoAvatar;
-    }
-    $cands = [];
-    if (preg_match_all('/!\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/', $md, $m) > 0) {
-        $cands = array_merge($cands, $m[1]);
-    }
-    if (preg_match_all('/<img[^>]+src=["\']([^"\']+)["\']/i', $md, $m) > 0) {
-        $cands = array_merge($cands, $m[1]);
-    }
-    $badges = ['shields.io', 'badgen.net', 'badge.fury.io', 'travis-ci.org', 'circleci.com', '/actions/workflows/', '/workflows/'];
-    foreach ($cands as $u) {
-        $skip = false;
-        foreach ($badges as $b) {
-            if (stripos($u, $b) !== false) {
-                $skip = true;
-                break;
-            }
-        }
-        if ($skip) {
-            continue;
-        }
-        $abs = mpResolveUrl($u, $rawBase);
-        if ($abs !== null && preg_match('#^https://#i', $abs) === 1) {
-            return $abs;
-        }
-    }
-    return null;
-}
-
-/** Прокси-кэш аватара: whitelist хостов, <=2 МБ, только растровые форматы. */
-function mpProxyAvatar(string $url, int $itemId): ?string
-{
-    $host = parse_url($url, PHP_URL_HOST);
-    $allow = ['gitverse.ru', 'gitflic.ru', 'github.com', 'raw.githubusercontent.com',
-        'user-images.githubusercontent.com', 'objects.githubusercontent.com', 'camo.githubusercontent.com'];
-    if (!is_string($host) || !in_array(strtolower($host), $allow, true)) {
-        return null;
-    }
-    $resp = mpHttp($url, 2097152);
-    if ($resp === null) {
-        return null;
-    }
-    $extMap = ['image/png' => 'png', 'image/jpeg' => 'jpg', 'image/gif' => 'gif',
-        'image/webp' => 'webp', 'image/x-icon' => 'ico', 'image/vnd.microsoft.icon' => 'ico'];
-    $ct = trim(explode(';', $resp['ct'])[0]);
-    if (!isset($extMap[$ct])) {
-        return null;
-    }
-    $dir = mpRoot() . '/data/marketplace/img';
-    if (!is_dir($dir) && !mkdir($dir, 0770, true) && !is_dir($dir)) {
-        return null;
-    }
-    foreach (glob($dir . '/' . $itemId . '.*') ?: [] as $old) {
-        @unlink($old);
-    }
-    $file = $itemId . '.' . $extMap[$ct];
-    $tmp = tempnam($dir, 'av_');
-    if ($tmp === false || file_put_contents($tmp, $resp['body'], LOCK_EX) === false) {
-        if ($tmp !== false) {
-            @unlink($tmp);
-        }
-        return null;
-    }
-    if (!rename($tmp, $dir . '/' . $file)) {
-        @unlink($tmp);
-        return null;
-    }
-    return $file;
-}
-
-/** Локальная монограмма-SVG (генерируется нами, безопасна). */
-function mpMonogram(string $name): string
-{
-    $clean = (string) preg_replace('/[^A-Za-z0-9]+/', '', $name);
-    $ini = strtoupper(substr($clean !== '' ? $clean : 'MP', 0, 2));
-    $hue = crc32($name) % 360;
-    return '<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">'
-        . '<rect width="96" height="96" rx="14" fill="hsl(' . $hue . ', 45%, 28%)"/>'
-        . '<text x="48" y="60" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" '
-        . 'font-size="34" font-weight="700" fill="#e8e4f3" text-anchor="middle">'
-        . htmlspecialchars($ini, ENT_QUOTES) . '</text></svg>';
-}
-
-/** Plain-text выжимка из README. */
+/**Plain-text выжимка из README для описания/анонса. */
 function mpPlainExcerpt(string $md, int $len): string
 {
     $t = (string) preg_replace('/```.*?```/s', ' ', $md);
@@ -750,7 +651,7 @@ function mpMarkError(PDO $pdo, int $id, string $error): void
     $pdo->prepare($sql)->execute([':id' => $id, ':now' => gmdate('Y-m-d\TH:i:s\Z'), ':err' => $error]);
 }
 
-/** Валидация записи каталога. */
+/** Валидация записи каталога (seed/add/submit). */
 function mpValidateEntry(array $it): array
 {
     $hosts = mpHosts();

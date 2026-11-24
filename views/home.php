@@ -1,113 +1,164 @@
-<?php
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GitProject Workspace Hub</title>
+<link rel="stylesheet" href="/assets/style.css?v=2">
+</head>
+<body data-slug="<?= htmlspecialchars($project['name'] ?? '') ?>" data-remote="<?= htmlspecialchars($project['git_remote'] ?? '') ?>">
+<div class="container">
+  <section class="hub-update" id="hub-update" hidden>
+    <div class="hub-update-text" id="hub-update-text"></div>
+    <div class="hub-update-buttons">
+      <button type="button" class="btn btn--primary" id="hub-check">🔍 Проверить обновления</button>
+      <button type="button" class="btn" id="hub-stable" hidden>⬇ Стабильная</button>
+      <button type="button" class="btn btn--danger" id="hub-edge" hidden>⚠ Edge (риск)</button>
+    </div>
+    <pre class="hub-log" id="hub-log" hidden></pre>
+  </section>
+<?php if ($project === null): ?>
 
-declare(strict_types=1);
+  <header class="header">
+    <h1>GitProject Workspace Hub</h1>
+    <p class="sub">Рабочее пространство @sokol491 · <a class="header-link" href="/marketplace/">🛒 Маркетплейс</a> · <button type="button" class="header-link link-btn" id="hosts-toggle">🔑 Хосты и токены</button></p>
+  </header>
 
-/**
- * Вид home: таблица проектов; страница проекта — один живой блок сравнения с сервером
- * внутри панели информации (без дублирующего статического блока и без верхнего баннера).
- */
-
-if ($project === null): ?>
-<section class="ws-table-wrap">
-  <table class="ws-table">
-    <thead>
-      <tr>
-        <th class="ws-th-name">NAME</th>
-        <th>STATE</th>
-        <th>TYPE</th>
-        <th>SIZE</th>
-        <th>UPDATED</th>
-        <th class="ws-th-act">ACTIONS</th>
-      </tr>
-    </thead>
-    <?php if ($projects === []): ?>
-      <tbody>
-        <tr><td colspan="6" class="ws-empty">📂 В projects/ пока нет репозиториев. <button type="button" class="ws-link-btn" id="empty-go-add">Добавить git →</button></td></tr>
-      </tbody>
-    <?php else: ?>
-      <?php foreach (['PHP', 'Node.js', 'unknown'] as $grp): ?>
-        <?php $rows = array_values(array_filter($projects, static fn(array $p): bool => $p['type'] === $grp)); if ($rows === []) { continue; } ?>
-        <tbody class="ws-tbody" data-group="<?= htmlspecialchars($grp) ?>">
-          <tr class="ws-group" data-group="<?= htmlspecialchars($grp) ?>">
-            <td colspan="6">
-              <button type="button" class="ws-group-btn" data-group="<?= htmlspecialchars($grp) ?>">
-                <span class="ws-arrow">▾</span> <?= htmlspecialchars($grp) ?> <span class="ws-count"><?= count($rows) ?></span>
-              </button>
-            </td>
-          </tr>
-          <?php foreach ($rows as $p): ?>
-            <?php $state = $p['synced'] === true ? 'synced' : ($p['synced'] === false ? 'behind' : 'none'); ?>
-            <tr class="ws-row"
-                data-group="<?= htmlspecialchars($grp) ?>"
-                data-state="<?= $state ?>"
-                data-name="<?= htmlspecialchars($p['name']) ?>"
-                data-desc="<?= htmlspecialchars($p['description']) ?>"
-                data-slug="<?= htmlspecialchars($p['name']) ?>"
-                data-page="<?= htmlspecialchars($p['page_url']) ?>"
-                data-preview="<?= htmlspecialchars($p['entry_point'] ?? '') ?>"
-                data-remote="<?= htmlspecialchars($p['git_remote'] ?? '') ?>">
-              <td class="ws-cell-name">
-                <span class="ws-ico"><?= $p['type'] === 'PHP' ? '🐘' : ($p['type'] === 'Node.js' ? '🟨' : '📦') ?></span>
-                <span class="ws-namebox">
-                  <a class="ws-name" href="<?= htmlspecialchars($p['page_url']) ?>"><?= htmlspecialchars($p['name']) ?></a>
-                  <span class="ws-sub"><?= htmlspecialchars($p['description'] !== '' ? $p['description'] : 'без описания') ?></span>
-                </span>
-              </td>
-              <td>
-                <span class="ws-dot ws-dot--<?= $state ?>"></span><span class="ws-state"><?= $state === 'synced' ? 'Синхронизирован' : ($state === 'behind' ? 'Есть обновления' : 'Нет данных') ?></span>
-              </td>
-              <td><span class="badge badge--<?= str_replace(['.', ' '], '-', strtolower($p['type'])) ?>"><?= htmlspecialchars($p['type']) ?></span></td>
-              <td class="ws-dim"><?= htmlspecialchars($p['size_human']) ?></td>
-              <td class="ws-dim" title="<?= htmlspecialchars($p['modified_full']) ?>"><?= htmlspecialchars($p['modified']) ?></td>
-              <td class="ws-cell-act">
-                <?php if ($p['entry_point'] !== null): ?>
-                  <button type="button" class="ws-act" data-act="preview" title="Открыть проект">👁</button>
-                <?php else: ?>
-                  <button type="button" class="ws-act" disabled title="Нет docroot с index">👁</button>
-                <?php endif; ?>
-                <button type="button" class="ws-act" data-act="pull" title="Получить с Git-сервера">⬇</button>
-                <button type="button" class="ws-act" data-act="push" title="Загрузить на Git-сервер">⬆</button>
-                <button type="button" class="ws-act" data-act="export" title="Экспорт zip">📦</button>
-                <button type="button" class="ws-act ws-act--danger" data-act="delete" title="Удалить локально">🗑</button>
-              </td>
-            </tr>
-          <?php endforeach; ?>
+  <section class="hosts-box" id="hosts-box" hidden>
+    <div class="hosts-head">
+      <h2 class="hosts-title">Git-хосты и API-ключи</h2>
+      <button type="button" class="btn btn--primary" id="host-add-open">➕ Добавить хост</button>
+    </div>
+    <div class="hosts-table-wrap">
+      <table class="hosts-table" id="hosts-table">
+        <thead>
+          <tr><th>ID</th><th>Домен</th><th>Статус</th><th>Реестр</th><th>Ключ</th><th></th></tr>
+        </thead>
+        <tbody>
+          <tr><td colspan="6" class="hosts-empty">Загрузка…</td></tr>
         </tbody>
+      </table>
+    </div>
+    <form class="desc-form host-form" id="host-form" hidden>
+      <input type="text" id="hf-id" maxlength="30" placeholder="ID хоста (gitea, codebase…)" required>
+      <input type="text" id="hf-domain" maxlength="100" placeholder="Домен (gitea.com)" required>
+      <input type="text" id="hf-prefix" maxlength="20" placeholder="Префикс переменных (GITEA)" required>
+      <select id="hf-registry">
+        <option value="foreign">Реестр: иностранный</option>
+        <option value="rf">Реестр: РФ</option>
+      </select>
+      <select id="hf-scope">
+        <option value="BOTH">Область: HUB + PROJECT</option>
+        <option value="HUB">Область: HUB</option>
+        <option value="PROJECT">Область: PROJECT</option>
+      </select>
+      <input type="text" id="hf-user" maxlength="60" placeholder="Пользователь (owner)" required>
+      <input type="password" id="hf-token" maxlength="300" placeholder="API-токен (пусто = не менять)">
+      <div class="host-form-actions">
+        <button type="submit" class="btn btn--primary" id="hf-save">Сохранить хост и ключ</button>
+        <button type="button" class="btn" id="hf-cancel">Отмена</button>
+      </div>
+      <p class="mp-msg" id="hf-msg" role="status"></p>
+    </form>
+  </section>
+
+  <?php if ($projects === []): ?>
+    <div class="empty">
+      <p>📂 В projects/ пока нет репозиториев.</p>
+    </div>
+  <?php else: ?>
+    <div class="grid">
+      <?php foreach ($projects as $p): ?>
+        <a class="card" href="<?= htmlspecialchars($p['page_url']) ?>">
+          <div class="card-head">
+            <span class="card-name">
+              <span class="dot dot--<?= $p['dot'] ?>"></span>
+              <?= htmlspecialchars($p['name']) ?>
+            </span>
+            <span class="badge badge--<?= str_replace(['.', ' '], '-', strtolower($p['type'])) ?>"><?= htmlspecialchars($p['type']) ?></span>
+          </div>
+          <?php if ($p['description'] !== ''): ?>
+            <div class="card-desc"><?= htmlspecialchars($p['description']) ?></div>
+          <?php endif; ?>
+          <div class="card-meta">
+            <span>📅 <?= htmlspecialchars($p['modified']) ?></span>
+            <span>📦 <?= htmlspecialchars($p['size_human']) ?></span>
+          </div>
+        </a>
       <?php endforeach; ?>
-    <?php endif; ?>
-  </table>
-</section>
-<footer class="ws-foot">Состояние синхронизации — по tracking-ссылкам последнего fetch каждого проекта. Точное сравнение — на странице проекта.</footer>
+    </div>
+  <?php endif; ?>
 
 <?php else: ?>
+
   <header class="project-header">
-    <h1 class="project-title"><span class="dot dot--<?= $project['dot'] ?>"></span><?= htmlspecialchars($project['name']) ?></h1>
+    <a href="/" class="project-back">← Назад</a>
+    <h1 class="project-title">
+      <span class="dot dot--<?= $project['dot'] ?>"></span>
+      <?= htmlspecialchars($project['name']) ?>
+    </h1>
   </header>
+
+  <section class="hub-update" id="proj-update" hidden>
+    <div class="hub-update-text" id="proj-update-text"></div>
+    <div class="hub-update-buttons">
+      <button type="button" class="btn btn--primary" id="proj-check">🔍 Проверить сервер</button>
+      <button type="button" class="btn" id="proj-pull" hidden>⬇ Обновить из сервера</button>
+      <button type="button" class="btn" id="proj-push" hidden>⬆ Опубликовать на сервер</button>
+    </div>
+    <pre class="hub-log" id="proj-log" hidden></pre>
+  </section>
 
   <section class="project-info">
     <?php if ($project['description'] !== ''): ?>
-    <div class="info-row"><span class="info-label">Описание</span><span class="info-value"><?= htmlspecialchars($project['description']) ?></span></div>
-    <?php endif; ?>
-    <div class="info-row"><span class="info-label">Тип</span><span class="info-value"><?= htmlspecialchars($project['type']) ?></span></div>
-    <?php if ($project['version'] !== null): ?>
-    <div class="info-row"><span class="info-label">Версия</span><span class="info-value"><?= htmlspecialchars($project['version']) ?></span></div>
-    <?php endif; ?>
-    <div class="info-row"><span class="info-label">Docroot</span><span class="info-value"><?= $project['docroot'] !== null ? htmlspecialchars($project['docroot']) . '/' : 'none' ?></span></div>
-    <div class="info-row"><span class="info-label">Размер</span><span class="info-value"><?= htmlspecialchars($project['size_human']) ?></span></div>
-    <div class="info-row"><span class="info-label">Обновлено</span><span class="info-value"><?= htmlspecialchars($project['modified_full']) ?></span></div>
-    <hr class="info-divider">
-    <div id="proj-update">
-      <div class="hosts-head">
-        <span class="info-label">Сравнение с сервером</span>
-        <button type="button" class="btn btn--primary" id="proj-check">🔍 Проверить сервер</button>
-      </div>
-      <div id="proj-update-text">Загрузка…</div>
-      <div class="hub-update-buttons">
-        <button type="button" class="btn" id="proj-pull" hidden>⬇ Обновить из сервера</button>
-        <button type="button" class="btn" id="proj-push" hidden>⬆ Опубликовать на сервер</button>
-      </div>
-      <pre class="hub-log" id="proj-log" hidden></pre>
+    <div class="info-row">
+      <span class="info-label">Описание</span>
+      <span class="info-value"><?= htmlspecialchars($project['description']) ?></span>
     </div>
+    <?php endif; ?>
+    <div class="info-row">
+      <span class="info-label">Тип</span>
+      <span class="info-value"><?= htmlspecialchars($project['type']) ?></span>
+    </div>
+    <?php if ($project['version'] !== null): ?>
+    <div class="info-row">
+      <span class="info-label">Версия</span>
+      <span class="info-value"><?= htmlspecialchars($project['version']) ?></span>
+    </div>
+    <?php endif; ?>
+    <div class="info-row">
+      <span class="info-label">Docroot</span>
+      <span class="info-value"><?= $project['docroot'] !== null ? htmlspecialchars($project['docroot']) . '/' : 'none' ?></span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Размер</span>
+      <span class="info-value"><?= htmlspecialchars($project['size_human']) ?></span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Обновлено</span>
+      <span class="info-value"><?= htmlspecialchars($project['modified_full']) ?></span>
+    </div>
+    <hr class="info-divider">
+    <div class="version-row">
+      <div class="version-item">
+        <span class="info-label">Локальная<?= $project['branch'] !== null ? ' (' . htmlspecialchars($project['branch']) . ')' : '' ?></span>
+        <span class="info-value version-tag"><?= htmlspecialchars($project['local_version'] ?? '—') ?><?= $project['local_date'] !== null ? ' · ' . htmlspecialchars($project['local_date']) : '' ?></span>
+      </div>
+      <div class="version-item">
+        <span class="info-label">Git-сервер<?= $project['git_remote'] !== null ? ' (' . htmlspecialchars($project['git_remote']) . ')' : '' ?></span>
+        <span class="info-value version-tag"><?= htmlspecialchars($project['git_version'] ?? '—') ?><?= $project['git_date'] !== null ? ' · ' . htmlspecialchars($project['git_date']) : '' ?></span>
+      </div>
+    </div>
+    <div class="sync-status">
+      <?php if ($project['synced'] === true): ?>
+        <span class="sync-icon sync-ok">✅ Синхронизировано</span>
+      <?php elseif ($project['synced'] === false): ?>
+        <span class="sync-icon sync-warn">⚠️ Есть обновления</span>
+      <?php else: ?>
+        <span class="sync-icon sync-none">⚪ Нет данных о сервере (выполните fetch)</span>
+      <?php endif; ?>
+    </div>
+    <p class="mp-stats-note">Панель ниже показывает состояние последнего fetch. Актуальное сравнение с сервером — «🔍 Проверить сервер» выше.</p>
   </section>
 
   <section class="project-actions">
@@ -128,7 +179,7 @@ if ($project === null): ?>
         <?php if ($project['entry_point'] !== null): ?>
           <a href="<?= htmlspecialchars($project['entry_point']) ?>" class="btn" target="_blank" rel="noopener">🌐 Открыть проект для визуального отображения</a>
         <?php else: ?>
-          <button type="button" class="btn" disabled>🌐 Открыть проект для визуального отображения</button>
+          <button type="button" class="btn" disabled title="Нет docroot с index">🌐 Открыть проект для визуального отображения</button>
         <?php endif; ?>
       </div>
     </div>
@@ -165,12 +216,18 @@ if ($project === null): ?>
         <button type="button" class="btn btn--primary" id="save-meta">Сохранить мета-данные</button>
       </div>
     </div>
-    <div class="action-group action-group--danger">
+        <div class="action-group action-group--danger">
       <h3 class="action-group-title">Опасная зона</h3>
       <div class="action-buttons">
         <button type="button" class="btn btn--danger" id="delete-local">🗑 Удалить локально</button>
       </div>
-      <p class="action-hint">Удаление с хостов — через CLI bin/git-project-remote.sh и migrate. Локальное удаление необратимо.</p>
+      <p class="action-hint">Удаление с хостов — через /panel.php (там выбор remote). Локальное удаление необратимо.</p>
     </div>
   </section>
+
 <?php endif; ?>
+
+</div>
+<script type="module" src="/assets/js/project-page.js?v=4"></script>
+</body>
+</html>

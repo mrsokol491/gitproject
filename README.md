@@ -8,13 +8,10 @@
 + ✅ GitFlic (gitflic.ru) — платформа от Астра (реестр ПО РФ)
 + ✅ SourceCraft (sourcecraft.dev) — платформа от Яндекса (реестр ПО РФ)
 + ✅ GitHub (github.com) — международный Git-хостинг (в процессе)
-+ ⚠️ CodeBase (codebase.mos.ru) — московская платформа разработки (в процессе)
-+ ⚠️ Mos.hub (Mos.hub) — Московская облачная платформа с ИИ-ассистентом «КоДИТ» и антивирусным сканированием. (в процессе)
 + ⚠️ GitLab (gitlab.com) — международный Git-хостинг (в процессе)
 + ⚠️ Bitbucket (bitbucket.org) — международный Git-хостинг (в процессе)
 + ⚠️ Gitea (gitea.com) — международный Git-хостинг (в процессе)
-+ ⚠️ Forgejo (forgejo.org) — Активно развивающийся community-fork (ответвление) от Gitea (в процессе)
-+ ⚠️ GOSH (gosh.sh) — Git Open Source Hodler (в процессе)
++ ⚠️ CodeBase (codebase.mos.ru) — московская платформа разработки (в процессе)
 
 
     + ✅ - Интегрирован
@@ -33,50 +30,41 @@
 
 Требования: PHP 8.1+, git 2.30+, curl, systemd (опционально).
 
-1. Клонирование хаба (из GitVerse)
-```
+    1. Клонирование хаба (из GitVerse)
        git clone https://gitverse.ru/Sokol491/gitproject.git ~/gitproject
        cd ~/gitproject
-```
-2. Создать .env из шаблона и вписать свои значения
-```
+
+    2. Создать .env из шаблона и вписать свои значения
        cp .env.example .env 2>/dev/null || true
        chmod 600 .env
        # Основные настройки GitVerse
        GIT_HOST=gitverse.ru
        GITVERSE_HUB_USER=Sokol491
        NETWORK_PASSWORD=<пароль>
-```
-3. Права на скрипты и подключение credential helper
-```
+
+    3. Права на скрипты и подключение credential helper
        chmod 700 bin/git-credential-multi.sh bin/git-project-*.sh
        git config --global credential.helper "$HOME/gitproject/bin/git-credential-multi.sh"
        git config --global user.name "Ваше Имя"
        git config --global user.email "ваш_email@example.com"
-```
-4. Проверка helper (токен маскируется)
-```
+
+    4. Проверка helper (токен маскируется)
        printf 'protocol=https\nhost=gitverse.ru\npath=Sokol491/gitproject.git\n' \
          | bin/git-credential-multi.sh get | sed -E 's/^(password=).*/\1[скрыто]/'
-```
-5. Запуск хаба
-```
+
+    5. Запуск хаба
        php -S 0.0.0.0:8000 -t ~/gitproject ~/gitproject/router.php
-```
-  или через systemd:
-```
+       или через systemd:
        systemctl --user enable --now gitproject-workspace.service
        sudo loginctl enable-linger $USER
-```
-6. Клонирование проектов в контейнер
-```
+
+    6. Клонирование проектов в контейнер
        git clone https://gitverse.ru/<owner>/<slug>.git ~/gitproject/projects/<slug>
        ~/gitproject/bin/git-project-sync.sh fix <slug>
-```
+
 Обновление окружения хаба — только из репозитория Sokol491 на GitVerse:
-```
     ~/gitproject/bin/git-project-pull.sh
-```
+
 ## Порты и URL
 
 - 8000 — хаб (systemd: gitproject-workspace.service)
@@ -149,3 +137,28 @@ credential helper; в выводе команд маскируются ([скр�
 ## Логи
 
 data/workspace.log, data/workspace-error.log, data/<host>.log — в репозиторий не попадают.
+
+## Известные ограничения 1.0.0
+
+- `php -S` (встроенный веб-сервер PHP) используется в production-сценариях systemd без дополнительной изоляции; для production рекомендуется nginx/FPM.
+- API-удаление репозитория на хосте не реализуется из скриптов (удалите через Web-UI хоста).
+- Credential helper поддерживает только `get` и `store`; `erase` не реализован.
+- Обновление хаба (`git-project-pull.sh`) выполняет merge с приоритетом локальной версии; при конфликтах требуется ручное разрешение.
+- Мульти-синхронизация (`--all`) блокируется при расхождении историй с remote, если не задан флаг приоритета.
+- Файлы `*.ged`, `*.sqlite`, `*.log` игнорируются git, но могут попадать в индексы проектов.
+
+## Безопасность
+
+- Секреты только в .env (600); маскированный просмотр:
+  sed -E 's/=(.+)$/=[скрыто]/' ~/gitproject/.env
+- Токены: ограниченные права, срок 1-2 дня, после работ отзываются.
+- Защита от PHP2Shell (CVE-2026-109618/9):
+  - Использовать PHP >= 8.1.33, 8.2.25, 8.3.12, 8.4.0+.
+  - `disable_functions`: exec, system, shell_exec, passthru, popen, proc_open, pcntl_exec.
+  - `open_basedir`: изоляция на ~/gitproject/public/.
+  - `allow_url_include=Off`, `cgi.fix_pathinfo=0`.
+  - Подробности: STANDARD.md раздел 9.
+- Из LAN хаб закрыт HTTP Basic Auth; с 127.0.0.1 — без пароля.
+- Роутер: forbidden-список (.env, bin/, data/, projects/, STANDARD.md, guide), защита path
+  traversal (realpath + проверка префикса docroot).
+- Заголовки безопасности: `X-Content-Type-Options: nosniff` при отдаче статики.

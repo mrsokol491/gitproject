@@ -100,9 +100,31 @@ if (str_starts_with($uri, '/api/')) {
     }
 }
 
-// --- 1.7) Маркетплейс теперь внутри рабочего поля хаба ----------------------
+// --- 1.6) Легаси-панель управления: /panel.php ------------------------------
+if ($uri === '/panel.php') {
+    $file = __DIR__ . '/public/panel.php';
+    if (is_file($file)) {
+        $_SERVER['SCRIPT_FILENAME'] = $file;
+        require $file;
+        return true;
+    }
+    http_response_code(404);
+    header('Content-Type: text/plain; charset=utf-8');
+    echo "404 Not Found\n";
+    return true;
+}
+
+// --- 1.7) Маркетплейс: /marketplace и /marketplace/item/<id>/ ----------------
 if ($uri === '/marketplace' || str_starts_with($uri, '/marketplace/')) {
-    header('Location: /?view=market', true, 302);
+    $file = __DIR__ . '/public/marketplace.php';
+    if (is_file($file)) {
+        $_SERVER['SCRIPT_FILENAME'] = $file;
+        require $file;
+        return true;
+    }
+    http_response_code(404);
+    header('Content-Type: text/plain; charset=utf-8');
+    echo "404 Not Found\n";
     return true;
 }
 
