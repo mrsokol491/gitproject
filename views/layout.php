@@ -71,7 +71,7 @@ $ws_content = $ws_view_files[$ws_view] ?? $ws_view_files['home'];
 </div>
 
 <div class="mp-toast" id="mp-toast" hidden></div>
-<script type="module" src="/assets/js/project-page.js?v=10"></script>
+<script type="module" src="/assets/js/project-page.js?v=8"></script>
 <script type="module" src="/assets/js/workspace.js?v=2"></script>
 </body>
 </html>

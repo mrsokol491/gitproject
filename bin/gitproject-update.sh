@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
 # gitproject-update.sh — обновление хаба из GitVerse: stable (релиз-тег) или edge (master).
-# Обновление: merge -X theirs. Даунгрейд: общие файлы к цели, локальные новые сохраняются.
-# Даунгрейд НЕ блокируется: кнопка «Стабильная» всегда возвращает файлы к релизу.
+# Обновление: merge -X theirs. Даунгрейд: только с явным --allow-downgrade.
 # Идемпотентность: общие файлы совпадают → только метка версии. Backup + stash. Без force-push.
 # Портативно: remote gitverse создаётся сам; origin на GitVerse используется как есть.
 # Identity-guard: repo-local user.name/email, если глобальный не настроен (новые устройства).
 set -euo pipefail
 HUB="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 REMOTE="gitverse"; REMOTE_URL="https://gitverse.ru/Sokol491/gitproject.git"; BRANCH="master"
-CHANNEL="${1:-stable}"; ASSUME_YES=0
-[ "${2:-}" = "--yes" ] && ASSUME_YES=1
+CHANNEL="${1:-stable}"; ASSUME_YES=0; ALLOW_DOWNGRADE=0
+for a in "$@"; do
+  [ "$a" = "--yes" ] && ASSUME_YES=1
+  [ "$a" = "--allow-downgrade" ] && ALLOW_DOWNGRADE=1
+done
 log(){ printf '%s\n' "$*" >&2; }
 die(){ log "✗ ОШИБКА: $*"; exit 1; }
 refresh_marketplace_hub() {
@@ -74,18 +76,18 @@ if [ -z "$COMMON_DIFF" ] && [ -z "$DIRTY" ]; then
   exit 0
 fi
 DOWNGRADE=0
-if [ "$IS_ANCESTOR" -eq 1 ] && [ "$TARGET_SHA" != "$LOCAL_SHA" ]; then
+if [ "$IS_ANCESTOR" -eq 1 ]; then
   DOWNGRADE=1
-  log "⚠ Даунгрейд: HEAD впереди цели на $AHEAD коммит(ов) — файлы вернутся к $TARGET_LABEL"
-  log "  История сохранится в backup, локальные новые файлы останутся, правки уйдут в stash."
+fi
+if [ "$DOWNGRADE" -eq 1 ] && [ "$ALLOW_DOWNGRADE" -eq 0 ]; then
+  die "ДАУНГРЕЙД заблокирован: текущая версия новее $TARGET_LABEL. Кнопка «Стабильная» на машине разработки откатывает файлы. Если откат действительно нужен: bin/gitproject-update.sh stable --yes --allow-downgrade"
+fi
+if [ "$DOWNGRADE" -eq 1 ]; then
+  log "⚠ Даунгрейд (разрешён флагом): общие файлы вернутся к цели, локальные новые сохранятся"
 fi
 if [ "$ASSUME_YES" -ne 1 ]; then
   [ -t 0 ] || die "нужен --yes без tty"
-  if [ "$DOWNGRADE" -eq 1 ]; then
-    printf 'Откатить файлы к %s? Локальные коммиты (впереди: %s) не удаляются, но файлы вернутся к релизу. (Д/Н): ' "$TARGET_LABEL" "$AHEAD" >&2
-  else
-    printf 'Обновить до %s? (Д/Н): ' "$TARGET_LABEL" >&2
-  fi
+  printf 'Обновить до %s? (Д/Н): ' "$TARGET_LABEL" >&2
   IFS= read -r a || true
   case "$a" in Д|д|Y|y) ;; *) die "отменено" ;; esac
 fi

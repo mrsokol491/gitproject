@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 /**
  * API версий хаба: status | refresh | update | backups | rollback.
- * Статус читается из файлов .git без exec; действия делегируются bin-скриптам.
- * Портативно: edge берётся из gitverse, иначе origin, иначе первого remote с tracking-ссылкой.
- * current_label выводится из git: тег на HEAD, иначе <stable>-r<hash6>.
- * Аннотированные теги peeled-сравниваются с edge: флаг edge_equals_stable.
- * is_downgrade: HEAD впереди стабильного тега (stable — предок HEAD) — UI покажет предупреждение.
+ * Статус читается из файлов .git; peel аннотированных тегов и ancestry — через git.
+ * current_label: тег на HEAD (peeled), иначе <база-тег, достижимый из HEAD>-r<hash6>.
+ * Дедупликация кнопок (правила владельца):
+ *   1) current == stable  -> current без -r, кнопка stable скрыта;
+ *   2) current == edge    -> кнопка edge скрыта;
+ *   3) stable == edge     -> кнопка edge скрыта;
+ *   4) current == stable == edge -> скрыты обе кнопки.
  * data/version.txt — журнал применённого канала (applied_label), не источник истины.
  */
 
@@ -60,6 +62,44 @@ function refSha(string $gd, string $ref): ?string
     return null;
 }
 
+/** Peel тега до коммита: rev-list -n1 (git сам разыменовывает аннотированный тег). */
+function peeledTagSha(string $tag, string $hubRoot): ?string
+{
+    if (!function_exists('exec')) {
+        return null;
+    }
+    $out = [];
+    $rc = 1;
+    exec('git -C ' . escapeshellarg($hubRoot) . ' rev-list -n1 ' . escapeshellarg('refs/tags/' . $tag) . ' 2>/dev/null', $out, $rc);
+    $sha = trim((string) ($out[0] ?? ''));
+    return ($rc === 0 && preg_match('/^[0-9a-f]{40}$/', $sha) === 1) ? $sha : null;
+}
+
+/** Новейший стабильный тег, достижимый из данного SHA (база для -r-метки). */
+function baseTagFor(string $sha, array $stableTags, callable $tagCommit, string $hubRoot, ?string $fallback): ?string
+{
+    if (function_exists('exec')) {
+        $n = 0;
+        foreach ($stableTags as $t) {
+            if ($n++ >= 20) {
+                break;
+            }
+            $tc = $tagCommit($t);
+            if ($tc === '') {
+                continue;
+            }
+            $out = [];
+            $rc = 1;
+            exec('git -C ' . escapeshellarg($hubRoot) . ' merge-base --is-ancestor ' . escapeshellarg($tc) . ' ' . escapeshellarg($sha) . ' 2>/dev/null', $out, $rc);
+            if ($rc === 0) {
+                return $t;
+            }
+        }
+        return null;
+    }
+    return $fallback;
+}
+
 $gd = $hubRoot . '/.git';
 if (!is_dir($gd)) {
     respond(false, [], 'Хаб не является git-репозиторием', 'NOT_GIT');
@@ -99,7 +139,7 @@ if ($branch !== null) {
     }
 }
 
-// --- Теги: packed-refs + loose, с peeled-ссылками аннотированных тегов --------
+// --- Теги: packed-refs + loose -------------------------------------------------
 $tags = [];
 $peel = [];
 $packed = gitRead($gd, 'packed-refs') ?? '';
@@ -125,23 +165,27 @@ if (is_dir($gd . '/refs/tags')) {
         if ($sha !== null) {
             $tags[$t] = $sha;
         }
-        $peeled = refSha($gd, 'refs/tags/' . $t . '^{}');
-        if ($peeled !== null) {
-            $peel[$t] = $peeled;
-        }
     }
 }
-$tagCommit = static function (string $t) use ($tags, $peel): string {
-    return $peel[$t] ?? $tags[$t];
-};
 $stableTags = array_values(array_filter(array_keys($tags), static fn(string $t): bool => preg_match('/^\d+\.\d+\.\d+$/', $t) === 1));
 usort($stableTags, static fn(string $a, string $b): int => version_compare($b, $a));
 $stableTag = $stableTags[0] ?? null;
+
+// Peel каждого стабильного тега до коммита (аннотированные loose-теги иначе дают объект тега)
+$commitOf = [];
+foreach ($stableTags as $t) {
+    $commitOf[$t] = peeledTagSha($t, $hubRoot) ?? $peel[$t] ?? $tags[$t];
+}
+$tagCommit = static function (string $t) use ($commitOf, $peel, $tags): string {
+    return $commitOf[$t] ?? $peel[$t] ?? $tags[$t] ?? '';
+};
 $stableSha = $stableTag !== null ? $tagCommit($stableTag) : null;
 
-// --- Метки версий и флаги -----------------------------------------------------
+// --- Метки версий -------------------------------------------------------------
 $versionFile  = $hubRoot . '/data/version.txt';
 $appliedLabel = is_file($versionFile) ? trim((string) file_get_contents($versionFile)) : '';
+$appliedBase  = preg_match('/^(\d+\.\d+\.\d+)/', $appliedLabel, $am) === 1 ? $am[1] : null;
+
 $currentLabel = '';
 if ($localSha !== null) {
     $tagAtHead = null;
@@ -151,51 +195,44 @@ if ($localSha !== null) {
             break;
         }
     }
-    $currentLabel = $tagAtHead ?? ($stableTag !== null ? $stableTag . '-r' . substr($localSha, 0, 6) : substr($localSha, 0, 7));
+    if ($tagAtHead !== null) {
+        $currentLabel = $tagAtHead; // HEAD ровно на стабильном теге: метка без -r
+    } else {
+        $base = baseTagFor($localSha, $stableTags, $tagCommit, $hubRoot, $appliedBase ?? $stableTag);
+        $currentLabel = $base !== null ? $base . '-r' . substr($localSha, 0, 6) : substr($localSha, 0, 7);
+    }
 } else {
     $currentLabel = $appliedLabel !== '' ? $appliedLabel : 'неизвестно';
 }
-$edgeEqualsStable = $stableSha !== null && $edgeSha !== null && $stableSha === $edgeSha;
-$edgeLabel = $stableTag !== null && $edgeSha !== null
-    ? ($edgeEqualsStable ? $stableTag : $stableTag . '-r' . substr($edgeSha, 0, 6))
-    : null;
 
-// --- is_downgrade: stable — предок HEAD, и HEAD != stable (только чтение, sha валидны) ---
-$isDowngrade = false;
-$aheadOfStable = 0;
-if ($stableSha !== null && $localSha !== null && $stableSha !== $localSha
-    && preg_match('/^[0-9a-f]{40}$/', $stableSha) === 1 && preg_match('/^[0-9a-f]{40}$/', $localSha) === 1) {
-    $cmdAnc = 'git -C ' . escapeshellarg($hubRoot) . ' merge-base --is-ancestor '
-        . escapeshellarg($stableSha) . ' ' . escapeshellarg($localSha) . ' 2>/dev/null';
-    $oAnc = [];
-    $rcAnc = 0;
-    exec($cmdAnc, $oAnc, $rcAnc);
-    if ($rcAnc === 0) {
-        $isDowngrade = true;
-        $cmdCnt = 'git -C ' . escapeshellarg($hubRoot) . ' rev-list --count '
-            . escapeshellarg($stableSha . '..' . $localSha) . ' 2>/dev/null';
-        $oCnt = [];
-        $rcCnt = 0;
-        exec($cmdCnt, $oCnt, $rcCnt);
-        $aheadOfStable = $rcCnt === 0 ? (int) trim(implode('', $oCnt)) : 0;
-    }
+$edgeLabel = null;
+if ($edgeSha !== null && $stableTag !== null && $edgeSha !== $stableSha) {
+    $baseEdge = baseTagFor($edgeSha, $stableTags, $tagCommit, $hubRoot, $stableTag);
+    $edgeLabel = $baseEdge !== null ? $baseEdge . '-r' . substr($edgeSha, 0, 6) : substr($edgeSha, 0, 7);
+}
+
+// --- Дедупликация кнопок: null = кнопку не показывать -------------------------
+$stableOut = null;
+if ($stableTag !== null && $currentLabel !== $stableTag) {
+    $stableOut = ['label' => $stableTag, 'sha' => substr((string) $stableSha, 0, 7)];
+}
+$edgeOut = null;
+if ($edgeLabel !== null && $edgeLabel !== $currentLabel && $edgeLabel !== $stableTag) {
+    $edgeOut = ['label' => $edgeLabel, 'sha' => substr((string) $edgeSha, 0, 7)];
 }
 
 // --- GET status ----------------------------------------------------------------
 if ($action === 'status') {
     respond(true, [
-        'branch'             => $branch,
-        'current_label'      => $currentLabel,
-        'applied_label'      => $appliedLabel !== '' ? $appliedLabel : null,
-        'local_sha'          => $localSha !== null ? substr($localSha, 0, 7) : null,
-        'remote'             => $edgeRemote,
-        'stable'             => $stableTag !== null ? ['label' => $stableTag, 'sha' => substr((string) $stableSha, 0, 7)] : null,
-        'edge'               => $edgeLabel !== null ? ['label' => $edgeLabel, 'sha' => substr((string) $edgeSha, 0, 7)] : null,
-        'edge_equals_stable' => $edgeEqualsStable,
-        'is_downgrade'       => $isDowngrade,
-        'ahead_of_stable'    => $aheadOfStable,
-        'update_available'   => $edgeSha !== null && $localSha !== null && $edgeSha !== $localSha,
-        'note'               => 'current_label выводится из git; applied_label — журнал последнего обновления.',
+        'branch'           => $branch,
+        'current_label'    => $currentLabel,
+        'applied_label'    => $appliedLabel !== '' ? $appliedLabel : null,
+        'local_sha'        => $localSha !== null ? substr($localSha, 0, 7) : null,
+        'remote'           => $edgeRemote,
+        'stable'           => $stableOut,
+        'edge'             => $edgeOut,
+        'update_available' => $edgeSha !== null && $localSha !== null && $edgeSha !== $localSha,
+        'note'             => 'Тег peel-ится до коммита; кнопки скрываются по правилам 1-4 дедупликации.',
     ]);
 }
 
