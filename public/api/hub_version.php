@@ -6,7 +6,8 @@ declare(strict_types=1);
  * API версий хаба: status | refresh | update | backups | rollback.
  * Статус читается из файлов .git; ancestry-проверка базы тега — через git merge-base.
  * current_label: тег на HEAD, иначе <база-тег, достижимый из HEAD>-r<hash6>.
- * edge зануляется, когда edge.sha == stable.sha (кнопка edge не дублирует stable).
+ * Дедупликация кнопок: stable/edge отдаются как null, если их метка равна
+ * текущей (no-op) или равна метке другой кнопки (дубль).
  * data/version.txt — журнал применённого канала (applied_label), не источник истины.
  */
 
@@ -180,13 +181,19 @@ if ($localSha !== null) {
 }
 
 $edgeLabel = null;
-if ($edgeSha !== null && $stableTag !== null) {
-    if ($edgeSha === $stableSha) {
-        $edgeLabel = null; // edge совпадает со stable: кнопка edge не нужна
-    } else {
-        $baseEdge = baseTagFor($edgeSha, $stableTags, $tagCommit, $hubRoot, $stableTag);
-        $edgeLabel = $baseEdge !== null ? $baseEdge . '-r' . substr($edgeSha, 0, 6) : substr($edgeSha, 0, 7);
-    }
+if ($edgeSha !== null && $stableTag !== null && $edgeSha !== $stableSha) {
+    $baseEdge = baseTagFor($edgeSha, $stableTags, $tagCommit, $hubRoot, $stableTag);
+    $edgeLabel = $baseEdge !== null ? $baseEdge . '-r' . substr($edgeSha, 0, 6) : substr($edgeSha, 0, 7);
+}
+
+// --- Дедупликация кнопок: null = кнопку не показывать -------------------------
+$stableOut = null;
+if ($stableTag !== null && $currentLabel !== $stableTag) {
+    $stableOut = ['label' => $stableTag, 'sha' => substr((string) $stableSha, 0, 7)];
+}
+$edgeOut = null;
+if ($edgeLabel !== null && $edgeLabel !== $currentLabel && $edgeLabel !== $stableTag) {
+    $edgeOut = ['label' => $edgeLabel, 'sha' => substr((string) $edgeSha, 0, 7)];
 }
 
 // --- GET status ----------------------------------------------------------------
@@ -197,10 +204,10 @@ if ($action === 'status') {
         'applied_label'    => $appliedLabel !== '' ? $appliedLabel : null,
         'local_sha'        => $localSha !== null ? substr($localSha, 0, 7) : null,
         'remote'           => $edgeRemote,
-        'stable'           => $stableTag !== null ? ['label' => $stableTag, 'sha' => substr((string) $stableSha, 0, 7)] : null,
-        'edge'             => $edgeLabel !== null ? ['label' => $edgeLabel, 'sha' => substr((string) $edgeSha, 0, 7)] : null,
+        'stable'           => $stableOut,
+        'edge'             => $edgeOut,
         'update_available' => $edgeSha !== null && $localSha !== null && $edgeSha !== $localSha,
-        'note'             => 'current_label выводится из git по базе-тегу, достижимому из HEAD; applied_label — журнал последнего обновления.',
+        'note'             => 'Кнопки скрываются, если их метка равна текущей или метке другой кнопки.',
     ]);
 }
 

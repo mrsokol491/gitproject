@@ -1,6 +1,6 @@
 // project-page.js — страница проекта и карточка Hub в сайдбаре.
-// Карточка Hub: текстом только текущая версия; stable/edge — на кнопках;
-// edge скрывается, когда совпадает со stable (по sha или label); у всех кнопок title.
+// Карточка Hub: текстом только текущая версия; кнопки stable/edge рисуются из status
+// и дополнительно скрываются в JS, если их метка равна текущей или метке другой кнопки.
 // Сравнение с сервером: один живой блок внутри панели информации.
 // Взаимоисключение вывода: статус <-> лог операций, коммиты <-> файловый менеджер.
 const slug = document.body.dataset.slug || (() => {
@@ -51,21 +51,21 @@ async function hubStatus(refresh = false) {
   const r = await api('/api/hub_version.php?action=status');
   if (!r.ok) { text.textContent = '✗ ' + r.error; return; }
   const d = r.data;
-  const stable = d.stable ? d.stable.label : '—';
-  const edge = d.edge ? d.edge.label : '—';
-  text.innerHTML = 'Текущая: <strong>' + escapeHtml(d.current_label) + '</strong>';
+  const current = d.current_label || '—';
+  const stable = d.stable ? d.stable.label : null;
+  const edge = d.edge ? d.edge.label : null;
+  text.innerHTML = 'Текущая: <strong>' + escapeHtml(current) + '</strong>';
   const stableBtn = $('hub-stable');
   if (stableBtn) {
-    stableBtn.hidden = !d.stable;
-    stableBtn.textContent = '⬇ Стабильная ' + stable;
-    stableBtn.title = 'Обновить хаб до стабильной версии ' + stable;
+    stableBtn.hidden = !stable || stable === current || stable === edge;
+    stableBtn.textContent = '⬇ Стабильная ' + (stable || '');
+    stableBtn.title = 'Обновить хаб до стабильной версии ' + (stable || '');
   }
   const edgeBtn = $('hub-edge');
   if (edgeBtn) {
-    const sameAsStable = Boolean(d.edge && d.stable && (d.edge.sha === d.stable.sha || d.edge.label === d.stable.label));
-    edgeBtn.hidden = !d.edge || sameAsStable;
-    edgeBtn.textContent = '⚠ Edge ' + edge + ' (риск)';
-    edgeBtn.title = 'Нестабильная сборка ' + edge + ' — обновление на свой страх и риск';
+    edgeBtn.hidden = !edge || edge === current || edge === stable;
+    edgeBtn.textContent = '⚠ Edge ' + (edge || '') + ' (риск)';
+    edgeBtn.title = 'Нестабильная сборка ' + (edge || '') + ' — обновление на свой страх и риск';
   }
   const checkBtn = $('hub-check');
   if (checkBtn) { checkBtn.title = 'Проверить обновления хаба на GitVerse (свежий fetch)'; }
