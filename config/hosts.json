@@ -72,14 +72,6 @@
     "registry": "foreign",
     "description": "GOSH — Git Open Source Hodler (в процессе)"
   },
-  "codebase": {
-    "host": "codebase.mos.ru",
-    "status": "integrating",
-    "env_prefix": "CODEBASE",
-    "url_template": "https://codebase.mos.ru/{owner}/{slug}.git",
-    "registry": "rf",
-    "description": "CodeBase — московская платформа разработки (в процессе)"
-  },
   "moshub": {
     "host": "hub.mos.ru",
     "status": "integrating",
