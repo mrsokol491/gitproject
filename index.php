@@ -3,164 +3,42 @@
 declare(strict_types=1);
 
 /**
- * GitProject Workspace Hub — PHP-логика (issue #10).
- * Сканирует projects/, собирает метаданные, определяет, какой экран показать.
- * HTML — в views/home.php, стили — в assets/style.css.
- * Git-данные читаются из файлов .git без exec (STANDARD.md §9: disable_functions).
- * HUB_ROOT позволяет docroot-лицу клона показывать рабочее пространство хаба.
+ * GitProject Workspace Hub — главная страница хаба.
+ * Сканирует ТОЛЬКО контейнер projects/ (репозитории других проектов);
+ * служебные папки хаба (bin/, data/, assets/) в список не попадают.
+ * Вызывается из router.php при запросе "/".
  */
 
+/**
+ * Размер каталога в байтах, исключая .git, vendor, node_modules.
+ */
 function dirSize(string $dir): int
 {
     $size = 0;
-    try {
-        $iterator = new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator($dir, FilesystemIterator::SKIP_DOTS),
-            RecursiveIteratorIterator::LEAVES_ONLY,
-            RecursiveIteratorIterator::CATCH_GET_CHILD
-        );
-        foreach ($iterator as $file) {
-            $path = $file->getPathname();
-            if (str_contains($path, '/.git/')
-                || str_contains($path, '/vendor/')
-                || str_contains($path, '/node_modules/')) {
-                continue;
-            }
-            if ($file->isLink()) {
-                continue;
-            }
-            if ($file->isFile()) {
-                $size += (int) $file->getSize();
-            }
+    $iterator = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($dir, FilesystemIterator::SKIP_DOTS)
+    );
+    foreach ($iterator as $file) {
+        $path = $file->getPathname();
+        if (str_contains($path, '/.git/')
+            || str_contains($path, '/vendor/')
+            || str_contains($path, '/node_modules/')) {
+            continue;
         }
-    } catch (Throwable) {
-        // Недоступные подкаталоги не должны ронять главную страницу.
+        if ($file->isFile()) {
+            $size += (int) $file->getSize();
+        }
     }
     return $size;
 }
 
-function humanSize(int $bytes): string
-{
-    if ($bytes >= 1048576) {
-        return number_format($bytes / 1048576, 1, '.', '') . ' MB';
-    }
-    return intdiv($bytes, 1024) . ' KB';
-}
-
-function gitDir(string $root): ?string
-{
-    $dot = $root . '/.git';
-    if (is_dir($dot)) {
-        return $dot;
-    }
-    if (is_file($dot)) {
-        $content = (string) @file_get_contents($dot);
-        if (preg_match('/^gitdir:\s*(.+)$/m', $content, $m) === 1) {
-            $path = trim($m[1]);
-            $abs = str_starts_with($path, '/') ? $path : $root . '/' . $path;
-            $real = realpath($abs);
-            return $real === false ? null : $real;
-        }
-    }
-    return null;
-}
-
-function gitRead(string $gitDir, string $rel): ?string
-{
-    $path = $gitDir . '/' . $rel;
-    if (!is_file($path)) {
-        return null;
-    }
-    $content = @file_get_contents($path);
-    return $content === false ? null : trim($content);
-}
-
-function gitRefSha(string $gitDir, string $ref): ?string
-{
-    $loose = gitRead($gitDir, $ref);
-    if ($loose !== null && preg_match('/^[0-9a-f]{40}$/', $loose) === 1) {
-        return $loose;
-    }
-    $packed = gitRead($gitDir, 'packed-refs');
-    if ($packed !== null) {
-        foreach (explode("\n", $packed) as $line) {
-            if (preg_match('/^([0-9a-f]{40})\s+(.+)$/', trim($line), $m) === 1 && $m[2] === $ref) {
-                return $m[1];
-            }
-        }
-    }
-    return null;
-}
-
-function gitRefDate(string $gitDir, string $ref): ?string
-{
-    $path = $gitDir . '/' . $ref;
-    $ts = is_file($path) ? (int) filemtime($path) : 0;
-    if ($ts === 0) {
-        $packed = $gitDir . '/packed-refs';
-        $ts = is_file($packed) ? (int) filemtime($packed) : 0;
-    }
-    return $ts > 0 ? date('d.m.Y', $ts) : null;
-}
-
-/**
- * Локальная и серверная версии по ссылкам .git.
- * Серверная = tracking-ссылка последнего fetch (без сети и без exec).
- */
-function gitVersions(string $root): array
-{
-    $result = [
-        'branch'        => null,
-        'local_sha'     => null,
-        'local_date'    => null,
-        'server_sha'    => null,
-        'server_date'   => null,
-        'server_remote' => null,
-        'synced'        => null,
-    ];
-    $gd = gitDir($root);
-    if ($gd === null) {
-        return $result;
-    }
-    $head = gitRead($gd, 'HEAD');
-    if ($head === null) {
-        return $result;
-    }
-    if (str_starts_with($head, 'ref: ')) {
-        $ref = trim(substr($head, 5));
-        $result['branch'] = str_starts_with($ref, 'refs/heads/') ? substr($ref, 11) : $ref;
-        $result['local_sha'] = gitRefSha($gd, $ref);
-        $result['local_date'] = gitRefDate($gd, $ref);
-    } elseif (preg_match('/^[0-9a-f]{40}$/', $head) === 1) {
-        $result['local_sha'] = $head;
-    }
-    if ($result['branch'] === null) {
-        return $result;
-    }
-    $config = gitRead($gd, 'config') ?? '';
-    preg_match_all('/^\[remote "([^"]+)"\]/m', $config, $m);
-    foreach ($m[1] ?? [] as $remote) {
-        $ref = 'refs/remotes/' . $remote . '/' . $result['branch'];
-        $sha = gitRefSha($gd, $ref);
-        if ($sha !== null) {
-            $result['server_sha'] = $sha;
-            $result['server_date'] = gitRefDate($gd, $ref);
-            $result['server_remote'] = $remote;
-            break;
-        }
-    }
-    if ($result['local_sha'] !== null && $result['server_sha'] !== null) {
-        $result['synced'] = $result['local_sha'] === $result['server_sha'];
-    }
-    return $result;
-}
-
-$workspaceRoot = (string) ($_SERVER['HUB_ROOT'] ?? __DIR__);
+$workspaceRoot = __DIR__;
 $projectsRoot  = $workspaceRoot . '/projects';
 
+// Порядок поиска docroot: public/ (STANDARD) первым, legacy — временно,
+// до миграции проектов на каркас (STANDARD.md §3, §9).
 $docrootCandidates = ['public', 'Project', 'project', 'www', 'web', 'html'];
 
-// --- Собираем список всех проектов -------------------------------------------
 $projects = [];
 
 if (is_dir($projectsRoot)) {
@@ -173,7 +51,9 @@ if (is_dir($projectsRoot)) {
             continue;
         }
 
-        $docroot = null;
+        // Docroot и точка входа
+        $docroot    = null;
+        $entryPoint = null;
         foreach ($docrootCandidates as $candidate) {
             $dir = $root . '/' . $candidate;
             if (!is_dir($dir)) {
@@ -181,31 +61,27 @@ if (is_dir($projectsRoot)) {
             }
             foreach (['index.php', 'index.html'] as $idx) {
                 if (is_file($dir . '/' . $idx)) {
-                    $docroot = $candidate;
+                    $docroot    = $candidate;
+                    $entryPoint = '/' . rawurlencode($entry) . '/';
                     break 2;
                 }
             }
         }
 
-        $type     = 'unknown';
-        $desc     = '';
-        $version  = null;
-        $metaFile = null;
+        // Метаданные проекта
+        $type = 'unknown';
+        $desc = '';
         if (is_file($root . '/composer.json')) {
             $type = 'PHP';
-            $metaFile = $root . '/composer.json';
-        } elseif (is_file($root . '/package.json')) {
-            $type = 'Node.js';
-            $metaFile = $root . '/package.json';
-        }
-        if ($metaFile !== null) {
-            $data = json_decode((string) @file_get_contents($metaFile), true);
+            $data = json_decode((string) file_get_contents($root . '/composer.json'), true);
             if (is_array($data)) {
                 $desc = (string) ($data['description'] ?? '');
-                $version = isset($data['version']) ? (string) $data['version'] : null;
             }
+        } elseif (is_file($root . '/package.json')) {
+            $type = 'Node.js';
         }
 
+        // Индикатор: ok = public/, warn = legacy, bad = нет docroot
         $dot = 'bad';
         if ($docroot === 'public') {
             $dot = 'ok';
@@ -213,111 +89,160 @@ if (is_dir($projectsRoot)) {
             $dot = 'warn';
         }
 
-        $bytes = dirSize($root);
-        $git   = gitVersions($root);
-        $mtime = (int) filemtime($root);
-
         $projects[] = [
-            'name'          => $entry,
-            'type'          => $type,
-            'description'   => $desc,
-            'version'       => $version,
-            'docroot'       => $docroot,
-            'dot'           => $dot,
-            'page_url'      => '/hub/project/' . rawurlencode($entry) . '/',
-            'entry_point'   => $docroot !== null ? '/' . rawurlencode($entry) . '/' : null,
-            'modified'      => date('d.m.Y', $mtime),
-            'modified_full' => date('d.m.Y H:i', $mtime),
-            'size_kb'       => intdiv($bytes, 1024),
-            'size_human'    => humanSize($bytes),
-            'branch'        => $git['branch'],
-            'local_version' => $git['local_sha'] !== null ? substr($git['local_sha'], 0, 7) : null,
-            'local_date'    => $git['local_date'],
-            'git_version'   => $git['server_sha'] !== null ? substr($git['server_sha'], 0, 7) : null,
-            'git_date'      => $git['server_date'],
-            'git_remote'    => $git['server_remote'],
-            'synced'        => $git['synced'],
+            'name'        => $entry,
+            'type'        => $type,
+            'description' => $desc,
+            'docroot'     => $docroot,
+            'dot'         => $dot,
+            'entry_point' => $entryPoint,
+            'modified'    => date('Y-m-d H:i', (int) filemtime($root)),
+            'size_kb'     => intdiv(dirSize($root), 1024),
         ];
     }
 }
 
 usort($projects, static fn(array $a, array $b): int => strcmp($a['name'], $b['name']));
+?>
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GitProject Workspace Hub</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { 
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    background: linear-gradient(135deg, #0d0b1a 0%, #1a1333 50%, #0f172a 100%);
+    background-attachment: fixed;
+    color:#e8e4f3;
+    min-height:100vh;
+    padding:2rem;
+  }
+  .container { max-width:1000px; margin:0 auto; }
+  h1 { 
+    background: linear-gradient(135deg, #a78bfa, #7c3aed, #6d28d9);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom:.5rem;
+    font-size:2rem;
+    font-weight: 700;
+  }
+  .sub { color:#9b8fb8; margin-bottom:1.5rem; }
+  .info { 
+    background: #1a1528;
+    border:1px solid #2d2640;
+    border-radius:12px;
+    padding:1rem;
+    margin-bottom:2rem;
+    font-family:monospace;
+    font-size:.85rem;
+    box-shadow: 0 4px 20px rgba(124, 58, 237, 0.08);
+  }
+  .info span { color:#a78bfa; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:1rem; }
+  .card { 
+    background: #1a1528;
+    border:1px solid #2d2640;
+    border-radius:12px;
+    padding:1.2rem;
+    transition:all .3s ease;
+    cursor:pointer;
+    text-decoration:none;
+    color:inherit;
+    display:block;
+    box-shadow: 0 4px 20px rgba(124, 58, 237, 0.08);
+  }
+  .card:hover { 
+    border-color:#a78bfa;
+    transform:translateY(-2px);
+    box-shadow: 0 6px 30px rgba(124, 58, 237, 0.15);
+    background: #221d35;
+  }
+  .card.disabled { opacity:.5; cursor:not-allowed; }
+  .card-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:.5rem; }
+  .card-name { font-size:1.15rem; font-weight:600; color:#f3e8ff; }
+  .badge { 
+    background: rgba(124, 58, 237, 0.15);
+    color:#a78bfa;
+    padding:.15rem .5rem;
+    border-radius:6px;
+    font-size:.72rem;
+  }
+  .card-desc { color:#9b8fb8; font-size:.88rem; margin-bottom:.8rem; min-height:2em; }
+  .card-meta { display:flex; gap:.8rem; flex-wrap:wrap; font-size:.78rem; color:#7c6f9b; }
+  .dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:5px; }
+  .dot.ok   { background:#10b981; }
+  .dot.warn { background:#f59e0b; }
+  .dot.bad  { background:#ef4444; }
+  .empty { text-align:center; padding:3rem; color:#7c6f9b; }
+  .empty code { 
+    background:#1a1528;
+    padding:.2rem .5rem;
+    border-radius:6px;
+    color:#a78bfa;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🚀 GitProject Workspace Hub</h1>
+  <p class="sub">Рабочее пространство @sokol491 — репозитории в контейнере <code>projects/</code></p>
 
-// --- Определяем, какой экран показать ----------------------------------------
-$project = null;
+  <div class="info">
+    <span>Server:</span> <?= htmlspecialchars($_SERVER['SERVER_ADDR'] ?? '0.0.0.0') ?>:<?= htmlspecialchars((string) ($_SERVER['SERVER_PORT'] ?? '8000')) ?><br>
+    <span>Container:</span> <?= htmlspecialchars($projectsRoot) ?><br>
+    <span>Projects:</span> <?= count($projects) ?> ·
+    <span>PHP:</span> <?= PHP_VERSION ?>
+  </div>
 
-$requestUri = (string) ($_SERVER['REQUEST_URI'] ?? '/');
-$path       = parse_url($requestUri, PHP_URL_PATH);
-$path       = is_string($path) ? $path : '/';
-$path       = (string) (preg_replace('#/+#', '/', $path) ?? '/');
-$path       = rtrim($path, '/');
+  <?php if ($projects === []): ?>
+    <div class="empty">
+      <p>📂 В <code>projects/</code> пока нет репозиториев.</p>
+      <p style="margin-top:1rem">Клонируйте репозиторий:</p>
+      <code>cd <?= htmlspecialchars($projectsRoot) ?> &amp;&amp; git clone https://gitflic.ru/project/sokol491/&lt;repo&gt;.git</code>
+    </div>
+  <?php else: ?>
+    <div class="grid">
+      <?php foreach ($projects as $p): ?>
+        <?php if ($p['entry_point'] !== null): ?>
+          <a class="card" href="<?= htmlspecialchars($p['entry_point']) ?>">
+        <?php else: ?>
+          <div class="card disabled">
+        <?php endif; ?>
 
-if (str_starts_with($path, '/hub/project/')) {
-    $slug = trim(str_replace('/hub/project/', '', $path), '/');
-    $slug = rawurldecode($slug);
+            <div class="card-head">
+              <span class="card-name">
+                <span class="dot <?= $p['dot'] ?>"></span>
+                <?= htmlspecialchars($p['name']) ?>
+              </span>
+              <span class="badge"><?= htmlspecialchars($p['type']) ?></span>
+            </div>
+            <div class="card-desc">
+              <?= $p['description'] !== '' ? htmlspecialchars($p['description']) : '<i>нет описания</i>' ?>
+            </div>
+            <div class="card-meta">
+              <span>📅 <?= htmlspecialchars($p['modified']) ?></span>
+              <span>📦 <?= $p['size_kb'] ?> KB</span>
+              <?php if ($p['docroot'] === 'public'): ?>
+                <span style="color:#22c55e">docroot: public/</span>
+              <?php elseif ($p['docroot'] !== null): ?>
+                <span style="color:#f59e0b">legacy: <?= htmlspecialchars($p['docroot']) ?>/ — нужна миграция</span>
+              <?php else: ?>
+                <span style="color:#ef4444">⚠ нет точки входа</span>
+              <?php endif; ?>
+            </div>
 
-    foreach ($projects as $p) {
-        if ($p['name'] === $slug) {
-            $project = $p;
-            break;
-        }
-    }
-}
-
-// --- Каркас v0.3: счётчики, выбор вида, pills ---------------------------------
-$ws_side = ['projects' => count($projects), 'market' => 0, 'hosts' => 0];
-$hostsCfg = json_decode((string) @file_get_contents(__DIR__ . '/config/hosts.json'), true);
-$ws_side['hosts'] = is_array($hostsCfg) ? count($hostsCfg) : 0;
-
-$ws_view = (string) ($_GET['view'] ?? 'home');
-if (!in_array($ws_view, ['home', 'hosts', 'market', 'git-add'], true)) {
-    $ws_view = 'home';
-}
-if ($project !== null) {
-    $ws_view = 'home';
-}
-
-$ws_synced = 0;
-$ws_behind = 0;
-$ws_none = 0;
-foreach ($projects as $p) {
-    if ($p['synced'] === true) {
-        $ws_synced++;
-    } elseif ($p['synced'] === false) {
-        $ws_behind++;
-    } else {
-        $ws_none++;
-    }
-}
-
-if ($project !== null) {
-    $ws_title = $project['name'] . ' · GitProject';
-    $ws_crumb = 'Workspace / <a href="/?view=home">Проекты</a> / ' . htmlspecialchars($project['name']);
-    $ws_pills = '';
-    $ws_search_ph = 'Поиск (на главной)';
-} elseif ($ws_view === 'home') {
-    $ws_title = 'GitProject Workspace Hub';
-    $ws_crumb = 'Workspace / Проекты';
-    $ws_search_ph = 'Поиск по имени и описанию…';
-    $ws_pills = '<button type="button" class="ws-pill ws-pill--on" data-state="">All <span class="ws-count">' . count($projects) . '</span></button>'
-        . '<button type="button" class="ws-pill" data-state="synced">Synced <span class="ws-count">' . $ws_synced . '</span></button>'
-        . '<button type="button" class="ws-pill" data-state="behind">Updates <span class="ws-count">' . $ws_behind . '</span></button>'
-        . '<button type="button" class="ws-pill" data-state="none">No data <span class="ws-count">' . $ws_none . '</span></button>';
-} elseif ($ws_view === 'hosts') {
-    $ws_title = 'Хосты и токены · GitProject';
-    $ws_crumb = 'System / Хосты и токены';
-    $ws_pills = '';
-    $ws_search_ph = 'Поиск (на главной)';
-} elseif ($ws_view === 'market') {
-    $ws_title = 'Маркетплейс · GitProject';
-    $ws_crumb = 'Marketplace / Каталог';
-    $ws_pills = '';
-    $ws_search_ph = 'Поиск (на главной)';
-} else {
-    $ws_title = 'Добавить git · GitProject';
-    $ws_crumb = 'Workspace / Добавить git';
-    $ws_pills = '';
-    $ws_search_ph = 'Поиск (на главной)';
-}
-
-include __DIR__ . '/views/layout.php';
+        <?php if ($p['entry_point'] !== null): ?>
+          </a>
+        <?php else: ?>
+          </div>
+        <?php endif; ?>
+      <?php endforeach; ?>
+    </div>
+  <?php endif; ?>
+</div>
+</body>
+</html>

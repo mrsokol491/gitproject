@@ -52,6 +52,7 @@ repo/
  │   ├── logs/               # app.log, error.log, security.log
  │   └── cache/
  ├── docs/                   # architecture.md, api.md, migration.md + доменные
+ ├── migrations/             # YYYYMMDD_HHMMSS_snake_name.php, хранятся в репозитории
  ├── public/                 # ЕДИНСТВЕННАЯ публичная директория (docroot)
  │   ├── index.php
  │   ├── router.php          # защитный роутер (php -S, dev)
@@ -92,6 +93,8 @@ PHP-код вне src/, bin/, migrations/, public/ запрещён.
 # Приватные данные (раздел 3): в репозиторий не попадают
 /data/*
 !/data/.gitkeep
+/storage/*
+!/storage/.gitkeep
 # Секреты и логи
 .env
 *.log
@@ -148,6 +151,21 @@ HTTP в LAN: риск зафиксирован; TLS при возможност�
 - Отключить `allow_url_include` и `cgi.fix_pathinfo`.
 - Блокировать shell-функции в `php.ini` (`disable_functions`).
 
+### Итоги аудита безопасности v1.0.0 (2026-10-27)
+
+| Контроль | Статус | Детали |
+|----------|--------|--------|
+| .env права | ✅ Проверка добавлена | `cmd_status()` предупреждает если != 600 |
+| Router path traversal | ✅ Защита | `realpath()` + `str_starts_with()` на всех путях |
+| Forbidden-список router.php | ✅ Обновлён | .env, .git, bin/, data/, projects/, *.md |
+| Credential helper | ✅ Безопасен | Placeholder-логика, токены не выводятся в stdout |
+| Router security headers | ✅ `nosniff` | `X-Content-Type-Options: nosniff` при отдаче статики |
+| Basic Auth для LAN | ✅ Работает | loopback без пароля, LAN требует NETWORK_PASSWORD |
+| 503 при отсутствии пароля | ✅ Реализовано | HTTP 503 + error_log при пустом NETWORK_PASSWORD |
+| Блокировка *.md в router.php | ✅ Добавлено | Все .md-файлы кроме API/Assets возвращают 403 |
+| .gitkeep в каталогах | ✅ Проверено | assets/, config/, data/, projects/ |
+| .gitignore актуален | ✅ *.ged добавлен | .env, *.log, *.ged, *.sqlite* блокируются |
+
 10. Фронтенд
 Сервер: данные, API, безопасность, рендеринг страниц; браузер: интерактив.
 Данные — JSON, не исполняемые .js; новые window.*-глобалы запрещены (ES-модули).
@@ -186,3 +204,16 @@ kit/drive-pool: пул съёмных носителей (UUID в .cloud-drive.j
 find . -maxdepth 3 -not -path '/.git' -not -path './vendor/' -not -path './data/backups/' -not -name '.env*' | sort
 php -v; ls -la data/; [ -f composer.json ] && cat composer.json
 Секреты, хэши и токены не присылать.
+
+14. Изменения стандарта
+Новые решения добавлять в этот файл датой (changelog ниже); молча противоречить файлу запрещено.
+
+Changelog:
+2026-09-23: v1.0 принят по итогам аудитов; правки ревью (.gitignore, require-dev, SQLite ≥ 3.27) вошли до загрузки.
+2026-09-23: v1.1 — файл универсализирован (без ссылок на проекты и память); добавлен раздел 4 (имена файлов и папок), раздел 11 (готовые модули kit), каталог migrations/ в каркасе.
+2026-09-29: v1.2 — раздел 1: допустимость web-scraping blob/tree GitFlic для аудита публичных репозиториев (детали в gitproject-workspace-guide.md §13).
+2026-09-29: v1.3 — раздел 1: добавлено упоминание /blob/raw для чистого текста файла (детали в gitproject-workspace-guide.md §13).
+2026-10-01: v1.4 — рабочее пространство переименовано: GitProject Workspace Hub (прежнее имя GitFlic Dev Workspace, ТЗ-001 v2, этап 0).
+2026-10-07: v1.5 — локальный путь обновлён: ~/gitflicProject → ~/gitproject; репозиторий на GitFlic переименован в gitproject.
+2026-10-07: v1.6 — симлинки gitflic-*.sh в bin/ удалены; руководство переименовано; forbidden-список router.php обновлён.
+2026-10-27: v2.0 — релиз 1.0.0: GitVerse как основной хост (обновления), учёт уязвимостей PHP2Shell (CVE-2026-109618/9), документирование безопасности.

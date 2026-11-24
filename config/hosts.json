@@ -6,15 +6,16 @@
     "env_prefix": "GITVERSE",
     "url_template": "https://gitverse.ru/{owner}/{slug}.git",
     "registry": "rf",
-    "description": "GitVerse — основной хост обновлений (реестр ПО РФ, Сбер)"
+    "description": "GitVerse — основной хост (реестр ПО РФ, Сбер)"
   },
   "gitflic": {
     "host": "gitflic.ru",
-    "status": "ready",
+    "status": "mirror",
+    "is_mirror": true,
     "env_prefix": "GITFLIC",
     "url_template": "https://gitflic.ru/project/{owner}/{slug}.git",
     "registry": "rf",
-    "description": "GitFlic — платформа от Астра (реестр ПО РФ)"
+    "description": "GitFlic — зеркало (реестр ПО РФ, Astra Linux)"
   },
   "sourcecraft": {
     "host": "git.sourcecraft.dev",
@@ -22,23 +23,15 @@
     "env_prefix": "SOURCECRAFT",
     "url_template": "https://git.sourcecraft.dev/{owner}/{slug}.git",
     "registry": "rf",
-    "description": "SourceCraft — платформа от Яндекса (реестр ПО РФ)"
+    "description": "SourceCraft — платформа от Яндекса (Yandex B2B Tech)"
   },
   "github": {
     "host": "github.com",
-    "status": "ready",
+    "status": "integrating",
     "env_prefix": "GITHUB",
     "url_template": "https://github.com/{owner}/{slug}.git",
     "registry": "foreign",
     "description": "GitHub — международный Git-хостинг"
-  },
-    "moshub": {
-    "host": "hub.mos.ru",
-    "status": "integrating",
-    "env_prefix": "MOSHUB",
-    "url_template": "https://hub.mos.ru/{owner}/{slug}.git",
-    "registry": "rf",
-    "description": "Mos.hub — Московская облачная платформа с ИИ-ассистентом «КоДИТ» и антивирусным сканированием (в процессе)"
   },
   "gitlab": {
     "host": "gitlab.com",
@@ -46,7 +39,7 @@
     "env_prefix": "GITLAB",
     "url_template": "https://gitlab.com/{owner}/{slug}.git",
     "registry": "foreign",
-    "description": "GitLab — международный Git-хостинг (в процессе)"
+    "description": "GitLab — международный Git-хостинг"
   },
   "bitbucket": {
     "host": "bitbucket.org",
@@ -54,7 +47,7 @@
     "env_prefix": "BITBUCKET",
     "url_template": "https://bitbucket.org/{owner}/{slug}.git",
     "registry": "foreign",
-    "description": "Bitbucket — международный Git-хостинг от Atlassian (в процессе)"
+    "description": "Bitbucket — международный Git-хостинг от Atlassian"
   },
   "gitea": {
     "host": "gitea.com",
@@ -62,22 +55,14 @@
     "env_prefix": "GITEA",
     "url_template": "https://gitea.com/{owner}/{slug}.git",
     "registry": "foreign",
-    "description": "Gitea — международный Git-хостинг (в процессе)"
+    "description": "Gitea — международный Git-хостинг"
   },
-  "forgejo": {
-    "host": "forgejo.org",
+  "codebase": {
+    "host": "codebase.mos.ru",
     "status": "integrating",
-    "env_prefix": "FORGEJO",
-    "url_template": "https://forgejo.org/{owner}/{slug}.git",
-    "registry": "foreign",
-    "description": "Forgejo — community-fork Gitea (в процессе)"
-  },
-  "gosh": {
-    "host": "gosh.sh",
-    "status": "integrating",
-    "env_prefix": "GOSH",
-    "url_template": "https://gosh.sh/{owner}/{slug}.git",
-    "registry": "foreign",
-    "description": "GOSH — Git Open Source Hodler (в процессе)"
+    "env_prefix": "CODEBASE",
+    "url_template": "https://codebase.mos.ru/{owner}/{slug}.git",
+    "registry": "rf",
+    "description": "CodeBase — московская платформа разработки (реестр ПО РФ, в процессе интеграции)"
   }
 }

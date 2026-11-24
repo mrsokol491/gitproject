@@ -4,22 +4,22 @@ declare(strict_types=1);
 
 /**
  * Роутер хаба GitProject Workspace (корень workspace).
- * Версия 2.3 от 2026-11-17.
+ * Версия 2.2 от 2026-10-27.
  *
  * Обязанности:
  *  - Basic Auth для LAN: с адресов НЕ loopback требует пароль NETWORK_PASSWORD
- *    из .env; с 127.0.0.1 / ::1 — без пароля;
+ *    из .env (guide раздел 8); с 127.0.0.1 / ::1 — без пароля;
  *  - отдаёт сам хаб: / и /assets/* (return false -> файл исполняет php -S);
- *  - легаси-панель: /panel.php -> public/panel.php;
- *  - маркетплейс: /marketplace... -> public/marketplace.php;
  *  - проксирует /<slug>/... в projects/<slug>/<docroot>/...;
- *  - передаёт HUB_ROOT чтобы docroot-лицо клона хаба показывало workspace хаба;
- *  - docroot: public/ первым, legacy-кандидаты временно с записью в error-log;
- *  - запрещает прямой доступ к служебному: .env, bin/, data/, projects/, lib/, config/, views/, *.md;
+ *  - docroot: public/ (STANDARD.md §3, §9); ВРЕМЕННО допускаются legacy-кандидаты
+ *    (Project, www, ...) до миграции проектов, каждое использование — в error-log;
+ *  - запрещает прямой доступ к служебному: .env, bin/, data/, projects/, *.md;
  *  - защита от path traversal через realpath-проверки.
  *
- * Запуск (systemd):
+ * Запуск (systemd, guide раздел 5):
  *   php -S 0.0.0.0:8000 -t ~/gitproject ~/gitproject/router.php
+ * Ручной запуск для отладки:
+ *   cd ~/gitproject && php -S 127.0.0.1:8000 router.php
  */
 
 // --- Пути хаба --------------------------------------------------------------
@@ -27,6 +27,7 @@ $hubRoot      = __DIR__;
 $projectsRoot = $hubRoot . '/projects';
 $envFile      = $hubRoot . '/.env';
 
+// Кандидаты docroot: public первым (STANDARD), legacy — временно.
 $docrootCandidates = ['public', 'Project', 'project', 'www', 'web', 'html'];
 
 // --- Запрошенный путь без query ---------------------------------------------
@@ -34,11 +35,12 @@ $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
 $uri = is_string($uri) ? rawurldecode($uri) : '/';
 $uri = (string) (preg_replace('#/+#', '/', $uri) ?? '/');
 
-// --- 0) Basic Auth для LAN ---------------------------------------------------
+// --- 0) Basic Auth для LAN (guide раздел 8) ---------------------------------
 $remoteAddr = (string) ($_SERVER['REMOTE_ADDR'] ?? '');
 $isLoopback = in_array($remoteAddr, ['127.0.0.1', '::1'], true);
 
 if (!$isLoopback) {
+    // Читаем из .env ТОЛЬКО NETWORK_PASSWORD, секреты не выводим.
     $networkPassword = '';
     if (is_file($envFile)) {
         foreach (file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [] as $line) {
@@ -51,6 +53,7 @@ if (!$isLoopback) {
     }
 
     if ($networkPassword === '') {
+        // Пароль не настроен — доступ из LAN запрещаем полностью.
         error_log('HUB: NETWORK_PASSWORD не задан в .env — доступ из LAN запрещён');
         http_response_code(503);
         header('Content-Type: text/plain; charset=utf-8');
@@ -70,16 +73,17 @@ if (!$isLoopback) {
 
 // --- 1) Сам хаб: / и /assets/* ----------------------------------------------
 if ($uri === '/' || $uri === '/index.php') {
-    $file = __DIR__ . '/index.php';
+    // Отдаём новую панель управления из public/index.php
+    $file = __DIR__ . '/public/index.php';
     if (is_file($file)) {
         $_SERVER['SCRIPT_FILENAME'] = $file;
         require $file;
         return true;
     }
-    return false;
+    return false; // fallback на корень, если public/index.php вдруг удалён
 }
 if ($uri === '/assets' || str_starts_with($uri, '/assets/')) {
-    return false;
+    return false; // статика хаба: assets/css/, assets/img/
 }
 
 // --- 1.5) API и админ-панель хаба (из папки public/) ------------------------
@@ -100,16 +104,10 @@ if (str_starts_with($uri, '/api/')) {
     }
 }
 
-// --- 1.7) Маркетплейс теперь внутри рабочего поля хаба ----------------------
-if ($uri === '/marketplace' || str_starts_with($uri, '/marketplace/')) {
-    header('Location: /?view=market', true, 302);
-    return true;
-}
-
 // --- 2) Запрет прямого доступа к служебным файлам хаба ----------------------
 $forbidden = [
     '.env', '.git', '.gitignore',
-    'bin', 'data', 'projects', 'lib', 'config', 'views',
+    'bin', 'data', 'projects',
     'README.md', 'STANDARD.md', 'gitproject-workspace-guide.md',
 ];
 foreach ($forbidden as $blocked) {
@@ -121,7 +119,7 @@ foreach ($forbidden as $blocked) {
     }
 }
 
-// --- 2.5) Запрет на доступ к .md файлам -------------------------------------
+// --- 2.5) Запрет на доступ к .md файлам (STANDARD.md §9) -------------------
 if (str_ends_with($uri, '.md') && !str_starts_with($uri, '/api/') && !str_starts_with($uri, '/assets/')) {
     http_response_code(403);
     header('Content-Type: text/plain; charset=utf-8');
@@ -129,22 +127,12 @@ if (str_ends_with($uri, '.md') && !str_starts_with($uri, '/api/') && !str_starts
     return true;
 }
 
-// --- 2.6) Страница проекта в хабе: /hub/project/<slug>/ --------------------
-if (str_starts_with($uri, '/hub/project/')) {
-    $file = __DIR__ . '/index.php';
-    if (is_file($file)) {
-        $_SERVER['SCRIPT_FILENAME'] = $file;
-        $_SERVER['REQUEST_URI']     = $uri;
-        require $file;
-        return true;
-    }
-}
-
 // --- 3) Разбор /<slug>/<path...> --------------------------------------------
 $parts   = explode('/', trim($uri, '/'));
 $slug    = (string) ($parts[0] ?? '');
 $relPath = implode('/', array_slice($parts, 1));
 
+// whitelist slug: строчные, цифры, -, _ (STANDARD.md раздел 4)
 if (preg_match('/^[a-z0-9][a-z0-9_-]{0,62}$/', $slug) !== 1) {
     http_response_code(404);
     header('Content-Type: text/plain; charset=utf-8');
@@ -186,6 +174,7 @@ if ($docroot === null) {
     return true;
 }
 
+// /slug -> /slug/ (относительные ссылки проекта работают)
 if ($relPath === '' && !str_ends_with($uri, '/')) {
     header('Location: /' . $slug . '/', true, 301);
     return true;
@@ -241,8 +230,7 @@ if ($ext !== 'php') {
 }
 
 // --- 8) PHP проекта исполняем в его docroot ----------------------------------
-$_SERVER['APP_BASE_PATH']   = '/' . $slug;
-$_SERVER['HUB_ROOT']        = $hubRoot;
+$_SERVER['APP_BASE_PATH']   = '/' . $slug; // база для относительных ссылок проекта
 $_SERVER['SCRIPT_FILENAME'] = $real;
 $_SERVER['SCRIPT_NAME']     = '/' . $slug . '/' . ltrim($relPath, '/');
 $_SERVER['PHP_SELF']        = $_SERVER['SCRIPT_NAME'];

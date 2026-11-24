@@ -577,16 +577,15 @@ cmd_probe() {
 
 main() {
     load_env
-
-    [ -n "${1:-}" ] || { echo "Использование: git-project-sync.sh <slug> [--all | --push | --pull | --remote <r> | -m \"сообщ.\" | status | fix | probe]"; exit 2; }
+    
+    [ -n "${1:-}" ] || { echo "Использование: git-project-sync.sh <slug> [--all | --push | --remote <r> | status | fix | probe]"; exit 2; }
     local slug="$1"; shift
-    local action="sync" remote_arg="" all_flag=0 push_flag=0 pull_flag=0 commit_msg=""
-
+    local action="sync" remote_arg="" all_flag=0 push_flag=0 commit_msg=""
+    
     while [ $# -gt 0 ]; do
         case "$1" in
             --all) all_flag=1; shift ;;
             --push) push_flag=1; shift ;;
-            --pull) pull_flag=1; shift ;;
             --remote) remote_arg="$2"; shift 2 ;;
             -m) commit_msg="$2"; shift 2 ;;
             status) action="status"; shift ;;
@@ -596,23 +595,28 @@ main() {
         esac
     done
 
+    # Команда status
     if [ "$action" = "status" ]; then
         cmd_status
         exit 0
     fi
-
+    
+    # Команда probe
     if [ "$action" = "probe" ]; then
         cmd_probe
         exit 0
     fi
 
+    # Команда fix
     if [ "$action" = "fix" ]; then
         cmd_fix "$slug"
         exit $?
     fi
 
+    # Проверяем существование проекта
     [ -d "$PROJECTS_DIR/$slug/.git" ] || { print_error "Проект $slug не найден в $PROJECTS_DIR/"; exit 2; }
 
+    # Интерактивный выбор проектов
     if [ -z "$slug" ]; then
         local -a slugs=()
         for dir in "$PROJECTS_DIR"/*/; do
@@ -625,12 +629,10 @@ main() {
         show_menu "${slugs[@]}"
         local choice
         choice="$(read_choice ${#slugs[@]})"
-
+        
         if [ "$choice" = "all" ]; then
             for s in "${slugs[@]}"; do
-                if [ $pull_flag -eq 1 ]; then
-                    pull_project_remote "$s" "${remote_arg:-origin}"
-                elif [ $push_flag -eq 1 ]; then
+                if [ $push_flag -eq 1 ]; then
                     sync_project_push_all "$s"
                 elif [ $all_flag -eq 1 ]; then
                     sync_project_all_remotes "$s"
@@ -642,9 +644,7 @@ main() {
             IFS=',' read -ra selected <<< "$choice"
             for n in "${selected[@]}"; do
                 local s="${slugs[$((n - 1))]}"
-                if [ $pull_flag -eq 1 ]; then
-                    pull_project_remote "$s" "${remote_arg:-origin}"
-                elif [ $push_flag -eq 1 ]; then
+                if [ $push_flag -eq 1 ]; then
                     sync_project_push_all "$s"
                 elif [ $all_flag -eq 1 ]; then
                     sync_project_all_remotes "$s"
@@ -654,9 +654,8 @@ main() {
             done
         fi
     else
-        if [ $pull_flag -eq 1 ]; then
-            pull_project_remote "$slug" "${remote_arg:-origin}"
-        elif [ $push_flag -eq 1 ]; then
+        # Одиночный проект
+        if [ $push_flag -eq 1 ]; then
             sync_project_push_all "$slug"
         elif [ $all_flag -eq 1 ]; then
             sync_project_all_remotes "$slug"

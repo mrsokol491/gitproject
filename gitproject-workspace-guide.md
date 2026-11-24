@@ -4,6 +4,16 @@
 Назначение: постоянный контекст ИИ-ассистента для работы с проектами на нескольких Git-хостах.
 Расположение: ~/gitproject/gitproject-workspace-guide.md
 
+Изменения 2.1:
+- раздел 1: состав мульти-хост системы (git-project-clone.sh, git-project-remote.sh,
+  bin/lib/common.sh, config/hosts.json) и симлинки совместимости;
+- раздел 2: итоговая схема .env (HUB/PROJECT на каждый хост, placeholder = нет токена);
+- раздел 4: логика мульти-хост credential helper (HUB по пути gitflicproject на любом хосте);
+- раздел 7: мастер клонирования в 4 шага, remote с подсветкой актуальности, логи по хостам;
+- раздел 11: факты GitVerse (URL без /project/, регистр owner, raw по ветке), баги stdin и sed ERE,
+  факт мульти-push;
+- раздел 12: профиль GitVerse; раздел 14: changelog v2.0, v2.1.
+
 ## 1. Архитектура системы
 
 ### Рабочее пространство
@@ -30,10 +40,11 @@
 ├── assets/                          <- общие ассеты хаба
 └── data/                            <- логи: workspace.log, workspace-error.log, <host>.log
 
-Состав projects/ динамический (см. главную страницу хаба); примеры клонов: archive, visual-novel-engine, virtual-cloud.
+Состав projects/ динамический (см. главную страницу хаба); примеры клонов: archive,
+searchengine, pdf, visual-novel-engine, virtual-cloud, test.
 
 Принцип: оболочка (router.php, index.php, bin/, config/, data/, assets/) — только свои каталоги;
-репозитории других проектов изолированы в projects/. URL-схема (/archive/, /virtual-cloud/) сохраняется.
+репозитории других проектов изолированы в projects/. URL-схема (/archive/, /searchengine/) сохраняется.
 
 ### Мульти-хост система (ТЗ-001 v2)
 Каталог хостов: config/hosts.json. Поля: host (домен), status, env_prefix, url_template.
@@ -54,6 +65,8 @@ remote = id хоста из hosts.json. Мульти-push (--all, --remote) — 
 Владелец: Sokol491 (регистр учитывается!).
 Переименован 2026-10-07: gitflicProject → gitproject (единообразие с GitFlic).
 Опубликован: https://gitflic.ru/project/sokol491/gitproject
+ФАКТ 2026-09-29: фактический slug — gitflicproject (нижний регистр); git-транспорт GitFlic
+регистрозависим, Web-UI открывает оба написания. URL origin локального хаба — только нижний регистр.
 В коммит хаба никогда не попадают: .env, data/ (кроме .gitkeep), projects/ (контейнер),
 логи, служебные файлы SQLite, *.bak-* (двойная защита: .gitignore + проверка staging скриптом).
 
@@ -66,8 +79,8 @@ remote = id хоста из hosts.json. Мульти-push (--all, --remote) — 
 8000 — GitProject Workspace Hub (хаб проектов)
 
 ### URL-схема
-http://0.0.0.0:8000/                          — хаб, список проектов
-http://0.0.0.0:8000/<slug>/                   — проект
+http://192.168.31.119:8000/                          — хаб, список проектов
+http://192.168.31.119:8000/<slug>/                   — проект
 
 ## 2. Секреты и файл .env
 
@@ -108,7 +121,27 @@ sed -E 's/=(.+)$/=[скрыто]/' ~/gitproject/.env
 - утечка (вывод на экран, скриншот, история) = немедленный отзыв на хосте,
   замена в .env, проверка ~/.bash_history и .git/config на остатки.
 
-## 3. Мульти-хост credential helper (основной канал)
+## 3. SSH-ключ GitFlic (запасной канал, не зависит от токена)
+
+Генерация и подключение:
+ssh-keygen -t ed25519 -C "sokol491-gitflic" -f ~/.ssh/gitflic_ed25519   # passphrase пустой
+cat ~/.ssh/gitflic_ed25519.pub    # содержимое добавить: GitFlic -> настройки -> SSH-ключи,
+                                  # имя lenovo-ideapad, срок +30 дней
+cat >> ~/.ssh/config <<'EOF'
+Host gitflic.ru
+    User git
+    IdentityFile ~/.ssh/gitflic_ed25519
+    IdentitiesOnly yes
+EOF
+chmod 600 ~/.ssh/config
+ssh -T git@gitflic.ru
+# Ответ "GitFlic не поддерживает данный вид ssh взаимодействия" = ключ принят,
+# shell запрещён, git-операции работают. Это норма.
+
+Клонирование по SSH (slug регистрозависим! сверять с диалогом "Клонировать"):
+git clone git@gitflic.ru:sokol491/archive.git ~/gitproject/projects/archive
+
+## 4. Мульти-хост credential helper (основной канал)
 
 Помощник: ~/gitproject/bin/git-credential-multi.sh, права 700.
 Логика:
@@ -150,7 +183,7 @@ git ls-remote origin "$(git branch --show-current)"
 # Откат теста ТОЛЬКО через: git revert --no-edit HEAD && git push origin "$(git branch --show-current)"
 # Силовой reset + push --force запрещены: история на сервере общая.
 
-## 4. Сервис systemd хаба
+## 5. Сервис systemd хаба
 
 Файл: ~/.config/systemd/user/gitproject-workspace.service
 Ключевые строки ExecStart: php -S 0.0.0.0:8000 -t %h/gitproject %h/gitproject/router.php
@@ -165,7 +198,7 @@ ss -tlnp | grep :8000
 tail -f ~/gitproject/data/workspace.log
 tail -f ~/gitproject/data/workspace-error.log
 
-## 5. Интеграция проекта в хаб (BASE_PATH)
+## 6. Интеграция проекта в хаб (BASE_PATH)
 
 Проблема: абсолютные URL проекта (/api/..., location.href='/') ломаются под префиксом /archive/.
 Решение по шагам:
@@ -177,7 +210,7 @@ tail -f ~/gitproject/data/workspace-error.log
    JS читает: const BASE = document.querySelector('meta[name="app-base"]').content;
    и использует BASE + '/api/...'. Без новых window-глобалов.
 
-## 6. Жизненный цикл репозиториев
+## 7. Жизненный цикл репозиториев
 
 ### Правило ветвления
 Ветки только master: локально и на хостах. Все публикации — напрямую в master.
@@ -217,7 +250,7 @@ merge upstream с приоритетом локальной версии (merge 
 ~/gitproject/bin/git-project-update.sh status
 ~/gitproject/bin/git-project-update.sh fix
 URL origin хаба — только нижний регистр slug: https://gitflic.ru/project/sokol491/gitproject.git
-Если у origin/master есть посторонняя история (например gitflic-cl.yaml),
+Если у origin/master есть посторонняя история (например gitflic-cl.yaml, см. раздел 11),
 связать без force-push: git merge origin/master --allow-unrelated-histories -X ours
 
 ### Обновление хаба и проектов
@@ -279,3 +312,249 @@ ss -tlnp | grep :8000
 curl -sI http://127.0.0.1:8000/ | head -n 1
 tail -f ~/gitproject/data/workspace-error.log
 sed -E 's/=(.+)$/=[скрыто]/' ~/gitproject/.env              # маскированный просмотр .env
+
+## 11. Известные проблемы и решения
+
+Общие:
+- Порт 8000 занят посторонним php: ss -tlnp | grep :8000, kill <PID>, restart сервиса.
+- Author identity unknown при commit: настроить идентичность по разделу 4.
+- bash: синтаксическая ошибка рядом с «|»: выполнена строка-шаблон "<команда> | sed ...";
+  подставлять реальную команду вместо <команда>, шаблон не запускать.
+- password с хвостом вида "...GITFLIC_USER=..." или склейка выводов: в .env нет перевода
+  строки в конце; исправить командой раздела 2, проверить маскированным просмотром.
+- Токен побывал на экране/в скриншоте/в URL: отозвать на хосте, выпустить новый,
+  вычистить историю: sed -i '/sokol491:.*@gitflic\.ru/d' ~/.bash_history && history -c && history -w
+- Проект из LAN просит пароль хаба: это ожидаемое поведение Basic Auth.
+- Legacy docroot: проект отдаёт 404, в error.log строка "legacy docroot ... требуется миграция на public/".
+  Решение: перенести содержимое legacy-каталога (Project/, web/) в public/, обновить includes/ на относительные пути.
+- HTTP 000 при curl: сервис не запустился или порт занят; проверить systemctl --user status, ss -tlnp | grep :8000.
+
+GitFlic:
+- Регистрозависимость slug (ФАКТ 2026-09-29): git-транспорт при неверном регистре отвечает
+  HTTP 500/"not found", Web-UI открывает оба написания. Slug хаба: gitflicproject (нижний регистр).
+- HTTP 500 на несуществующий репозиторий: git-транспорт возвращает 500 вместо 404;
+  скрипты парсят вывод ls-remote и трактуют как "репозитория нет".
+- gitflic-cl.yaml (ФАКТ 2026-09-29): при создании репозитория через UI добавляется CI-файл;
+  если CI не используется — удалить через UI до первого push; истории связать
+  git merge origin/master --allow-unrelated-histories -X ours (без force-push).
+- Создание репозиториев через API не подтверждено (probe: 404/302) — создавать через Web-UI.
+
+GitVerse (ФАКТЫ 2026-10-01):
+- URL клона/пуша: https://gitverse.ru/<owner>/<slug>.git — БЕЗ сегмента /project/ (в отличие от GitFlic);
+  шаблон зафиксирован в config/hosts.json (url_template).
+- Регистр owner: Sokol491 (на GitFlic — sokol491); owner берётся из <PREFIX>_PROJECT_USER/.env или запроса.
+- Raw-файл: https://gitverse.ru/api/repos/<owner>/<repo>/raw/branch/<ветка>/<путь> —
+  работает по имени ветки, commit SHA не нужен (в отличие от GitFlic /blob/raw).
+- Платформа: признаки Gitea-совместимого API (/api/repos/...); токен создаётся в Web-UI
+  (настройки/access tokens); заголовок авторизации API не проверен (гипотеза).
+- Мульти-push проверен: коммит 63bda97 (проект test) опубликован одновременно на GitFlic и GitVerse,
+  таблица актуальности показала оба remote зелёными.
+
+Мульти-хост и скрипты:
+- Credential helper спрашивал username/password интерактивно (баг v2.0): причина —
+  cat >/dev/null съедал stdin до разбора; исправлено: stdin читается один раз целиком (input="$(cat)").
+- sed с -E и группами \(\): ошибка "недопустимая ссылка \1" — в ERE группы обозначаются (),
+  обратные слэши только в BRE (баг исправлен в git-project-clone.sh 2026-10-01).
+- Интерактивные меню не должны печатать данные в stdout вместе с возвращаемым значением
+  функции (баг захвата ANSI-кодов в имя каталога, исправлен 2026-10-01).
+- Защиты staging sync-скриптов: git-project-sync.sh запрещает только КОРНЕВЫЕ data/, storage/, vendor/
+  (public/data/ разрешён); git-project-update.sh запрещает .env, data/ (кроме .gitkeep), projects/,
+  логи и служебные файлы SQLite на любой глубине; нарушение = код выхода 5, коммит отменён.
+
+## 12. Ресурсы
+
+- Профиль GitFlic: https://gitflic.ru/user/sokol491
+- Профиль GitVerse: https://gitverse.ru/Sokol491
+- Репозиторий хаба: https://gitflic.ru/project/sokol491/gitproject
+- Хаб: http://192.168.31.119:8000/
+- Локально: http://127.0.0.1:8000/
+
+## 13. Web-scraping: blob/tree GitFlic без токена
+
+Для публичных репозиториев GitFlic отдаёт содержимое файлов через web_extractor
+без авторизации, если использовать правильный формат URL.
+
+Приоритет: ИСХОДНЫЙ КОД файла получаем по /blob/raw (чистый текст);
+blob HTML — вспомогательный (просмотр и получение ссылки Raw с commit=<SHA>).
+
+Форматы URL (проверено 2026-09-29 на sokol491/archive, sokol491/visual-novel-engine):
+
+Web blob RAW (ОСНОВНОЙ: чистый текст файла, БЕЗ HTML-обёртки):
+https://gitflic.ru/project/<user>/<slug>/blob/raw?file=<путь, URL-encoded>&commit=<SHA>
+Пример:
+https://gitflic.ru/project/sokol491/visual-novel-engine/blob/raw?file=README.md&commit=d7fb9cb2c0d1ba22f2008bec3116fe0cf60e0bd6
+Требует commit hash (не имя ветки!). Источники commit SHA:
+(а) ссылка/кнопка Raw на blob-странице — её href уже содержит commit=<SHA>;
+(б) git ls-remote https://gitflic.ru/project/<user>/<slug>.git | grep HEAD (SHA вершины ветки);
+(в) SHA, сообщённый владельцем.
+Преимущества: только код, без парсинга HTML; детерминированный результат.
+
+Web blob (HTML-страница с обёрткой GitFlic; вспомогательный):
+https://gitflic.ru/project/<user>/<slug>/blob?branch=<ветка>&file=<путь, URL-encoded>
+Примеры:
+https://gitflic.ru/project/sokol491/archive/blob?branch=master&file=README.md
+https://gitflic.ru/project/sokol491/archive/blob?branch=master&file=Project/includes/config.php
+Кириллица в путях требует URL-encoding:
+Структура.txt → %D0%A1%D1%82%D1%80%D1%83%D0%BA%D1%82%D1%83%D1%80%D0%B0.txt
+
+Web tree (список файлов каталога):
+https://gitflic.ru/project/<user>/<slug>/file?branch=<ветка>
+Пример: https://gitflic.ru/project/sokol491/archive/file?branch=master
+
+ВАЖНО: GitHub-формат /blob/<ветка>/<путь> (без query-параметров) НЕ работает —
+GitFlic редирексит на страницу входа. Использовать только query-формат.
+
+REST API (требует токен):
+GET https://api.gitflic.ru/project/<user>/<slug>/blob?commitHash=<hash>&file=<путь>
+Заголовок: Authorization: token <GITFLIC_TOKEN из .env>
+commitHash брать из: GET /project/<user>/<slug>/branch/<ветка>
+Токен: права read:project, срок 1-2 дня, после работ — отозвать.
+
+Полный клон/архив без авторизации запрещён (STANDARD.md §1).
+
+Применение:
+- Исходный код любого файла публичного репозитория — через /blob/raw.
+- Аудит структуры проекта до локального клона (раздел 13 STANDARD.md).
+- Получение содержимого ключевых файлов (README.md, config.php, index.php).
+- Проверка соответствия каркасу (STANDARD.md §3) без скачивания всего репозитория.
+- Быстрый просмотр кода для формирования PROJECT PASSPORT.
+
+Ограничения:
+- Только публичные репозитории.
+- Скорость: 1-3 файла за запрос (web_extractor может объединять URL).
+- Для приватных репозиториев — только локальный клон с credential helper (раздел 4).
+- Секреты в коде (.env, токены в конфиге) не выводить в чат — только констатировать наличие.
+- /blob/raw требует commit SHA, не работает с именами веток.
+
+Алгоритм получения файла (ОБЯЗАТЕЛЕН до любого вопроса пользователю):
+1. user и slug брать из §1/§12 (sokol491; список projects/). Веб-поиск репозитория ЗАПРЕЩЁН: URL детерминирован.
+2. Tree первым: /project/<user>/<slug>/file?branch=master; ошибка/пусто → branch=main.
+3. Raw (ОСНОВНОЙ шаг): если commit SHA известен (ls-remote HEAD, сообщён владельцем) —
+   /project/<user>/<slug>/blob/raw?file=<путь>&commit=<SHA>; это и есть исходный код файла.
+4. Если SHA неизвестен: blob HTML /project/<user>/<slug>/blob?branch=<ветка из шага 2>&file=<путь>;
+   на странице взять href ссылки Raw (содержит commit=<SHA>) и повторить шаг 3;
+   для readme перебирать регистр: README.md → readme.md → Readme.md;
+   путь из tree-листа брать дословно, кириллицу URL-encode.
+5. Содержимое blob HTML допустимо только как временная замена, если Raw недоступен.
+6. Исчерпаны шаги 1-4 и инструмент недоступен → выдать пользователю готовые URL
+   (raw + blob) и команду локального просмотра, а не открытый запрос «дайте ссылку»:
+   cd ~/gitproject/projects/<slug> && find . -maxdepth 1 -iname 'readme*' -exec cat {} +
+7. Только после этого — просить вставку текста (STANDARD.md §1).
+
+Типичные ошибки (ЗАПРЕЩЁННЫЕ подмены):
+- Выдумывать локальные пути: единственно верный — ~/gitproject/projects/<slug> (§1).
+- GitLab-синтаксис: /api/v4/..., заголовок PRIVATE-TOKEN — в GitFlic не существует;
+  верно: https://api.gitflic.ru/project/<user>/<slug>/blob?commitHash=<SHA>&file=<путь>,
+  заголовок: Authorization: token <GITFLIC_TOKEN из .env>.
+- GitHub-формат /blob/<ветка>/<путь> (запрещён выше) — не предлагать пользователю как рабочий.
+- Спрашивать у пользователя владельца, slug, ссылку или локальный путь,
+  если они выводятся из §1/§12; вопрос допустим только после шагов 1-5 алгоритма.
+- Отдавать пользователю blob HTML как «исходный код», когда доступен /blob/raw.
+
+## 14. Changelog
+
+- 2026-09-25: v1.3 — контейнер projects/, миграция репозиториев, docroot public/.
+- 2026-09-29: v1.4 — раздел 13: web-scraping blob/tree GitFlic без токена.
+- 2026-09-29: v1.5 — раздел 13: алгоритм получения файла до вопроса пользователю.
+- 2026-09-29: v1.6 — раздел 13: добавлен формат /blob/raw для чистого текста файла.
+- 2026-09-29: v1.7 — раздел 13: блок типичных ошибок.
+- 2026-09-29: v1.8 — раздел 13: /blob/raw — основной способ получения исходного кода.
+- 2026-09-29: v1.9 — раздел 1: bin/gitflic-sync-hub.sh, README.md, хаб как git-репозиторий; раздел 7: публикация хаба; раздел 10: команды хаба; раздел 11: регистрозависимость slug, HTTP 500, gitflic-cl.yaml, защиты staging; раздел 12: ссылка на репозиторий хаба.
+- 2026-09-30: v1.9.1 — раздел 7: удалены упоминания ветки qwen и модели перенаправления upstream; зафиксировано правило «только master: локально и на GitFlic».
+- 2026-10-01: v1.9.2 — раздел 2: переменная GIT_HOST в .env (мульти-хост); раздел 7: клонирование репозиториев любого владельца; раздел 10: интерактивное меню sync с цветовым оформлением; README: раздел «Установка».
+- 2026-10-01: v1.9.3 — раздел 2: схема разделения токенов HUB/PROJECT с заделом GitVerse; раздел 4: credential helper по контексту репозитория; раздел 7: подраздел «Обновление окружения».
+- 2026-10-01: v2.0 — переименование в GitProject Workspace Hub (ТЗ-001 v2, этап 0); переименование скриптов с симлинками совместимости; мульти-хост credential helper; bin/lib/common.sh; config/hosts.json; исправлен баг stdin в helper.
+- 2026-10-02: v2.1 — раздел 1: мульти-хост состав (мастера clone/remote, lib, hosts.json); раздел 2: итоговая схема .env (HUB/PROJECT на хост, placeholder); раздел 4: логика helper (HUB по пути gitflicproject на любом хосте); раздел 7: мастер клонирования в 4 шага, remote с актуальностью, логи по хостам; раздел 11: факты GitVerse, баги stdin и sed ERE, факт мульти-push; раздел 12: профиль GitVerse.
+
+Конец документа.
+- 2026-10-07: v2.2 — полное переименование рабочего пространства (Фаза 2 ТЗ-001 v2):
+  локальный путь ~/gitflicProject → ~/gitproject; systemd unit gitflic-workspace.service →
+  gitproject-workspace.service; репозиторий на GitFlic sokol491/gitflicproject → sokol491/gitproject;
+  credential helper: область HUB определяется по пути *gitproject*; все внутренние пути
+  скриптов обновлены; симлинки gitflic-*.sh сохранены для обратной совместимости.
+2026-10-07: v2.2 — полное переименование рабочего пространства (Фаза 2 ТЗ-001 v2):
+локальный путь ~/gitflicProject → ~/gitproject; systemd unit gitflic-workspace.service →
+gitproject-workspace.service; репозиторий на GitFlic sokol491/gitflicproject → sokol491/gitproject;
+все пути в документации обновлены; критерий HUB-области в helper: *gitproject*;
+симлинки gitflic-*.sh сохранены для обратной совместимости.
+2026-10-07: v2.2.1 — зеркало хаба на GitVerse переименовано: Sokol491/gitflicProject →
+Sokol491/gitproject для единообразия с основным репозиторием на GitFlic.
+
+2026-10-07: v2.2.2 — добавлен раздел о регистрозависимости owner на разных Git-хостах.
+GitFlic допускает любой регистр (sokol491 = Sokol491), GitVerse требует точное совпадение
+(Sokol491 с заглавной буквы). Переменная GITVERSE_PROJECT_USER в .env должна содержать
+точное написание из профиля GitVerse.
+2026-10-07: v2.3 — файл переименован в gitproject-workspace-guide.md; симлинки gitflic-*.sh
+удалены (рабочие имена — только git-project-*.sh); строка про порт 8080 удалена;
+упоминания «Прежнее имя» удалены; router.php: forbidden-список обновлён на новое имя файла.
+
+2026-10-07: v2.3.1 — добавлен SourceCraft (sourcecraft.dev) в каталог хостов:
+- Платформа от Яндекса (Yandex B2B Tech) для полного цикла разработки
+- Встроенный ИИ-помощник SourceCraft Code Assistant
+- Глубокая интеграция с Yandex Cloud (развёртывание проектов «по кнопке»)
+- Только облачная версия (без on-premise)
+- Статус: integrating (в процессе интеграции)
+- Реестр ПО РФ: да
+- Удалён несуществующий хост yandex_code (code.yandex.ru)
+2026-10-07: v2.4 — Этап 2 ТЗ-001 v2 завершён: git-project-add-host.sh (wizard, реестр ПО РФ),
+git-project-remove.sh (local/host/all с кодами подтверждения); начат Этап 3:
+git-project-migrate.sh (таблица актуальности, fast-forward/merge -X ours, без force-push,
+код подтверждения MIGRATE-<SRC>-TO-<TGT>); clone.sh: интерактив в stderr, уже добавленные
+remote исключаются из списка wizard.
+
+2026-10-07: v2.5 — начата интеграция SourceCraft (git.sourcecraft.dev):
+- URL клонирования: https://git.sourcecraft.dev/<org>/<repo>.git
+- REST API: api.sourcecraft.tech (заголовок Authorization: Bearer <PAT>)
+- Raw файлы: raw.sourcecraft.tech/raw/<org>/<repo>/<commit>/<path>
+- Дерево файлов: GET https://api.sourcecraft.tech/repos/{org}/{repo}/trees
+- Credential helper: добавлен git.sourcecraft.dev → SOURCECRAFT
+- hosts.json: обновлён url_template для sourcecraft
+- .env.example: добавлен блок SOURCECRAFT_HUB_*/PROJECT_*
+- Статус: integrating (требует получения PAT и тестирования)
+
+2026-10-07: v2.5 — интеграция SourceCraft (git.sourcecraft.dev):
+- URL клонирования: https://git.sourcecraft.dev/<org>/<repo>.git
+- SSH: ssh://ssh.sourcecraft.dev/<org>/<repo>.git
+- REST API: api.sourcecraft.tech (заголовок Authorization: Bearer <PAT>)
+  * GET /repos/{org}/{repo}/trees — дерево файлов
+  * Параметры: revision, path, recursive, page_size, page_token
+- Raw файлы: raw.sourcecraft.tech/raw/<org>/<repo>/<commit>/<path>
+  * Публичные: без токена
+  * Приватные: ?token=<короткоживущий_токен>
+- Credential helper: добавлен git.sourcecraft.dev → SOURCECRAFT
+- hosts.json: обновлён url_template для sourcecraft
+- .env.example: добавлен блок SOURCECRAFT_HUB_*/PROJECT_*
+- Тест: клонирование пустого репозитория sokol491/test прошло успешно
+- Ветка: main → master (STANDARD.md §7)
+- Статус: integrating (требует получения PAT и тестирования REST API)
+
+2026-10-07: v2.6 — SourceCraft (git.sourcecraft.dev) — интеграция подтверждена:
+- Raw-контент работает: https://raw.sourcecraft.tech/raw/<org>/<repo>/<commit_sha>/<file_path>
+  * Публичные репозитории: без токена
+  * Приватные: ?token=<короткоживущий_токен>
+  * Подтверждено: получение README.md из sokol491/test (commit 798c2ff)
+- REST API: api.sourcecraft.tech
+  * Дерево файлов: GET /repos/{org}/{repo}/trees (параметры: revision, path, recursive, page_size, page_token)
+  * Заголовок: Authorization: Bearer <PAT>
+- Git-сервер: git.sourcecraft.dev (HTTPS clone/push)
+- SSH: ssh://ssh.sourcecraft.dev/<org>/<repo>.git
+- Статус: integrating (требует получения PAT для полного тестирования)
+
+2026-10-07: v2.8 — SourceCraft (git.sourcecraft.dev) полностью интегрирован:
+- Credential helper успешно получает токен из .env (SOURCECRAFT_PROJECT_TOKEN)
+- Push на SourceCraft проходит без интерактивного запроса пароля
+- Мульти-хост синхронизация хаба работает на 3 хоста: GitFlic, GitVerse, SourceCraft
+- URL клонирования: https://git.sourcecraft.dev/{owner}/{slug}.git
+- Raw-файлы: https://raw.sourcecraft.tech/raw/<org>/<repo>/<commit>/<path>
+- REST API: https://api.sourcecraft.tech/repos/{org}/{repo}/trees
+- Статус: ready (полная интеграция подтверждена тестом push)
+
+2026-10-27: v2.9 — Итоги релиза 1.0.0:
+- Все P0-задачи эпика #4 выполнены: мультипуш (PR #7), клонирование, remote CRUD, удаление проектов
+- CLI: все 8 скриптов bin/ синтаксически валидны и связаны с API
+- API: все 8 эндпоинтов готовы, JWT-аутентификация через credential helper
+- UI: index.php — полная панель управления (проекты, хосты, миграция, аудит, предпроверки)
+- Безопасность: .env права проверены в sync status; PHP2Shell задокументирован в STANDARD.md
+- hosts.json: GitVerse — ready + is_update_source, GitFlic — status=mirror
+- Базовая структура репозитория проверена: .gitkeep в assets/, data/, config/
+- Известные ограничения 1.0.0 задокументированы в README.md
