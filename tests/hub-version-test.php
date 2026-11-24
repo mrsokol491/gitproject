@@ -123,7 +123,7 @@ function test_screenshot_head_on_tag_equals_master(): void
 function test_screenshot_head_equals_edge_ahead_of_tag(): void
 {
     // HEAD == master, впереди тега 0.1.5: current == edge -> edge скрыта (R3), stable видна.
-    $current = hvCurrentLabel('73a6e4bbbb', null, '0.1.6');
+    $current = hvCurrentLabel('73a6e4bbbb', null, '0.1.6', '');
     $edge = hvEdgeLabel('73a6e4bbbb', '0.1.6', '0.1.6', false);
     $b = hvButtons($current, '0.1.6', $edge);
     assertSame($current, $edge, 'скриншот 2: current совпадает с edge');
