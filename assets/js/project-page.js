@@ -1,5 +1,6 @@
-// project-page.js — страница проекта и баннер обновлений хаба (сайдбар).
-// Сравнение с сервером: один живой блок внутри панели информации (строки версий рисует JS).
+// project-page.js — страница проекта и карточка Hub в сайдбаре.
+// Карточка Hub: текстом только текущая версия; стабильная/edge — на кнопках; у всех кнопок title.
+// Сравнение с сервером: один живой блок внутри панели информации.
 // Взаимоисключение вывода: статус <-> лог операций, коммиты <-> файловый менеджер.
 const slug = document.body.dataset.slug || (() => {
   const m = location.pathname.match(/^\/hub\/project\/([^/]+)\/?$/);
@@ -35,7 +36,7 @@ function hide(id) {
   if (el) { el.hidden = true; }
 }
 
-// --- Баннер обновлений хаба (в сайдбаре) --------------------------------------
+// --- Карточка Hub в сайдбаре ---------------------------------------------------
 async function hubStatus(refresh = false) {
   const box = $('hub-update');
   const text = $('hub-update-text');
@@ -51,17 +52,21 @@ async function hubStatus(refresh = false) {
   const d = r.data;
   const stable = d.stable ? d.stable.label : '—';
   const edge = d.edge ? d.edge.label : '—';
-  text.innerHTML = 'Текущая: <strong>' + escapeHtml(d.current_label) + '</strong>'
-    + ' · Стабильная: <strong>' + escapeHtml(stable) + '</strong>'
-    + ' · Edge: <strong>' + escapeHtml(edge) + '</strong>';
-  if ($('hub-stable')) {
-    $('hub-stable').hidden = !d.stable;
-    $('hub-stable').textContent = '⬇ Стабильная ' + stable;
+  text.innerHTML = 'Текущая: <strong>' + escapeHtml(d.current_label) + '</strong>';
+  const stableBtn = $('hub-stable');
+  if (stableBtn) {
+    stableBtn.hidden = !d.stable;
+    stableBtn.textContent = '⬇ Стабильная ' + stable;
+    stableBtn.title = 'Обновить хаб до стабильной версии ' + stable;
   }
-  if ($('hub-edge')) {
-    $('hub-edge').hidden = !d.edge;
-    $('hub-edge').textContent = '⚠ Edge ' + edge + ' (риск)';
+  const edgeBtn = $('hub-edge');
+  if (edgeBtn) {
+    edgeBtn.hidden = !d.edge;
+    edgeBtn.textContent = '⚠ Edge ' + edge + ' (риск)';
+    edgeBtn.title = 'Нестабильная сборка ' + edge + ' — обновление на свой страх и риск';
   }
+  const checkBtn = $('hub-check');
+  if (checkBtn) { checkBtn.title = 'Проверить обновления хаба на GitVerse (свежий fetch)'; }
 }
 
 async function hubUpdate(channel) {
@@ -99,6 +104,7 @@ if ($('hub-update') && $('hub-check') && $('hub-stable') && $('hub-edge')) {
     rollbackBtn.className = 'btn ws-hub-btn';
     rollbackBtn.id = 'hub-rollback';
     rollbackBtn.textContent = '↩ Откат';
+    rollbackBtn.title = 'Откатить хаб к одной из сохранённых backup-веток (текущее состояние сохранится)';
     wrap.appendChild(rollbackBtn);
     rollbackBtn.addEventListener('click', async () => {
       const r = await api('/api/hub_version.php?action=backups');
