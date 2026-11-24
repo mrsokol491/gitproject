@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 /**
  * API версий хаба: status | refresh | update | backups | rollback.
- * Статус читается из файлов .git без exec; действия делегируются bin-скриптам.
+ * Статус читается из .git; теги resolves через git for-each-ref с peel (%(*objectname)),
+ * иначе аннотированные loose-теги дают SHA tag-объекта и метка деградирует в <tag>-r<hash>.
+ * Файловый разбор packed-refs/loose — fallback, если exec недоступен.
  * Портативно: edge берётся из gitverse, иначе origin, иначе первого remote с tracking-ссылкой.
  * current_label выводится из git: тег на HEAD, иначе <stable>-r<hash6>.
  * data/version.txt — журнал применённого канала (applied_label), не источник истины.
@@ -97,41 +99,60 @@ if ($branch !== null) {
     }
 }
 
-// --- Теги: packed-refs + loose, с peeled-ссылками аннотированных тегов --------
+// --- Теги: имя -> SHA КОММИТА (peel для аннотированных) -----------------------
 $tags = [];
-$peel = [];
-$packed = gitRead($gd, 'packed-refs') ?? '';
-$lastTag = null;
-foreach (explode("\n", $packed) as $line) {
-    $line = trim($line);
-    if (preg_match('/^([0-9a-f]{40})\s+refs\/tags\/(.+)$/', $line, $m) === 1 && !str_ends_with($m[2], '^{}')) {
-        $tags[$m[2]] = $m[1];
-        $lastTag = $m[2];
-        continue;
-    }
-    if ($lastTag !== null && preg_match('/^\^([0-9a-f]{40})$/', $line, $m) === 1) {
-        $peel[$lastTag] = $m[1];
-        $lastTag = null;
-    }
-}
-if (is_dir($gd . '/refs/tags')) {
-    foreach (scandir($gd . '/refs/tags') ?: [] as $t) {
-        if ($t === '.' || $t === '..') {
+$feCmd = 'git -C ' . escapeshellarg($hubRoot) . ' for-each-ref refs/tags --format='
+    . escapeshellarg("%(refname:short)\t%(objectname)\t%(*objectname)") . ' 2>/dev/null';
+$feOut = [];
+$feRc = 0;
+exec($feCmd, $feOut, $feRc);
+if ($feRc === 0 && $feOut !== []) {
+    foreach ($feOut as $line) {
+        $parts = explode("\t", $line);
+        if (count($parts) < 2 || $parts[0] === '' || $parts[1] === '') {
             continue;
         }
-        $sha = refSha($gd, 'refs/tags/' . $t);
-        if ($sha !== null) {
-            $tags[$t] = $sha;
+        $peel = $parts[2] ?? '';
+        $tags[$parts[0]] = $peel !== '' ? $peel : $parts[1];
+    }
+} else {
+    // Fallback без exec: packed-refs с peeled-строками + loose.
+    // Аннотированные loose-теги здесь не peel-ятся (ограничение fallback-пути).
+    $peel = [];
+    $packed = gitRead($gd, 'packed-refs') ?? '';
+    $lastTag = null;
+    foreach (explode("\n", $packed) as $line) {
+        $line = trim($line);
+        if (preg_match('/^([0-9a-f]{40})\s+refs\/tags\/(.+)$/', $line, $m) === 1 && !str_ends_with($m[2], '^{}')) {
+            $tags[$m[2]] = $m[1];
+            $lastTag = $m[2];
+            continue;
+        }
+        if ($lastTag !== null && preg_match('/^\^([0-9a-f]{40})$/', $line, $m) === 1) {
+            $peel[$lastTag] = $m[1];
+            $lastTag = null;
         }
     }
+    if (is_dir($gd . '/refs/tags')) {
+        foreach (scandir($gd . '/refs/tags') ?: [] as $t) {
+            if ($t === '.' || $t === '..') {
+                continue;
+            }
+            $sha = refSha($gd, 'refs/tags/' . $t);
+            if ($sha !== null) {
+                $tags[$t] = $sha;
+            }
+        }
+    }
+    foreach ($peel as $name => $commitSha) {
+        $tags[$name] = $commitSha;
+    }
 }
-$tagCommit = static function (string $t) use ($tags, $peel): string {
-    return $peel[$t] ?? $tags[$t];
-};
+
 $stableTags = array_values(array_filter(array_keys($tags), static fn(string $t): bool => preg_match('/^\d+\.\d+\.\d+$/', $t) === 1));
 usort($stableTags, static fn(string $a, string $b): int => version_compare($b, $a));
 $stableTag = $stableTags[0] ?? null;
-$stableSha = $stableTag !== null ? $tagCommit($stableTag) : null;
+$stableSha = $stableTag !== null ? $tags[$stableTag] : null;
 
 // --- Метки версий -------------------------------------------------------------
 $versionFile  = $hubRoot . '/data/version.txt';
@@ -140,7 +161,7 @@ $currentLabel = '';
 if ($localSha !== null) {
     $tagAtHead = null;
     foreach ($stableTags as $t) {
-        if ($tagCommit($t) === $localSha) {
+        if ($tags[$t] === $localSha) {
             $tagAtHead = $t;
             break;
         }
