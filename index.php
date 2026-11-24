@@ -264,5 +264,48 @@ if (str_starts_with($path, '/hub/project/')) {
     }
 }
 
-// --- Подключаем шаблон -------------------------------------------------------
-include __DIR__ . '/views/home.php';
+// --- Каркас v0.2: счётчики сайдбара, pills, выбор контента --------------------
+$ws_side = ['projects' => count($projects), 'market' => 0, 'pending' => 0, 'hosts' => 0];
+try {
+    require_once __DIR__ . '/lib/marketplace-core.php';
+    $mp = mpDb();
+    $ws_side['market'] = (int) $mp->query('SELECT COUNT(*) FROM mp_items WHERE status = \'approved\'')->fetchColumn();
+    $ws_side['pending'] = (int) $mp->query('SELECT COUNT(*) FROM mp_items WHERE status = \'pending\'')->fetchColumn();
+} catch (Throwable) {
+    // Маркетплейс не инициализирован — счётчики нулевые, страница работает.
+}
+$hostsCfg = json_decode((string) @file_get_contents(__DIR__ . '/config/hosts.json'), true);
+$ws_side['hosts'] = is_array($hostsCfg) ? count($hostsCfg) : 0;
+
+$ws_synced = 0;
+$ws_behind = 0;
+$ws_none = 0;
+foreach ($projects as $p) {
+    if ($p['synced'] === true) {
+        $ws_synced++;
+    } elseif ($p['synced'] === false) {
+        $ws_behind++;
+    } else {
+        $ws_none++;
+    }
+}
+
+if ($project === null) {
+    $ws_page = 'home';
+    $ws_title = 'GitProject Workspace Hub';
+    $ws_crumb = 'Workspace / Проекты';
+    $ws_search_ph = 'Поиск по имени и описанию…';
+    $ws_pills = '<button type="button" class="ws-pill ws-pill--on" data-state="">All <span class="ws-count">' . count($projects) . '</span></button>'
+        . '<button type="button" class="ws-pill" data-state="synced">Synced <span class="ws-count">' . $ws_synced . '</span></button>'
+        . '<button type="button" class="ws-pill" data-state="behind">Updates <span class="ws-count">' . $ws_behind . '</span></button>'
+        . '<button type="button" class="ws-pill" data-state="none">No data <span class="ws-count">' . $ws_none . '</span></button>';
+} else {
+    $ws_page = 'project';
+    $ws_title = $project['name'] . ' · GitProject';
+    $ws_crumb = 'Workspace / <a href="/">Проекты</a> / ' . htmlspecialchars($project['name']);
+    $ws_pills = '';
+    $ws_search_ph = 'Поиск (на главной)';
+}
+$ws_content = __DIR__ . '/views/home.php';
+
+include __DIR__ . '/views/layout.php';

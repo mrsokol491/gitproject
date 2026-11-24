@@ -397,6 +397,7 @@ const hostsToggle = $('hosts-toggle');
 if (hostsToggle) {
   hostsToggle.addEventListener('click', () => {
     const box = $('hosts-box');
+    if (!box) { window.location.href = '/?hosts=1'; return; }
     box.hidden = !box.hidden;
     if (!box.hidden) { hostsLoad(); }
   });

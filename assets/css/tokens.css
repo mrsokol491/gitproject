@@ -1,0 +1,32 @@
+/* tokens.css — дизайн-токены v0.2 (Docker-Desktop-like, палитра со скриншота).
+   Объявлены под именами legacy-переменных: весь хаб перекрашивается без правок компонентов.
+   Шрифты — системный стек (ноль зависимостей, офлайн-LAN). */
+:root {
+  --bg: #0D1117;
+  --bg-gradient: #0D1117;
+  --bg-side: #010409;
+  --card: #161B22;
+  --card-hover: #21262D;
+  --text: #C9D1D9;
+  --muted: #8B949E;
+  --border: #30363D;
+  --primary: #58A6FF;
+  --primary-light: #79B8FF;
+  --primary-glow: rgba(88, 166, 255, 0.25);
+  --success: #2EA043;
+  --warn: #D29922;
+  --danger: #F85149;
+  --radius: 8px;
+  --radius-sm: 6px;
+
+  --ws-side-w: 260px;
+  --ws-side-w-min: 64px;
+  --ws-head-h: 60px;
+  --ws-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --ws-mono: ui-monospace, SFMono-Regular, 'SF Mono', Consolas, monospace;
+}
+
+body { font-family: var(--ws-font); }
+code, pre, .version-tag, .hub-log, .fm-view, .mp-log { font-family: var(--ws-mono); }
+
+::selection { background: rgba(88, 166, 255, 0.35); color: #FFFFFF; }

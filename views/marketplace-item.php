@@ -6,6 +6,7 @@
 <meta name="csrf-token" content="<?= htmlspecialchars($csrf) ?>">
 <title><?= $item !== null ? htmlspecialchars($item['slug']) . ' · Маркетплейс' : 'Не найдено · Маркетплейс' ?></title>
 <link rel="stylesheet" href="/assets/style.css?v=2">
+<link rel="stylesheet" href="/assets/css/tokens.css?v=1">
 </head>
 <body class="mp-body"<?= $item !== null ? ' data-item-id="' . (int) $item['id'] . '"' : '' ?>>
 <div class="mp-shell">

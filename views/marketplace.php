@@ -6,6 +6,7 @@
 <meta name="csrf-token" content="<?= htmlspecialchars($csrf) ?>">
 <title>Маркетплейс · GitProject</title>
 <link rel="stylesheet" href="/assets/style.css?v=2">
+<link rel="stylesheet" href="/assets/css/tokens.css?v=1">
 </head>
 <body class="mp-body">
 <div class="mp-shell">
