@@ -1,6 +1,7 @@
 // project-page.js — страница проекта и карточка Hub в сайдбаре.
-// Карточка Hub: текстом только текущая версия; кнопки stable/edge рисуются из status
-// и дополнительно скрываются в JS, если их метка равна текущей или метке другой кнопки.
+// Карточка Hub: текстом только текущая версия; стабильная/edge — на кнопках.
+// Правило кнопок: Edge показывается только когда предлагает обновление —
+// edge != текущая И edge != стабильная. Иначе остаётся только «Стабильная».
 // Сравнение с сервером: один живой блок внутри панели информации.
 // Взаимоисключение вывода: статус <-> лог операций, коммиты <-> файловый менеджер.
 const slug = document.body.dataset.slug || (() => {
@@ -58,21 +59,16 @@ async function hubStatus(refresh = false) {
   const edgeEqualsStable = Boolean(d.stable && d.edge) && (
     d.edge_equals_stable === true || d.stable.sha === d.edge.sha || d.stable.label === d.edge.label
   );
-  // Уже на стабильной: current_label === stable или is_stable_descendant
-  const isAlreadyStable = d.current_label === stable || d.is_stable_descendant === true;
-  
   text.innerHTML = 'Текущая: <strong>' + escapeHtml(d.current_label) + '</strong>';
   const stableBtn = $('hub-stable');
   if (stableBtn) {
-    stableBtn.hidden = !d.stable || isAlreadyStable;
+    stableBtn.hidden = !d.stable;
     stableBtn.textContent = '⬇ Стабильная ' + stable;
-    stableBtn.title = isAlreadyStable
-      ? 'Файлы уже соответствуют стабильной версии ' + stable
-      : (d.is_downgrade
-        ? 'Файлы будут откатаны к стабильной ' + stable + ' (локально впереди ' + (d.ahead_of_stable || 0) + ' коммитов, они сохранятся в backup)'
-        : (edgeEqualsStable
-          ? 'Стабильная и edge совпадают (' + stable + ') — обновлений вне релиза нет'
-          : 'Обновить хаб до стабильной версии ' + stable));
+    stableBtn.title = d.is_downgrade
+      ? 'Файлы будут откатаны к стабильной ' + stable + ' (локально впереди ' + (d.ahead_of_stable || 0) + ' коммитов, они сохранятся в backup)'
+      : (edgeEqualsStable
+        ? 'Стабильная и edge совпадают (' + stable + ') — обновлений вне релиза нет'
+        : 'Обновить хаб до стабильной версии ' + stable);
   }
   const edgeBtn = $('hub-edge');
   if (edgeBtn) {
@@ -89,8 +85,19 @@ async function hubUpdate(channel) {
   if (channel === 'edge') {
     confirmWord = prompt('Нестабильная версия на ваш страх и риск. Введите EDGE для подтверждения:') || '';
     if (confirmWord !== 'EDGE') { return; }
-  } else if (!window.confirm('Обновить хаб до стабильной версии?')) {
-    return;
+  } else {
+    const s = await api('/api/hub_version.php?action=status');
+    const d = s.ok ? s.data : null;
+    if (d && d.is_downgrade) {
+      const n = d.ahead_of_stable || 0;
+      const msg = 'Это откатит файлы к стабильной версии ' + (d.stable ? d.stable.label : '') + '.\n\n'
+        + 'Локально впереди на ' + n + ' коммит(ов). Они НЕ удаляются: история сохранится в backup, '
+        + 'локальные новые файлы останутся, незакоммиченные правки уйдут в stash.\n\n'
+        + 'Файлы вернутся к релизу. Продолжить?';
+      if (!window.confirm(msg)) { return; }
+    } else if (!window.confirm('Обновить хаб до стабильной версии?')) {
+      return;
+    }
   }
   showLog($('hub-log'), 'Обновление (' + channel + ')...');
   const r = await api('/api/hub_version.php?action=update', {

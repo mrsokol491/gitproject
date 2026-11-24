@@ -5,9 +5,6 @@
 # Логи и приватные данные хаба
 !/data/.gitkeep
 /data/*
-# Assets
-!/assets/.gitkeep
-/assets/*
 # Контейнер репозиториев других проектов
 !/projects/.gitkeep
 /projects/*

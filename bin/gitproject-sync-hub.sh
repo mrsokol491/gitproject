@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # gitproject-sync-hub.sh — мульти-push самого хаба на все настроенные remote.
 # Автоматически добавляет remote из .env, если токен не placeholder.
+# После публикации освежает запись хаба в маркетплейсе (refresh-hub).
 
 set -uo pipefail
 
@@ -139,6 +140,12 @@ main() {
             fi
         fi
     done
+
+    # Маркетплейс: освежить запись хаба сразу после публикации
+    if command -v php >/dev/null 2>&1 && [ -f "$HUB/bin/marketplace.php" ]; then
+        print_info "    Освежаю запись хаба в маркетплейсе..."
+        php "$HUB/bin/marketplace.php" refresh-hub >&2 || true
+    fi
 
     print_header ""
     if [ $fail -eq 0 ]; then

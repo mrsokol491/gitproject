@@ -9,7 +9,6 @@ declare(strict_types=1);
  * current_label выводится из git: тег на HEAD, иначе <stable>-r<hash6>.
  * Аннотированные теги peeled-сравниваются с edge: флаг edge_equals_stable.
  * is_downgrade: HEAD впереди стабильного тега (stable — предок HEAD) — UI покажет предупреждение.
- * is_stable_descendant: HEAD — потомок stable с совпадающими tracked-файлами (после даунгрейда).
  * data/version.txt — журнал применённого канала (applied_label), не источник истины.
  */
 
@@ -144,8 +143,6 @@ $stableSha = $stableTag !== null ? $tagCommit($stableTag) : null;
 $versionFile  = $hubRoot . '/data/version.txt';
 $appliedLabel = is_file($versionFile) ? trim((string) file_get_contents($versionFile)) : '';
 $currentLabel = '';
-$isStableDescendant = false;
-
 if ($localSha !== null) {
     $tagAtHead = null;
     foreach ($stableTags as $t) {
@@ -154,50 +151,10 @@ if ($localSha !== null) {
             break;
         }
     }
-    
-    // Проверка: HEAD — потомок stable с совпадающими tracked-файлами (после даунгрейда)
-    if ($tagAtHead === null && $stableSha !== null && $stableSha !== $localSha) {
-        $cmdAnc = 'git -C ' . escapeshellarg($hubRoot) . ' merge-base --is-ancestor '
-            . escapeshellarg($stableSha) . ' ' . escapeshellarg($localSha) . ' 2>/dev/null';
-        $oAnc = [];
-        $rcAnc = 0;
-        exec($cmdAnc, $oAnc, $rcAnc);
-        if ($rcAnc === 0) {
-            // HEAD — потомок stable. Проверяем, совпадают ли tracked файлы.
-            $cmdDiff = 'git -C ' . escapeshellarg($hubRoot) . ' diff --name-only '
-                . escapeshellarg($stableSha) . ' ' . escapeshellarg($localSha) . ' 2>/dev/null';
-            $oDiff = [];
-            $rcDiff = 0;
-            exec($cmdDiff, $oDiff, $rcDiff);
-            if ($rcDiff === 0) {
-                $hasModifications = false;
-                foreach ($oDiff as $f) {
-                    $f = trim($f);
-                    if ($f === '') continue;
-                    // Проверяем, является ли файл модификацией существующего
-                    $cmdCheck = 'git -C ' . escapeshellarg($hubRoot) . ' cat-file -e '
-                        . escapeshellarg($stableSha . ':' . $f) . ' 2>/dev/null';
-                    $oCheck = [];
-                    $rcCheck = 0;
-                    exec($cmdCheck, $oCheck, $rcCheck);
-                    if ($rcCheck === 0) {
-                        // Файл существовал в stable — это модификация
-                        $hasModifications = true;
-                        break;
-                    }
-                }
-                if (!$hasModifications) {
-                    $isStableDescendant = true;
-                }
-            }
-        }
-    }
-    
-    $currentLabel = $tagAtHead ?? ($isStableDescendant ? $stableTag : ($stableTag !== null ? $stableTag . '-r' . substr($localSha, 0, 6) : substr($localSha, 0, 7)));
+    $currentLabel = $tagAtHead ?? ($stableTag !== null ? $stableTag . '-r' . substr($localSha, 0, 6) : substr($localSha, 0, 7));
 } else {
     $currentLabel = $appliedLabel !== '' ? $appliedLabel : 'неизвестно';
 }
-
 $edgeEqualsStable = $stableSha !== null && $edgeSha !== null && $stableSha === $edgeSha;
 $edgeLabel = $stableTag !== null && $edgeSha !== null
     ? ($edgeEqualsStable ? $stableTag : $stableTag . '-r' . substr($edgeSha, 0, 6))
@@ -236,7 +193,6 @@ if ($action === 'status') {
         'edge'               => $edgeLabel !== null ? ['label' => $edgeLabel, 'sha' => substr((string) $edgeSha, 0, 7)] : null,
         'edge_equals_stable' => $edgeEqualsStable,
         'is_downgrade'       => $isDowngrade,
-        'is_stable_descendant' => $isStableDescendant,
         'ahead_of_stable'    => $aheadOfStable,
         'update_available'   => $edgeSha !== null && $localSha !== null && $edgeSha !== $localSha,
         'note'               => 'current_label выводится из git; applied_label — журнал последнего обновления.',
