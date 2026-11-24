@@ -8,6 +8,7 @@ declare(strict_types=1);
  * $ws_search_ph, $ws_content (путь к шаблону контента), $csrf.
  * Баннер обновлений хаба живёт в сайдбаре под прежними ID (#hub-update и др.),
  * поэтому project-page.js работает без правок.
+ * Стили: tokens.css (палитра) -> style.css (компоненты и вёрстка).
  */
 
 $ws_side = $ws_side ?? ['projects' => 0, 'market' => 0, 'pending' => 0, 'hosts' => 0];
@@ -22,7 +23,7 @@ $ws_search_ph = $ws_search_ph ?? 'Поиск…';
 <meta name="csrf-token" content="<?= htmlspecialchars($csrf ?? '') ?>">
 <title><?= htmlspecialchars($ws_title ?? 'GitProject Workspace Hub') ?></title>
 <link rel="stylesheet" href="/assets/css/tokens.css?v=1">
-<link rel="stylesheet" href="/assets/style.css?v=3">
+<link rel="stylesheet" href="/assets/style.css?v=4">
 </head>
 <body class="ws-body">
 

@@ -1,5 +1,5 @@
-// project-page.js — устойчивая версия: guard'ы на каждый элемент,
-// slug из data-slug ИЛИ из URL /hub/project/<slug>/, модуль не падает при неполной разметке.
+// project-page.js — страница проекта и баннер обновлений хаба (сайдбар).
+// Хосты и токены обслуживает workspace.js (вид hosts).
 const slug = document.body.dataset.slug || (() => {
   const m = location.pathname.match(/^\/hub\/project\/([^/]+)\/?$/);
   return m ? decodeURIComponent(m[1]) : '';
@@ -29,7 +29,7 @@ function showLog(el, text) {
   el.scrollTop = el.scrollHeight;
 }
 
-// --- Баннер обновления хаба -------------------------------------------------
+// --- Баннер обновлений хаба (в сайдбаре) --------------------------------------
 async function hubStatus(refresh = false) {
   const box = $('hub-update');
   const text = $('hub-update-text');
@@ -90,7 +90,7 @@ if ($('hub-update') && $('hub-check') && $('hub-stable') && $('hub-edge')) {
   if (wrap) {
     const rollbackBtn = document.createElement('button');
     rollbackBtn.type = 'button';
-    rollbackBtn.className = 'btn';
+    rollbackBtn.className = 'btn ws-hub-btn';
     rollbackBtn.id = 'hub-rollback';
     rollbackBtn.textContent = '↩ Откат';
     wrap.appendChild(rollbackBtn);
@@ -114,11 +114,9 @@ if ($('hub-update') && $('hub-check') && $('hub-stable') && $('hub-edge')) {
     });
   }
   hubStatus(true);
-} else {
-  console.warn('project-page: баннер #hub-update отсутствует — обновление хаба доступно через CLI');
 }
 
-// --- Кнопки проекта ----------------------------------------------------------
+// --- Кнопки страницы проекта ---------------------------------------------------
 if (slug) {
   document.querySelectorAll('[data-op]').forEach((btn) => {
     btn.addEventListener('click', async () => {
@@ -206,10 +204,10 @@ if (slug) {
     if (!$('fm-box') || !$('fm-list') || !$('fm-crumbs')) { return; }
     fmState.path = path;
     const list = $('fm-list');
-    const view = $('fm-view');
+    const viewEl = $('fm-view');
     $('fm-box').hidden = false;
     if ($('fm-back')) { $('fm-back').hidden = true; }
-    if (view) { view.hidden = true; }
+    if (viewEl) { viewEl.hidden = true; }
     list.hidden = false;
     list.textContent = 'Загрузка…';
     const r = await api('/api/project_actions.php?action=files&slug=' + encodeURIComponent(slug) + '&path=' + encodeURIComponent(path));
@@ -247,14 +245,14 @@ if (slug) {
     if (!row) { return; }
     const path = fmState.path === '' ? row.dataset.name : fmState.path + '/' + row.dataset.name;
     if (row.dataset.dir === '1') { fmLoad(path); return; }
-    const view = $('fm-view');
-    if (!view) { return; }
+    const viewEl = $('fm-view');
+    if (!viewEl) { return; }
     $('fm-list').hidden = true;
     if ($('fm-back')) { $('fm-back').hidden = false; }
-    view.hidden = false;
-    view.textContent = 'Загрузка…';
+    viewEl.hidden = false;
+    viewEl.textContent = 'Загрузка…';
     const r = await api('/api/project_actions.php?action=file&slug=' + encodeURIComponent(slug) + '&path=' + encodeURIComponent(path));
-    view.textContent = r.ok ? r.data.content : '✗ ' + r.error;
+    viewEl.textContent = r.ok ? r.data.content : '✗ ' + r.error;
   });
 
   // --- Мета-данные ---
@@ -288,7 +286,8 @@ if (slug) {
       window.alert('✗ ' + r.error);
     }
   });
-  // --- Баннер обновления проекта (живое сравнение с сервером) ---
+
+  // --- Баннер обновления проекта ---
   const projRemote = document.body.dataset.remote || 'origin';
   async function projCheck(force) {
     const box = $('proj-update');
@@ -351,112 +350,4 @@ if (slug) {
     projCheck(true);
   });
   projCheck(false);
-}
-
-// --- Хосты и API-ключи (главная страница) ---
-let hostCsrf = '';
-async function hostsLoad() {
-  const tbody = document.querySelector('#hosts-table tbody');
-  if (!tbody) { return; }
-  tbody.innerHTML = '<tr><td colspan="6" class="hosts-empty">Загрузка…</td></tr>';
-  const r = await api('/api/hosts_manage.php?action=list');
-  if (!r.ok) {
-    tbody.innerHTML = '<tr><td colspan="6" class="hosts-empty">✗ ' + escapeHtml(r.error) + '</td></tr>';
-    return;
-  }
-  hostCsrf = r.data.csrf || '';
-  tbody.innerHTML = r.data.hosts.map((h) =>
-    '<tr>'
-    + '<td><strong>' + escapeHtml(h.id) + '</strong></td>'
-    + '<td>' + escapeHtml(h.host) + '</td>'
-    + '<td><span class="' + (h.status === 'ready' ? 'mp-cloned' : 'mp-arch') + '">' + escapeHtml(h.status) + '</span></td>'
-    + '<td>' + escapeHtml(h.registry) + '</td>'
-    + '<td>' + (h.configured ? '<span class="mp-cloned">✓ настроен</span>' : '<span class="mp-arch">✗ нет</span>') + '</td>'
-    + '<td class="hosts-actions">'
-    + '<button type="button" class="btn host-edit" data-id="' + escapeHtml(h.id) + '" data-domain="' + escapeHtml(h.host) + '" data-prefix="' + escapeHtml(h.prefix) + '">🔑 Ключ</button> '
-    + '<button type="button" class="btn btn--danger host-del" data-id="' + escapeHtml(h.id) + '">✕</button>'
-    + '</td></tr>'
-  ).join('');
-}
-
-function hostFormOpen(prefill) {
-  const form = $('host-form');
-  form.hidden = false;
-  $('hf-id').value = prefill?.id || '';
-  $('hf-id').disabled = Boolean(prefill);
-  $('hf-domain').value = prefill?.domain || '';
-  $('hf-prefix').value = prefill?.prefix || '';
-  $('hf-user').value = '';
-  $('hf-token').value = '';
-  $('hf-token').placeholder = prefill ? 'API-токен (пусто = не менять)' : 'API-токен';
-  $('hf-msg').textContent = '';
-  $('hf-domain').focus();
-}
-
-const hostsToggle = $('hosts-toggle');
-if (hostsToggle) {
-  hostsToggle.addEventListener('click', () => {
-    const box = $('hosts-box');
-    if (!box) { window.location.href = '/?hosts=1'; return; }
-    box.hidden = !box.hidden;
-    if (!box.hidden) { hostsLoad(); }
-  });
-  $('host-add-open').addEventListener('click', () => hostFormOpen(null));
-  $('hf-cancel').addEventListener('click', () => { $('host-form').hidden = true; });
-  $('hosts-table').addEventListener('click', (ev) => {
-    const edit = ev.target.closest('.host-edit');
-    if (edit) {
-      hostFormOpen({ id: edit.dataset.id, domain: edit.dataset.domain, prefix: edit.dataset.prefix });
-      return;
-    }
-    const del = ev.target.closest('.host-del');
-    if (del) {
-      const id = del.dataset.id;
-      const code = window.prompt('Удаление хоста ' + id + ' сотрёт его ключи из .env.\nВведите DELETE-' + id.toUpperCase() + ':');
-      if (code !== 'DELETE-' + id.toUpperCase()) { return; }
-      api('/api/hosts_manage.php?action=delete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ csrf: hostCsrf, host_id: id, confirm: code }),
-      }).then((r) => {
-        toast(r.ok ? r.data.message : r.error, r.ok);
-        if (r.ok) { hostsLoad(); }
-      });
-    }
-  });
-  $('host-form').addEventListener('submit', (e) => {
-    e.preventDefault();
-    const msg = $('hf-msg');
-    const btn = $('hf-save');
-    btn.disabled = true;
-    msg.textContent = 'Сохранение…';
-    msg.className = 'mp-msg';
-    api('/api/hosts_manage.php?action=add', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        csrf: hostCsrf,
-        host_id: $('hf-id').value.trim(),
-        domain: $('hf-domain').value.trim(),
-        prefix: $('hf-prefix').value.trim().toUpperCase(),
-        registry: $('hf-registry').value,
-        scope: $('hf-scope').value,
-        user: $('hf-user').value.trim(),
-        token: $('hf-token').value,
-      }),
-    }).then((r) => {
-      btn.disabled = false;
-      if (r.ok) {
-        msg.textContent = '✅ ' + r.data.message;
-        msg.className = 'mp-msg mp-msg--ok';
-        $('host-form').hidden = true;
-        hostsLoad();
-        toast(r.data.message);
-      } else {
-        msg.textContent = '✗ ' + r.error;
-        msg.className = 'mp-msg mp-msg--err';
-        toast(r.error, false);
-      }
-    });
-  });
 }

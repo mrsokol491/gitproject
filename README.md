@@ -14,6 +14,7 @@
 + ⚠️ Bitbucket (bitbucket.org) — международный Git-хостинг (в процессе)
 + ⚠️ Gitea (gitea.com) — международный Git-хостинг (в процессе)
 + ⚠️ Forgejo (forgejo.org) — Активно развивающийся community-fork (ответвление) от Gitea (в процессе)
++ ⚠️ GOSH (gosh.sh) — Git Open Source Hodler (в процессе)
 
 
     + ✅ - Интегрирован
