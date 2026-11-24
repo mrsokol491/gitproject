@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 /**
  * API версий хаба: status | refresh | update | backups | rollback.
- * Статус читается из файлов .git; ancestry-проверка базы тега — через git merge-base.
- * current_label: тег на HEAD, иначе <база-тег, достижимый из HEAD>-r<hash6>.
- * Дедупликация кнопок: stable/edge отдаются как null, если их метка равна
- * текущей (no-op) или равна метке другой кнопки (дубль).
+ * Статус читается из файлов .git; peel аннотированных тегов и ancestry — через git.
+ * current_label: тег на HEAD (peeled), иначе <база-тег, достижимый из HEAD>-r<hash6>.
+ * Дедупликация кнопок (правила владельца):
+ *   1) current == stable  -> current без -r, кнопка stable скрыта;
+ *   2) current == edge    -> кнопка edge скрыта;
+ *   3) stable == edge     -> кнопка edge скрыта;
+ *   4) current == stable == edge -> скрыты обе кнопки.
  * data/version.txt — журнал применённого канала (applied_label), не источник истины.
  */
 
@@ -59,6 +62,19 @@ function refSha(string $gd, string $ref): ?string
     return null;
 }
 
+/** Peel тега до коммита: rev-list -n1 (git сам разыменовывает аннотированный тег). */
+function peeledTagSha(string $tag, string $hubRoot): ?string
+{
+    if (!function_exists('exec')) {
+        return null;
+    }
+    $out = [];
+    $rc = 1;
+    exec('git -C ' . escapeshellarg($hubRoot) . ' rev-list -n1 ' . escapeshellarg('refs/tags/' . $tag) . ' 2>/dev/null', $out, $rc);
+    $sha = trim((string) ($out[0] ?? ''));
+    return ($rc === 0 && preg_match('/^[0-9a-f]{40}$/', $sha) === 1) ? $sha : null;
+}
+
 /** Новейший стабильный тег, достижимый из данного SHA (база для -r-метки). */
 function baseTagFor(string $sha, array $stableTags, callable $tagCommit, string $hubRoot, ?string $fallback): ?string
 {
@@ -69,6 +85,9 @@ function baseTagFor(string $sha, array $stableTags, callable $tagCommit, string 
                 break;
             }
             $tc = $tagCommit($t);
+            if ($tc === '') {
+                continue;
+            }
             $out = [];
             $rc = 1;
             exec('git -C ' . escapeshellarg($hubRoot) . ' merge-base --is-ancestor ' . escapeshellarg($tc) . ' ' . escapeshellarg($sha) . ' 2>/dev/null', $out, $rc);
@@ -120,7 +139,7 @@ if ($branch !== null) {
     }
 }
 
-// --- Теги: packed-refs + loose, с peeled-ссылками аннотированных тегов --------
+// --- Теги: packed-refs + loose -------------------------------------------------
 $tags = [];
 $peel = [];
 $packed = gitRead($gd, 'packed-refs') ?? '';
@@ -148,12 +167,18 @@ if (is_dir($gd . '/refs/tags')) {
         }
     }
 }
-$tagCommit = static function (string $t) use ($tags, $peel): string {
-    return $peel[$t] ?? $tags[$t];
-};
 $stableTags = array_values(array_filter(array_keys($tags), static fn(string $t): bool => preg_match('/^\d+\.\d+\.\d+$/', $t) === 1));
 usort($stableTags, static fn(string $a, string $b): int => version_compare($b, $a));
 $stableTag = $stableTags[0] ?? null;
+
+// Peel каждого стабильного тега до коммита (аннотированные loose-теги иначе дают объект тега)
+$commitOf = [];
+foreach ($stableTags as $t) {
+    $commitOf[$t] = peeledTagSha($t, $hubRoot) ?? $peel[$t] ?? $tags[$t];
+}
+$tagCommit = static function (string $t) use ($commitOf, $peel, $tags): string {
+    return $commitOf[$t] ?? $peel[$t] ?? $tags[$t] ?? '';
+};
 $stableSha = $stableTag !== null ? $tagCommit($stableTag) : null;
 
 // --- Метки версий -------------------------------------------------------------
@@ -171,7 +196,7 @@ if ($localSha !== null) {
         }
     }
     if ($tagAtHead !== null) {
-        $currentLabel = $tagAtHead;
+        $currentLabel = $tagAtHead; // HEAD ровно на стабильном теге: метка без -r
     } else {
         $base = baseTagFor($localSha, $stableTags, $tagCommit, $hubRoot, $appliedBase ?? $stableTag);
         $currentLabel = $base !== null ? $base . '-r' . substr($localSha, 0, 6) : substr($localSha, 0, 7);
@@ -207,7 +232,7 @@ if ($action === 'status') {
         'stable'           => $stableOut,
         'edge'             => $edgeOut,
         'update_available' => $edgeSha !== null && $localSha !== null && $edgeSha !== $localSha,
-        'note'             => 'Кнопки скрываются, если их метка равна текущей или метке другой кнопки.',
+        'note'             => 'Тег peel-ится до коммита; кнопки скрываются по правилам 1-4 дедупликации.',
     ]);
 }
 
