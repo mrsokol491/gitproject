@@ -1,7 +1,10 @@
 // project-page.js — страница проекта и карточка Hub в сайдбаре.
 // Карточка Hub: текстом только текущая версия; стабильная/edge — на кнопках.
-// Правило кнопок: Edge показывается только когда предлагает обновление —
-// edge != текущая И edge != стабильная. Иначе остаётся только «Стабильная».
+// Правило кнопок (на SHA, не на метках):
+//   - stable: скрыта, когда current уже на stable (current_label === stable.label)
+//             или когда HEAD — потомок stable с совпадающими файлами (is_stable_descendant).
+//   - edge: скрыта, когда edge.sha === local_sha (уже на edge)
+//           ИЛИ когда edge.sha === stable.sha (edge не предлагает ничего нового).
 // Сравнение с сервером: один живой блок внутри панели информации.
 // Взаимоисключение вывода: статус <-> лог операций, коммиты <-> файловый менеджер.
 const slug = document.body.dataset.slug || (() => {
@@ -54,33 +57,44 @@ async function hubStatus(refresh = false) {
   const d = r.data;
   const stable = d.stable ? d.stable.label : '—';
   const edge = d.edge ? d.edge.label : '—';
-  // Edge имеет смысл только как обновление: не совпадает с текущей и не совпадает со stable.
-  const edgeIsCurrent = Boolean(d.edge) && d.edge.label === d.current_label;
-  const edgeEqualsStable = Boolean(d.stable && d.edge) && (
-    d.edge_equals_stable === true || d.stable.sha === d.edge.sha || d.stable.label === d.edge.label
-  );
-  // Уже на стабильной: current_label === stable или is_stable_descendant
-  const isAlreadyStable = d.current_label === stable || d.is_stable_descendant === true;
-  
+
+  // === ЛОГИКА КНОПОК НА SHA, НЕ НА МЕТКАХ ===
+  // stable скрыта: уже на stable (метка совпадает) или HEAD — потомок stable после даунгрейда
+  const alreadyOnStable = d.current_label === stable;
+  const stableDescendant = d.is_stable_descendant === true;
+  const hideStable = !d.stable || alreadyOnStable || stableDescendant;
+
+  // edge скрыта: edge.sha === local_sha (уже на edge) ИЛИ edge.sha === stable.sha (edge не предлагает нового)
+  const edgeIsCurrent = Boolean(d.edge && d.local_sha) && d.edge.sha === d.local_sha;
+  const edgeEqualsStable = Boolean(d.edge && d.stable) && d.edge.sha === d.stable.sha;
+  const hideEdge = !d.edge || edgeIsCurrent || edgeEqualsStable;
+
   text.innerHTML = 'Текущая: <strong>' + escapeHtml(d.current_label) + '</strong>';
+
   const stableBtn = $('hub-stable');
   if (stableBtn) {
-    stableBtn.hidden = !d.stable || isAlreadyStable;
+    stableBtn.hidden = hideStable;
     stableBtn.textContent = '⬇ Стабильная ' + stable;
-    stableBtn.title = isAlreadyStable
-      ? 'Файлы уже соответствуют стабильной версии ' + stable
-      : (d.is_downgrade
-        ? 'Файлы будут откатаны к стабильной ' + stable + ' (локально впереди ' + (d.ahead_of_stable || 0) + ' коммитов, они сохранятся в backup)'
-        : (edgeEqualsStable
-          ? 'Стабильная и edge совпадают (' + stable + ') — обновлений вне релиза нет'
+    stableBtn.title = stableDescendant
+      ? 'Файлы уже соответствуют стабильной ' + stable + ' (HEAD — потомок релиза)'
+      : (alreadyOnStable
+        ? 'Уже на стабильной версии ' + stable
+        : (d.is_downgrade
+          ? 'Файлы будут откатаны к стабильной ' + stable + ' (локально впереди ' + (d.ahead_of_stable || 0) + ' коммитов, они сохранятся в backup)'
           : 'Обновить хаб до стабильной версии ' + stable));
   }
+
   const edgeBtn = $('hub-edge');
   if (edgeBtn) {
-    edgeBtn.hidden = !d.edge || edgeIsCurrent || edgeEqualsStable;
+    edgeBtn.hidden = hideEdge;
     edgeBtn.textContent = '⚠ Edge ' + edge + ' (риск)';
-    edgeBtn.title = 'Нестабильная сборка ' + edge + ' — обновление на свой страх и риск';
+    edgeBtn.title = edgeIsCurrent
+      ? 'Уже на edge-версии ' + edge
+      : (edgeEqualsStable
+        ? 'Edge совпадает со стабильной ' + stable + ' — отдельная кнопка не нужна'
+        : 'Нестабильная сборка ' + edge + ' — обновление на свой страх и риск');
   }
+
   const checkBtn = $('hub-check');
   if (checkBtn) { checkBtn.title = 'Проверить обновления хаба на GitVerse (свежий fetch)'; }
 }
