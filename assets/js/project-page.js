@@ -1,5 +1,6 @@
 // project-page.js — страница проекта и карточка Hub в сайдбаре.
-// Карточка Hub: текстом только текущая версия; стабильная/edge — на кнопках; у всех кнопок title.
+// Карточка Hub: текстом только текущая версия; кнопки каналов скрываются,
+// когда их целевая версия равна текущей (по SHA или по метке).
 // Сравнение с сервером: один живой блок внутри панели информации.
 // Взаимоисключение вывода: статус <-> лог операций, коммиты <-> файловый менеджер.
 const slug = document.body.dataset.slug || (() => {
@@ -55,13 +56,17 @@ async function hubStatus(refresh = false) {
   text.innerHTML = 'Текущая: <strong>' + escapeHtml(d.current_label) + '</strong>';
   const stableBtn = $('hub-stable');
   if (stableBtn) {
-    stableBtn.hidden = !d.stable;
+    const stableIsCurrent = d.stable !== null
+      && (d.stable.sha === d.local_sha || d.current_label === d.stable.label);
+    stableBtn.hidden = !d.stable || stableIsCurrent;
     stableBtn.textContent = '⬇ Стабильная ' + stable;
     stableBtn.title = 'Обновить хаб до стабильной версии ' + stable;
   }
   const edgeBtn = $('hub-edge');
   if (edgeBtn) {
-    edgeBtn.hidden = !d.edge;
+    const edgeIsCurrent = d.edge !== null
+      && (d.edge.sha === d.local_sha || d.current_label === d.edge.label);
+    edgeBtn.hidden = !d.edge || edgeIsCurrent;
     edgeBtn.textContent = '⚠ Edge ' + edge + ' (риск)';
     edgeBtn.title = 'Нестабильная сборка ' + edge + ' — обновление на свой страх и риск';
   }
@@ -74,7 +79,7 @@ async function hubUpdate(channel) {
   if (channel === 'edge') {
     confirmWord = prompt('Нестабильная версия на ваш страх и риск. Введите EDGE для подтверждения:') || '';
     if (confirmWord !== 'EDGE') { return; }
-  } else if (!window.confirm('Обновить хаб до стабильной версии?')) {
+  } else if (!window.confirm('Обновить хаб до стабильной версии? Если текущая новее — это даунгрейд (откат файлов).')) {
     return;
   }
   showLog($('hub-log'), 'Обновление (' + channel + ')...');
