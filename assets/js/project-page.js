@@ -1,7 +1,7 @@
 // project-page.js — страница проекта и карточка Hub в сайдбаре.
 // Карточка Hub: текстом только текущая версия; стабильная/edge — на кнопках.
-// Edge-кнопка скрывается, когда edge равен stable (флаг edge_equals_stable,
-// совпадение sha или меток) — остаётся только кнопка стабильной версии.
+// Правило кнопок: Edge показывается только когда предлагает обновление —
+// edge != текущая И edge != стабильная. Иначе остаётся только «Стабильная».
 // Сравнение с сервером: один живой блок внутри панели информации.
 // Взаимоисключение вывода: статус <-> лог операций, коммиты <-> файловый менеджер.
 const slug = document.body.dataset.slug || (() => {
@@ -54,10 +54,10 @@ async function hubStatus(refresh = false) {
   const d = r.data;
   const stable = d.stable ? d.stable.label : '—';
   const edge = d.edge ? d.edge.label : '—';
-  const sameVersion = Boolean(d.stable && d.edge) && (
-    d.edge_equals_stable === true
-    || d.stable.sha === d.edge.sha
-    || d.stable.label === d.edge.label
+  // Edge имеет смысл только как обновление: не совпадает с текущей и не совпадает со stable.
+  const edgeIsCurrent = Boolean(d.edge) && d.edge.label === d.current_label;
+  const edgeEqualsStable = Boolean(d.stable && d.edge) && (
+    d.edge_equals_stable === true || d.stable.sha === d.edge.sha || d.stable.label === d.edge.label
   );
   text.innerHTML = 'Текущая: <strong>' + escapeHtml(d.current_label) + '</strong>';
   const stableBtn = $('hub-stable');
@@ -66,13 +66,13 @@ async function hubStatus(refresh = false) {
     stableBtn.textContent = '⬇ Стабильная ' + stable;
     stableBtn.title = d.is_downgrade
       ? 'Файлы будут откатаны к стабильной ' + stable + ' (локально впереди ' + (d.ahead_of_stable || 0) + ' коммитов, они сохранятся в backup)'
-      : (sameVersion
+      : (edgeEqualsStable
         ? 'Стабильная и edge совпадают (' + stable + ') — обновлений вне релиза нет'
         : 'Обновить хаб до стабильной версии ' + stable);
   }
   const edgeBtn = $('hub-edge');
   if (edgeBtn) {
-    edgeBtn.hidden = !d.edge || sameVersion;
+    edgeBtn.hidden = !d.edge || edgeIsCurrent || edgeEqualsStable;
     edgeBtn.textContent = '⚠ Edge ' + edge + ' (риск)';
     edgeBtn.title = 'Нестабильная сборка ' + edge + ' — обновление на свой страх и риск';
   }
