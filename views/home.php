@@ -5,6 +5,7 @@ declare(strict_types=1);
 /**
  * Вид home: таблица проектов; страница проекта — один живой блок сравнения с сервером
  * внутри панели информации (без дублирующего статического блока и без верхнего баннера).
+ * Пустой список: CTA на существующих классах btn/btn--primary (без новых CSS-сущностей).
  */
 
 if ($project === null): ?>
@@ -22,7 +23,7 @@ if ($project === null): ?>
     </thead>
     <?php if ($projects === []): ?>
       <tbody>
-        <tr><td colspan="6" class="ws-empty">📂 В projects/ пока нет репозиториев. <button type="button" class="ws-link-btn" id="empty-go-add">Добавить git →</button></td></tr>
+        <tr><td colspan="6" class="ws-empty">📂 В projects/ пока нет репозиториев. <a class="btn btn--primary" href="/?view=git-add" id="empty-go-add">➕ Добавить git</a></td></tr>
       </tbody>
     <?php else: ?>
       <?php foreach (['PHP', 'Node.js', 'unknown'] as $grp): ?>
