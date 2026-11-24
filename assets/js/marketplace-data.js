@@ -37,6 +37,14 @@ export const MARKET_ITEMS = [
     slug: 'gitproject',
     category: 'dev-tools',
     tags: ['php', 'git', 'workspace'],
-    note: 'Наш хаб: мульти-хост workspace, каналы обновлений stable/edge',
+    note: 'GitProject Workspace Hub - Централизованный хаб для управления, проксирования и изоляции проектов Git.',
+  },
+    {
+    host: 'gitverse',
+    owner: 'Sokol491',
+    slug: 'archive',
+    category: 'dev-tools',
+    tags: ['php', 'workspace'],
+    note: 'Семейный онлайн-архив: карточки персон, галереи фотографий и документов с метаданными, визуализация родословного древа по GEDCOM, админ-панель для ведения данных. Проект рассчитан на работу в домашней сети (LAN).',
   },
 ];
