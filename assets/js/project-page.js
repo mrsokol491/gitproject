@@ -64,9 +64,11 @@ async function hubStatus(refresh = false) {
   if (stableBtn) {
     stableBtn.hidden = !d.stable;
     stableBtn.textContent = '⬇ Стабильная ' + stable;
-    stableBtn.title = sameVersion
-      ? 'Стабильная и edge совпадают (' + stable + ') — обновлений вне релиза нет'
-      : 'Обновить хаб до стабильной версии ' + stable;
+    stableBtn.title = d.is_downgrade
+      ? 'Файлы будут откатаны к стабильной ' + stable + ' (локально впереди ' + (d.ahead_of_stable || 0) + ' коммитов, они сохранятся в backup)'
+      : (sameVersion
+        ? 'Стабильная и edge совпадают (' + stable + ') — обновлений вне релиза нет'
+        : 'Обновить хаб до стабильной версии ' + stable);
   }
   const edgeBtn = $('hub-edge');
   if (edgeBtn) {
@@ -83,8 +85,19 @@ async function hubUpdate(channel) {
   if (channel === 'edge') {
     confirmWord = prompt('Нестабильная версия на ваш страх и риск. Введите EDGE для подтверждения:') || '';
     if (confirmWord !== 'EDGE') { return; }
-  } else if (!window.confirm('Обновить хаб до стабильной версии?')) {
-    return;
+  } else {
+    const s = await api('/api/hub_version.php?action=status');
+    const d = s.ok ? s.data : null;
+    if (d && d.is_downgrade) {
+      const n = d.ahead_of_stable || 0;
+      const msg = 'Это откатит файлы к стабильной версии ' + (d.stable ? d.stable.label : '') + '.\n\n'
+        + 'Локально впереди на ' + n + ' коммит(ов). Они НЕ удаляются: история сохранится в backup, '
+        + 'локальные новые файлы останутся, незакоммиченные правки уйдут в stash.\n\n'
+        + 'Файлы вернутся к релизу. Продолжить?';
+      if (!window.confirm(msg)) { return; }
+    } else if (!window.confirm('Обновить хаб до стабильной версии?')) {
+      return;
+    }
   }
   showLog($('hub-log'), 'Обновление (' + channel + ')...');
   const r = await api('/api/hub_version.php?action=update', {

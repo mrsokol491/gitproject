@@ -4,13 +4,15 @@ declare(strict_types=1);
 
 /**
  * API версий хаба: status | refresh | update | backups | rollback.
- * Адаптер: читает .git, peel тегов и ancestry через git; метки и дедупликацию
- * кнопок считает чистая lib/hub-version.php (правила R1-R4, покрыты тестами).
+ * Статус читается из файлов .git без exec; действия делегируются bin-скриптам.
+ * Портативно: edge берётся из gitverse, иначе origin, иначе первого remote с tracking-ссылкой.
+ * current_label выводится из git: тег на HEAD, иначе <stable>-r<hash6>.
+ * Аннотированные теги peeled-сравниваются с edge: флаг edge_equals_stable.
+ * is_downgrade: HEAD впереди стабильного тега (stable — предок HEAD) — UI покажет предупреждение.
+ * data/version.txt — журнал применённого канала (applied_label), не источник истины.
  */
 
 header('Content-Type: application/json; charset=utf-8');
-
-require __DIR__ . '/../../lib/hub-version.php';
 
 function respond(bool $ok, array $payload, string $error = '', string $code = ''): never
 {
@@ -30,6 +32,7 @@ function stripAnsi(string $text): string
 $hubRoot = dirname(__DIR__, 2);
 $action  = (string) ($_GET['action'] ?? 'status');
 
+// --- Чтение .git без exec ----------------------------------------------------
 function gitRead(string $gd, string $rel): ?string
 {
     $p = $gd . '/' . $rel;
@@ -57,42 +60,6 @@ function refSha(string $gd, string $ref): ?string
     return null;
 }
 
-function peeledTagSha(string $tag, string $hubRoot): ?string
-{
-    if (!function_exists('exec')) {
-        return null;
-    }
-    $out = [];
-    $rc = 1;
-    exec('git -C ' . escapeshellarg($hubRoot) . ' rev-list -n1 ' . escapeshellarg('refs/tags/' . $tag) . ' 2>/dev/null', $out, $rc);
-    $sha = trim((string) ($out[0] ?? ''));
-    return ($rc === 0 && preg_match('/^[0-9a-f]{40}$/', $sha) === 1) ? $sha : null;
-}
-
-function baseTagFor(string $sha, array $stableTags, callable $tagCommit, string $hubRoot, ?string $fallback): ?string
-{
-    if (function_exists('exec')) {
-        $n = 0;
-        foreach ($stableTags as $t) {
-            if ($n++ >= 20) {
-                break;
-            }
-            $tc = $tagCommit($t);
-            if ($tc === '') {
-                continue;
-            }
-            $out = [];
-            $rc = 1;
-            exec('git -C ' . escapeshellarg($hubRoot) . ' merge-base --is-ancestor ' . escapeshellarg($tc) . ' ' . escapeshellarg($sha) . ' 2>/dev/null', $out, $rc);
-            if ($rc === 0) {
-                return $t;
-            }
-        }
-        return null;
-    }
-    return $fallback;
-}
-
 $gd = $hubRoot . '/.git';
 if (!is_dir($gd)) {
     respond(false, [], 'Хаб не является git-репозиторием', 'NOT_GIT');
@@ -104,6 +71,7 @@ $localSha = $branch !== null
     ? refSha($gd, 'refs/heads/' . $branch)
     : (preg_match('/^[0-9a-f]{40}$/', $head) === 1 ? $head : null);
 
+// --- Remote для edge: gitverse -> origin -> первый с tracking-ссылкой ---------
 $config = gitRead($gd, 'config') ?? '';
 preg_match_all('/^\[remote "([^"]+)"\]/m', $config, $rm);
 $remotes = $rm[1] ?? [];
@@ -131,6 +99,7 @@ if ($branch !== null) {
     }
 }
 
+// --- Теги: packed-refs + loose, с peeled-ссылками аннотированных тегов --------
 $tags = [];
 $peel = [];
 $packed = gitRead($gd, 'packed-refs') ?? '';
@@ -156,66 +125,77 @@ if (is_dir($gd . '/refs/tags')) {
         if ($sha !== null) {
             $tags[$t] = $sha;
         }
+        $peeled = refSha($gd, 'refs/tags/' . $t . '^{}');
+        if ($peeled !== null) {
+            $peel[$t] = $peeled;
+        }
     }
 }
+$tagCommit = static function (string $t) use ($tags, $peel): string {
+    return $peel[$t] ?? $tags[$t];
+};
 $stableTags = array_values(array_filter(array_keys($tags), static fn(string $t): bool => preg_match('/^\d+\.\d+\.\d+$/', $t) === 1));
 usort($stableTags, static fn(string $a, string $b): int => version_compare($b, $a));
 $stableTag = $stableTags[0] ?? null;
-
-$commitOf = [];
-foreach ($stableTags as $t) {
-    $commitOf[$t] = peeledTagSha($t, $hubRoot) ?? $peel[$t] ?? $tags[$t];
-}
-$tagCommit = static function (string $t) use ($commitOf, $peel, $tags): string {
-    return $commitOf[$t] ?? $peel[$t] ?? $tags[$t] ?? '';
-};
 $stableSha = $stableTag !== null ? $tagCommit($stableTag) : null;
 
+// --- Метки версий и флаги -----------------------------------------------------
 $versionFile  = $hubRoot . '/data/version.txt';
 $appliedLabel = is_file($versionFile) ? trim((string) file_get_contents($versionFile)) : '';
-$appliedBase  = preg_match('/^(\d+\.\d+\.\d+)/', $appliedLabel, $am) === 1 ? $am[1] : null;
-
-// --- Метки и кнопки: только чистая логика lib/hub-version.php ------------------
-$tagAtHead = null;
+$currentLabel = '';
 if ($localSha !== null) {
+    $tagAtHead = null;
     foreach ($stableTags as $t) {
         if ($tagCommit($t) === $localSha) {
             $tagAtHead = $t;
             break;
         }
     }
+    $currentLabel = $tagAtHead ?? ($stableTag !== null ? $stableTag . '-r' . substr($localSha, 0, 6) : substr($localSha, 0, 7));
+} else {
+    $currentLabel = $appliedLabel !== '' ? $appliedLabel : 'неизвестно';
 }
-$baseTagLocal = $localSha !== null
-    ? baseTagFor($localSha, $stableTags, $tagCommit, $hubRoot, $appliedBase ?? $stableTag)
-    : null;
-$edgeOnStable = ($edgeSha !== null && $stableSha !== null && $edgeSha === $stableSha);
-$baseTagEdge = ($edgeSha !== null && !$edgeOnStable)
-    ? baseTagFor($edgeSha, $stableTags, $tagCommit, $hubRoot, $stableTag)
+$edgeEqualsStable = $stableSha !== null && $edgeSha !== null && $stableSha === $edgeSha;
+$edgeLabel = $stableTag !== null && $edgeSha !== null
+    ? ($edgeEqualsStable ? $stableTag : $stableTag . '-r' . substr($edgeSha, 0, 6))
     : null;
 
-$currentLabel = hvCurrentLabel($localSha, $tagAtHead, $baseTagLocal, $appliedLabel);
-$edgeLabel    = hvEdgeLabel($edgeSha, $baseTagEdge, $stableTag, $edgeOnStable);
-$buttons      = hvButtons($currentLabel, $stableTag, $edgeLabel);
-
-$stableOut = $buttons['stable'] !== null
-    ? ['label' => $buttons['stable'], 'sha' => substr((string) $stableSha, 0, 7)]
-    : null;
-$edgeOut = $buttons['edge'] !== null
-    ? ['label' => $buttons['edge'], 'sha' => substr((string) $edgeSha, 0, 7)]
-    : null;
+// --- is_downgrade: stable — предок HEAD, и HEAD != stable (только чтение, sha валидны) ---
+$isDowngrade = false;
+$aheadOfStable = 0;
+if ($stableSha !== null && $localSha !== null && $stableSha !== $localSha
+    && preg_match('/^[0-9a-f]{40}$/', $stableSha) === 1 && preg_match('/^[0-9a-f]{40}$/', $localSha) === 1) {
+    $cmdAnc = 'git -C ' . escapeshellarg($hubRoot) . ' merge-base --is-ancestor '
+        . escapeshellarg($stableSha) . ' ' . escapeshellarg($localSha) . ' 2>/dev/null';
+    $oAnc = [];
+    $rcAnc = 0;
+    exec($cmdAnc, $oAnc, $rcAnc);
+    if ($rcAnc === 0) {
+        $isDowngrade = true;
+        $cmdCnt = 'git -C ' . escapeshellarg($hubRoot) . ' rev-list --count '
+            . escapeshellarg($stableSha . '..' . $localSha) . ' 2>/dev/null';
+        $oCnt = [];
+        $rcCnt = 0;
+        exec($cmdCnt, $oCnt, $rcCnt);
+        $aheadOfStable = $rcCnt === 0 ? (int) trim(implode('', $oCnt)) : 0;
+    }
+}
 
 // --- GET status ----------------------------------------------------------------
 if ($action === 'status') {
     respond(true, [
-        'branch'           => $branch,
-        'current_label'    => $currentLabel,
-        'applied_label'    => $appliedLabel !== '' ? $appliedLabel : null,
-        'local_sha'        => $localSha !== null ? substr($localSha, 0, 7) : null,
-        'remote'           => $edgeRemote,
-        'stable'           => $stableOut,
-        'edge'             => $edgeOut,
-        'update_available' => $edgeSha !== null && $localSha !== null && $edgeSha !== $localSha,
-        'note'             => 'Метки и дедупликация кнопок: lib/hub-version.php, правила R1-R4, тесты tests/hub-version-test.php.',
+        'branch'             => $branch,
+        'current_label'      => $currentLabel,
+        'applied_label'      => $appliedLabel !== '' ? $appliedLabel : null,
+        'local_sha'          => $localSha !== null ? substr($localSha, 0, 7) : null,
+        'remote'             => $edgeRemote,
+        'stable'             => $stableTag !== null ? ['label' => $stableTag, 'sha' => substr((string) $stableSha, 0, 7)] : null,
+        'edge'               => $edgeLabel !== null ? ['label' => $edgeLabel, 'sha' => substr((string) $edgeSha, 0, 7)] : null,
+        'edge_equals_stable' => $edgeEqualsStable,
+        'is_downgrade'       => $isDowngrade,
+        'ahead_of_stable'    => $aheadOfStable,
+        'update_available'   => $edgeSha !== null && $localSha !== null && $edgeSha !== $localSha,
+        'note'               => 'current_label выводится из git; applied_label — журнал последнего обновления.',
     ]);
 }
 
