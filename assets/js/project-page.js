@@ -1,5 +1,7 @@
-// project-page.js — устойчивая версия: guard'ы на каждый элемент,
-// slug из data-slug ИЛИ из URL /hub/project/<slug>/, модуль не падает при неполной разметке.
+// project-page.js — страница проекта и карточка Hub в сайдбаре.
+// Карточка Hub: текстом только текущая версия; стабильная/edge — на кнопках; у всех кнопок title.
+// Сравнение с сервером: один живой блок внутри панели информации.
+// Взаимоисключение вывода: статус <-> лог операций, коммиты <-> файловый менеджер.
 const slug = document.body.dataset.slug || (() => {
   const m = location.pathname.match(/^\/hub\/project\/([^/]+)\/?$/);
   return m ? decodeURIComponent(m[1]) : '';
@@ -29,7 +31,12 @@ function showLog(el, text) {
   el.scrollTop = el.scrollHeight;
 }
 
-// --- Баннер обновления хаба -------------------------------------------------
+function hide(id) {
+  const el = $(id);
+  if (el) { el.hidden = true; }
+}
+
+// --- Карточка Hub в сайдбаре ---------------------------------------------------
 async function hubStatus(refresh = false) {
   const box = $('hub-update');
   const text = $('hub-update-text');
@@ -45,17 +52,21 @@ async function hubStatus(refresh = false) {
   const d = r.data;
   const stable = d.stable ? d.stable.label : '—';
   const edge = d.edge ? d.edge.label : '—';
-  text.innerHTML = 'Текущая: <strong>' + escapeHtml(d.current_label) + '</strong>'
-    + ' · Стабильная: <strong>' + escapeHtml(stable) + '</strong>'
-    + ' · Edge: <strong>' + escapeHtml(edge) + '</strong>';
-  if ($('hub-stable')) {
-    $('hub-stable').hidden = !d.stable;
-    $('hub-stable').textContent = '⬇ Стабильная ' + stable;
+  text.innerHTML = 'Текущая: <strong>' + escapeHtml(d.current_label) + '</strong>';
+  const stableBtn = $('hub-stable');
+  if (stableBtn) {
+    stableBtn.hidden = !d.stable;
+    stableBtn.textContent = '⬇ Стабильная ' + stable;
+    stableBtn.title = 'Обновить хаб до стабильной версии ' + stable;
   }
-  if ($('hub-edge')) {
-    $('hub-edge').hidden = !d.edge;
-    $('hub-edge').textContent = '⚠ Edge ' + edge + ' (риск)';
+  const edgeBtn = $('hub-edge');
+  if (edgeBtn) {
+    edgeBtn.hidden = !d.edge;
+    edgeBtn.textContent = '⚠ Edge ' + edge + ' (риск)';
+    edgeBtn.title = 'Нестабильная сборка ' + edge + ' — обновление на свой страх и риск';
   }
+  const checkBtn = $('hub-check');
+  if (checkBtn) { checkBtn.title = 'Проверить обновления хаба на GitVerse (свежий fetch)'; }
 }
 
 async function hubUpdate(channel) {
@@ -90,9 +101,10 @@ if ($('hub-update') && $('hub-check') && $('hub-stable') && $('hub-edge')) {
   if (wrap) {
     const rollbackBtn = document.createElement('button');
     rollbackBtn.type = 'button';
-    rollbackBtn.className = 'btn';
+    rollbackBtn.className = 'btn ws-hub-btn';
     rollbackBtn.id = 'hub-rollback';
     rollbackBtn.textContent = '↩ Откат';
+    rollbackBtn.title = 'Откатить хаб к одной из сохранённых backup-веток (текущее состояние сохранится)';
     wrap.appendChild(rollbackBtn);
     rollbackBtn.addEventListener('click', async () => {
       const r = await api('/api/hub_version.php?action=backups');
@@ -114,16 +126,15 @@ if ($('hub-update') && $('hub-check') && $('hub-stable') && $('hub-edge')) {
     });
   }
   hubStatus(true);
-} else {
-  console.warn('project-page: баннер #hub-update отсутствует — обновление хаба доступно через CLI');
 }
 
-// --- Кнопки проекта ----------------------------------------------------------
+// --- Кнопки страницы проекта ---------------------------------------------------
 if (slug) {
   document.querySelectorAll('[data-op]').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const op = btn.dataset.op;
       btn.disabled = true;
+      hide('status-box');
       showLog($('git-log'), op + '...');
       const mode = op === 'merge' ? 'all' : op;
       const remote = op === 'pull' ? (document.body.dataset.remote || 'origin') : '';
@@ -140,6 +151,7 @@ if (slug) {
   on('git-status', 'click', async () => {
     const box = $('status-box');
     if (!box) { return; }
+    hide('git-log');
     box.hidden = false;
     box.textContent = 'Загрузка…';
     const r = await api('/api/project_actions.php?action=status&slug=' + encodeURIComponent(slug));
@@ -158,6 +170,7 @@ if (slug) {
   on('show-commits', 'click', async () => {
     const list = $('commits-list');
     if (!list) { return; }
+    hide('fm-box');
     list.hidden = false;
     list.textContent = 'Загрузка...';
     const r = await api('/api/project_actions.php?action=log&slug=' + encodeURIComponent(slug));
@@ -206,10 +219,10 @@ if (slug) {
     if (!$('fm-box') || !$('fm-list') || !$('fm-crumbs')) { return; }
     fmState.path = path;
     const list = $('fm-list');
-    const view = $('fm-view');
+    const viewEl = $('fm-view');
     $('fm-box').hidden = false;
     if ($('fm-back')) { $('fm-back').hidden = true; }
-    if (view) { view.hidden = true; }
+    if (viewEl) { viewEl.hidden = true; }
     list.hidden = false;
     list.textContent = 'Загрузка…';
     const r = await api('/api/project_actions.php?action=files&slug=' + encodeURIComponent(slug) + '&path=' + encodeURIComponent(path));
@@ -231,7 +244,7 @@ if (slug) {
   on('fm-open', 'click', () => {
     const box = $('fm-box');
     if (!box) { return; }
-    if (box.hidden) { fmLoad(''); } else { box.hidden = true; }
+    if (box.hidden) { hide('commits-list'); fmLoad(''); } else { box.hidden = true; }
   });
   on('fm-crumbs', 'click', (ev) => {
     const c = ev.target.closest('.fm-crumb');
@@ -247,14 +260,14 @@ if (slug) {
     if (!row) { return; }
     const path = fmState.path === '' ? row.dataset.name : fmState.path + '/' + row.dataset.name;
     if (row.dataset.dir === '1') { fmLoad(path); return; }
-    const view = $('fm-view');
-    if (!view) { return; }
+    const viewEl = $('fm-view');
+    if (!viewEl) { return; }
     $('fm-list').hidden = true;
     if ($('fm-back')) { $('fm-back').hidden = false; }
-    view.hidden = false;
-    view.textContent = 'Загрузка…';
+    viewEl.hidden = false;
+    viewEl.textContent = 'Загрузка…';
     const r = await api('/api/project_actions.php?action=file&slug=' + encodeURIComponent(slug) + '&path=' + encodeURIComponent(path));
-    view.textContent = r.ok ? r.data.content : '✗ ' + r.error;
+    viewEl.textContent = r.ok ? r.data.content : '✗ ' + r.error;
   });
 
   // --- Мета-данные ---
@@ -288,7 +301,8 @@ if (slug) {
       window.alert('✗ ' + r.error);
     }
   });
-  // --- Баннер обновления проекта (живое сравнение с сервером) ---
+
+  // --- Единый живой блок сравнения с сервером ---
   const projRemote = document.body.dataset.remote || 'origin';
   async function projCheck(force) {
     const box = $('proj-update');
@@ -302,21 +316,28 @@ if (slug) {
     const pull = $('proj-pull');
     const push = $('proj-push');
     if (d.state === 'no-remote') {
-      text.innerHTML = '⚪ Remote не настроен. Добавьте: <code>bin/git-project-remote.sh ' + escapeHtml(slug) + ' --add &lt;домен&gt;</code>';
+      text.innerHTML = '<div class="sync-status"><span class="sync-icon sync-none">⚪ Remote не настроен</span></div>'
+        + '<p class="mp-stats-note">Добавьте: <code>bin/git-project-remote.sh ' + escapeHtml(slug) + ' --add &lt;домен&gt;</code></p>';
       if (pull) { pull.hidden = true; }
       if (push) { push.hidden = true; }
       return;
     }
     const L = d.local ? d.local.sha + ' · ' + d.local.date : '—';
     const S = d.server ? d.server.sha + ' · ' + d.server.date : '—';
-    let state;
-    if (d.state === 'synced') { state = '🟢 Синхронизировано'; }
-    else if (d.state === 'behind') { state = '🟡 Сервер новее на ' + d.behind + ' коммит(ов) — доступно обновление'; }
-    else if (d.state === 'ahead') { state = '🔴 Локальная новее на ' + d.ahead + ' коммит(ов) — можно опубликовать'; }
-    else if (d.state === 'diverged') { state = '🔴 Истории разошлись: ↓' + d.behind + ' ↑' + d.ahead; }
-    else { state = '⚪ Ветки на сервере нет'; }
-    text.innerHTML = 'Локальная: <strong>' + escapeHtml(L) + '</strong> · Сервер (' + escapeHtml(d.remote) + '): <strong>' + escapeHtml(S) + '</strong><br>' + state
-      + (d.fetched ? '' : ' <span class="mp-fresh">(кэш проверки ≤15 мин; кнопка — свежий fetch)</span>');
+    let cls = 'none';
+    let label = '⚪ Ветки на сервере нет';
+    if (d.state === 'synced') { cls = 'ok'; label = '✅ Синхронизировано'; }
+    else if (d.state === 'behind') { cls = 'warn'; label = '⚠️ Сервер новее на ' + d.behind + ' коммит(ов) — доступно обновление'; }
+    else if (d.state === 'ahead') { cls = 'warn'; label = '⚠️ Локальная новее на ' + d.ahead + ' коммит(ов) — можно опубликовать'; }
+    else if (d.state === 'diverged') { cls = 'warn'; label = '⚠️ Истории разошлись: ↓' + d.behind + ' ↑' + d.ahead; }
+    text.innerHTML = '<div class="version-row">'
+      + '<div class="version-item"><span class="info-label">Локальная' + (d.branch ? ' (' + escapeHtml(d.branch) + ')' : '') + '</span>'
+      + '<span class="info-value version-tag">' + escapeHtml(L) + '</span></div>'
+      + '<div class="version-item"><span class="info-label">Git-сервер' + (d.remote ? ' (' + escapeHtml(d.remote) + ')' : '') + '</span>'
+      + '<span class="info-value version-tag">' + escapeHtml(S) + '</span></div>'
+      + '</div>'
+      + '<div class="sync-status"><span class="sync-icon sync-' + cls + '">' + label + '</span></div>'
+      + (d.fetched ? '' : '<p class="mp-stats-note">Кэш проверки ≤15 мин; кнопка «Проверить сервер» делает свежий fetch.</p>');
     if (pull) {
       pull.hidden = !(d.state === 'behind' || d.state === 'diverged');
       pull.textContent = '⬇ Обновить из сервера (' + d.remote + ')';
@@ -351,111 +372,4 @@ if (slug) {
     projCheck(true);
   });
   projCheck(false);
-}
-
-// --- Хосты и API-ключи (главная страница) ---
-let hostCsrf = '';
-async function hostsLoad() {
-  const tbody = document.querySelector('#hosts-table tbody');
-  if (!tbody) { return; }
-  tbody.innerHTML = '<tr><td colspan="6" class="hosts-empty">Загрузка…</td></tr>';
-  const r = await api('/api/hosts_manage.php?action=list');
-  if (!r.ok) {
-    tbody.innerHTML = '<tr><td colspan="6" class="hosts-empty">✗ ' + escapeHtml(r.error) + '</td></tr>';
-    return;
-  }
-  hostCsrf = r.data.csrf || '';
-  tbody.innerHTML = r.data.hosts.map((h) =>
-    '<tr>'
-    + '<td><strong>' + escapeHtml(h.id) + '</strong></td>'
-    + '<td>' + escapeHtml(h.host) + '</td>'
-    + '<td><span class="' + (h.status === 'ready' ? 'mp-cloned' : 'mp-arch') + '">' + escapeHtml(h.status) + '</span></td>'
-    + '<td>' + escapeHtml(h.registry) + '</td>'
-    + '<td>' + (h.configured ? '<span class="mp-cloned">✓ настроен</span>' : '<span class="mp-arch">✗ нет</span>') + '</td>'
-    + '<td class="hosts-actions">'
-    + '<button type="button" class="btn host-edit" data-id="' + escapeHtml(h.id) + '" data-domain="' + escapeHtml(h.host) + '" data-prefix="' + escapeHtml(h.prefix) + '">🔑 Ключ</button> '
-    + '<button type="button" class="btn btn--danger host-del" data-id="' + escapeHtml(h.id) + '">✕</button>'
-    + '</td></tr>'
-  ).join('');
-}
-
-function hostFormOpen(prefill) {
-  const form = $('host-form');
-  form.hidden = false;
-  $('hf-id').value = prefill?.id || '';
-  $('hf-id').disabled = Boolean(prefill);
-  $('hf-domain').value = prefill?.domain || '';
-  $('hf-prefix').value = prefill?.prefix || '';
-  $('hf-user').value = '';
-  $('hf-token').value = '';
-  $('hf-token').placeholder = prefill ? 'API-токен (пусто = не менять)' : 'API-токен';
-  $('hf-msg').textContent = '';
-  $('hf-domain').focus();
-}
-
-const hostsToggle = $('hosts-toggle');
-if (hostsToggle) {
-  hostsToggle.addEventListener('click', () => {
-    const box = $('hosts-box');
-    box.hidden = !box.hidden;
-    if (!box.hidden) { hostsLoad(); }
-  });
-  $('host-add-open').addEventListener('click', () => hostFormOpen(null));
-  $('hf-cancel').addEventListener('click', () => { $('host-form').hidden = true; });
-  $('hosts-table').addEventListener('click', (ev) => {
-    const edit = ev.target.closest('.host-edit');
-    if (edit) {
-      hostFormOpen({ id: edit.dataset.id, domain: edit.dataset.domain, prefix: edit.dataset.prefix });
-      return;
-    }
-    const del = ev.target.closest('.host-del');
-    if (del) {
-      const id = del.dataset.id;
-      const code = window.prompt('Удаление хоста ' + id + ' сотрёт его ключи из .env.\nВведите DELETE-' + id.toUpperCase() + ':');
-      if (code !== 'DELETE-' + id.toUpperCase()) { return; }
-      api('/api/hosts_manage.php?action=delete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ csrf: hostCsrf, host_id: id, confirm: code }),
-      }).then((r) => {
-        toast(r.ok ? r.data.message : r.error, r.ok);
-        if (r.ok) { hostsLoad(); }
-      });
-    }
-  });
-  $('host-form').addEventListener('submit', (e) => {
-    e.preventDefault();
-    const msg = $('hf-msg');
-    const btn = $('hf-save');
-    btn.disabled = true;
-    msg.textContent = 'Сохранение…';
-    msg.className = 'mp-msg';
-    api('/api/hosts_manage.php?action=add', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        csrf: hostCsrf,
-        host_id: $('hf-id').value.trim(),
-        domain: $('hf-domain').value.trim(),
-        prefix: $('hf-prefix').value.trim().toUpperCase(),
-        registry: $('hf-registry').value,
-        scope: $('hf-scope').value,
-        user: $('hf-user').value.trim(),
-        token: $('hf-token').value,
-      }),
-    }).then((r) => {
-      btn.disabled = false;
-      if (r.ok) {
-        msg.textContent = '✅ ' + r.data.message;
-        msg.className = 'mp-msg mp-msg--ok';
-        $('host-form').hidden = true;
-        hostsLoad();
-        toast(r.data.message);
-      } else {
-        msg.textContent = '✗ ' + r.error;
-        msg.className = 'mp-msg mp-msg--err';
-        toast(r.error, false);
-      }
-    });
-  });
 }

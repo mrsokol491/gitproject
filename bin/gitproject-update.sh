@@ -1,32 +1,18 @@
 #!/usr/bin/env bash
 # gitproject-update.sh — обновление хаба из GitVerse: stable (релиз-тег) или edge (master).
-# Обновление: merge -X theirs. Даунгрейд: только с явным --allow-downgrade.
+# Обновление: merge -X theirs. Даунгрейд: общие файлы к цели, локальные новые сохраняются.
 # Идемпотентность: общие файлы совпадают → только метка версии. Backup + stash. Без force-push.
 # Портативно: remote gitverse создаётся сам; origin на GitVerse используется как есть.
-# Identity-guard: repo-local user.name/email, если глобальный не настроен (новые устройства).
 set -euo pipefail
 HUB="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 REMOTE="gitverse"; REMOTE_URL="https://gitverse.ru/Sokol491/gitproject.git"; BRANCH="master"
-CHANNEL="${1:-stable}"; ASSUME_YES=0; ALLOW_DOWNGRADE=0
-for a in "$@"; do
-  [ "$a" = "--yes" ] && ASSUME_YES=1
-  [ "$a" = "--allow-downgrade" ] && ALLOW_DOWNGRADE=1
-done
+CHANNEL="${1:-stable}"; ASSUME_YES=0
+[ "${2:-}" = "--yes" ] && ASSUME_YES=1
 log(){ printf '%s\n' "$*" >&2; }
 die(){ log "✗ ОШИБКА: $*"; exit 1; }
-refresh_marketplace_hub() {
-  if command -v php >/dev/null 2>&1 && [ -f "$HUB/bin/marketplace.php" ]; then
-    php "$HUB/bin/marketplace.php" refresh-hub >&2 || true
-  fi
-}
 case "$CHANNEL" in stable|edge) ;; *) die "канал: stable|edge" ;; esac
 cd -- "$HUB"
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 || die "не git-репозиторий"
-if ! git config user.email >/dev/null 2>&1 || ! git config user.name >/dev/null 2>&1; then
-  git config user.name "GitProject Hub"
-  git config user.email "hub@localhost"
-  log "ℹ repo-local git identity задан (глобальный не настроен)"
-fi
 if git remote get-url "$REMOTE" >/dev/null 2>&1; then
   CUR="$(git remote get-url "$REMOTE")"
   if [ "$CUR" != "$REMOTE_URL" ]; then
@@ -72,18 +58,12 @@ if [ -z "$COMMON_DIFF" ] && [ -z "$DIRTY" ]; then
   mkdir -p "$HUB/data"
   printf '%s\n' "$TARGET_LABEL" > "$HUB/data/version.txt"
   log "✓ Уже на $TARGET_LABEL (общие файлы совпадают), метка записана"
-  refresh_marketplace_hub
   exit 0
 fi
 DOWNGRADE=0
 if [ "$IS_ANCESTOR" -eq 1 ]; then
   DOWNGRADE=1
-fi
-if [ "$DOWNGRADE" -eq 1 ] && [ "$ALLOW_DOWNGRADE" -eq 0 ]; then
-  die "ДАУНГРЕЙД заблокирован: текущая версия новее $TARGET_LABEL. Кнопка «Стабильная» на машине разработки откатывает файлы. Если откат действительно нужен: bin/gitproject-update.sh stable --yes --allow-downgrade"
-fi
-if [ "$DOWNGRADE" -eq 1 ]; then
-  log "⚠ Даунгрейд (разрешён флагом): общие файлы вернутся к цели, локальные новые сохранятся"
+  log "⚠ Даунгрейд: $TARGET_LABEL старше HEAD — общие файлы вернутся к цели, локальные новые сохранятся"
 fi
 if [ "$ASSUME_YES" -ne 1 ]; then
   [ -t 0 ] || die "нужен --yes без tty"
@@ -124,4 +104,3 @@ fi
 mkdir -p "$HUB/data"
 printf '%s\n' "$TARGET_LABEL" > "$HUB/data/version.txt"
 log "✓ Обновлено до $TARGET_LABEL ($(git rev-parse --short=7 HEAD)), backup: $BACKUP"
-refresh_marketplace_hub
