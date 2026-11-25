@@ -7,19 +7,18 @@
 + ✅ GitVerse (gitverse.ru) — платформа от Сбера (реестр ПО РФ)
 + ✅ GitFlic (gitflic.ru) — платформа от Астра (реестр ПО РФ)
 + ✅ SourceCraft (sourcecraft.dev) — платформа от Яндекса (реестр ПО РФ)
-+ ✅ GitHub (github.com) — международный Git-хостинг (в процессе)
-+ ✅ Mos.hub (hub.mos.ru) — Московская облачная платформа с ИИ-ассистентом «КоДИТ» и антивирусным сканированием (в процессе)
-+ ✅ GitLab (gitlab.com) — международный Git-хостинг (в процессе)
-+ ⚠️ Bitbucket (bitbucket.org) — международный Git-хостинг (в процессе)
-+ ⚠️ Gitea (gitea.com) — международный Git-хостинг (в процессе)
-+ ⚠️ Forgejo (forgejo.org) — Активно развивающийся community-fork (ответвление) от Gitea (в процессе)
-+ ⚠️ GOSH (gosh.sh) — Git Open Source Hodler (в процессе)
++ ✅ Mos.hub (hub.mos.ru) — Московская облачная платформа с ИИ-ассистентом «КоДИТ» и антивирусным сканированием (реестр ПО РФ)
++ ✅ GitHub (github.com) — международный Git-хостинг
++ ✅ GitLab (gitlab.com) — международный Git-хостинг
++ ⚠️ Сodeberg (codeberg.org) — международный Git-хостинг
++ ⚠️ Gitea (gitea.com) — международный Git-хостинг
++ ❌ GOSH (gosh.sh) — Git Open Source Hodler, международный Git-хостинг
++ ❌ Bitbucket (bitbucket.org) — международный Git-хостинг
 
 
     + ✅ - Интегрирован
     + ⚠️ - В процессе интеграции
-
-- индекс проектов, прокси-роутер в docroot проектов, скрипты синхронизации/публикации/аудита, credential helper.
+    + ❌ - На данный момент интеграция не планируется
 
 **Основной репозиторий:** 
 + GitVerse: https://gitverse.ru/Sokol491/gitproject
@@ -33,6 +32,7 @@
 + ✅ GitHub: https://github.com/mrsokol491/gitproject
 + ✅ Mos.hub: https://hub.mos.ru/mrsokol491/gitproject
 + ✅ GitLab: https://gitlab.com/sokol491/gitproject
++ ⚠️ Сodeberg: https://codeberg.org/mrsokol491/gitproject
 
 
 ## Установка (новое устройство / новый пользователь)

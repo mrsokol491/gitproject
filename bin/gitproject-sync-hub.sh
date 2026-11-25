@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # gitproject-sync-hub.sh — мульти-push самого хаба на все настроенные remote.
 # Автоматически добавляет remote из .env, если токен не placeholder.
-# FIX: .env парсится построчно (key=${line%%=*}, value=${line#*=}); раньше IFS='='
-# отрезал значение от key и regex не совпадал — remote не добавлялись никогда.
+# --tag <version> "<message>" создаёт аннотированный тег и пушит его на все remote
+#   после обычного push (если есть изменения) или без него (если каталог чист).
+# Пример: ~/gitproject/bin/gitproject-sync-hub.sh --tag 0.1.9 "Добавлена поддержка Mos.Hub"
 
 set -uo pipefail
 
@@ -74,6 +75,42 @@ ensure_remotes_from_env() {
 }
 
 # ============================================================================
+# Push тега на все remote
+# ============================================================================
+
+push_tag_to_all_remotes() {
+    local tag="$1"
+    local -a remotes=("$@")
+    # Первый элемент массива — это tag, удаляем его из списка remote
+    remotes=("${remotes[@]:1}")
+
+    if [ ${#remotes[@]} -eq 0 ]; then
+        print_warn "    Нет remote для push тега $tag"
+        return 1
+    fi
+
+    print_info "    Публикация тега: $tag"
+    local success=0 fail=0
+    for remote in "${remotes[@]}"; do
+        print_info "    Тег $tag -> $remote"
+        if git push "$remote" "$tag" 2>/dev/null; then
+            print_success "    ✓ УСПЕХ: tag $tag -> $remote"
+            success=$((success + 1))
+        else
+            print_error "    ✗ Ошибка push тега на $remote"
+            fail=$((fail + 1))
+        fi
+    done
+
+    if [ "$fail" -eq 0 ]; then
+        print_success "    Тег $tag опубликован на $success remote"
+    else
+        print_warn "    Тег $tag: $success успешно, $fail ошибок"
+    fi
+    return $fail
+}
+
+# ============================================================================
 # Главная функция
 # ============================================================================
 
@@ -82,12 +119,34 @@ main() {
     cd "$HUB" || exit 2
     [ -d ".git" ] || { print_error "Хаб не является git-репозиторием"; exit 2; }
 
+    # --- Парсинг аргументов ---
+    TAG_VERSION=""
+    TAG_MESSAGE=""
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --tag)
+                TAG_VERSION="${2:-}"
+                TAG_MESSAGE="${3:-}"
+                if [ -z "$TAG_VERSION" ] || [ -z "$TAG_MESSAGE" ]; then
+                    print_error "Использование: --tag <version> \"<message>\""
+                    exit 2
+                fi
+                shift 3
+                ;;
+            *)
+                print_error "Неизвестный аргумент: $1"
+                exit 2
+                ;;
+        esac
+    done
+
     local branch
     branch="$(git branch --show-current 2>/dev/null)"
     [ -n "$branch" ] || { print_error "Не определена текущая ветка"; exit 2; }
 
     print_header "==> Мульти-push хаба (все remote)"
     print_info "    Ветка: $branch"
+    [ -n "$TAG_VERSION" ] && print_info "    Тег: $TAG_VERSION — $TAG_MESSAGE"
 
     print_info "    Проверяю remote из .env..."
     ensure_remotes_from_env "$HUB"
@@ -103,6 +162,8 @@ main() {
     fi
     print_info "    Remote: ${remotes[*]}"
 
+    # --- Коммит и push ветки ---
+    local branch_pushed=0
     if [ -n "$(git status --porcelain)" ]; then
         print_info "    Коммит локальных изменений..."
         git add -A
@@ -118,27 +179,55 @@ main() {
         fi
         git commit -q -m "sync: gitproject hub $(date +%Y-%m-%d_%H:%M)"
         print_success "    ✓ Коммит создан"
+
+        local success=0 fail=0
+        for remote in "${remotes[@]}"; do
+            print_info ""
+            print_info "    Публикация: $branch -> $remote"
+            if git push "$remote" "$branch" 2>&1 | grep -E "Writing objects|up-to-date|fast-forward|remote: Updating references" >/dev/null; then
+                print_success "    ✓ УСПЕХ: hub/$branch -> $remote"
+                success=$((success + 1))
+            else
+                if git push "$remote" "$branch" 2>/dev/null; then
+                    print_success "    ✓ УСПЕХ: hub/$branch -> $remote"
+                    success=$((success + 1))
+                else
+                    print_error "    ✗ Ошибка push на $remote"
+                    fail=$((fail + 1))
+                fi
+            fi
+        done
+        branch_pushed=1
+
+        if [ "$fail" -gt 0 ]; then
+            print_warn "    Мульти-push ветки с ошибками: $success успешно, $fail ошибок"
+            # Не пушим тег, если ветка не ушла полностью — тег повиснет в воздухе
+            if [ -n "$TAG_VERSION" ]; then
+                print_warn "    Тег $TAG_VERSION не опубликован из-за ошибок push ветки"
+            fi
+        else
+            print_success "    Мульти-push ветки завершён: $success remote"
+        fi
     else
         print_gray "    Рабочий каталог чист"
     fi
 
-    local success=0 fail=0
-    for remote in "${remotes[@]}"; do
+    # --- Создание и push тега ---
+    if [ -n "$TAG_VERSION" ]; then
         print_info ""
-        print_info "    Публикация: $branch -> $remote"
-        if git push "$remote" "$branch" 2>&1 | grep -E "Writing objects|up-to-date|fast-forward|remote: Updating references" >/dev/null; then
-            print_success "    ✓ УСПЕХ: hub/$branch -> $remote"
-            success=$((success + 1))
+        if git rev-parse "$TAG_VERSION" >/dev/null 2>&1; then
+            print_warn "    Тег $TAG_VERSION уже существует — пропускаю создание"
         else
-            if git push "$remote" "$branch" 2>/dev/null; then
-                print_success "    ✓ УСПЕХ: hub/$branch -> $remote"
-                success=$((success + 1))
+            print_info "    Создаю аннотированный тег: $TAG_VERSION"
+            if GIT_COMMITTER_DATE="$(date)" git tag -a "$TAG_VERSION" -m "$TAG_MESSAGE"; then
+                print_success "    ✓ Тег $TAG_VERSION создан"
             else
-                print_error "    ✗ Ошибка push на $remote"
-                fail=$((fail + 1))
+                print_error "    ✗ Не удалось создать тег $TAG_VERSION"
+                exit 1
             fi
         fi
-    done
+        push_tag_to_all_remotes "$TAG_VERSION" "${remotes[@]}"
+    fi
 
     # Маркетплейс: освежить запись хаба после публикации (если CLI ещё существует)
     if command -v php >/dev/null 2>&1 && [ -f "$HUB/bin/marketplace.php" ]; then
@@ -146,13 +235,7 @@ main() {
         php "$HUB/bin/marketplace.php" refresh-hub >&2 || true
     fi
 
-    print_header ""
-    if [ "$fail" -eq 0 ]; then
-        print_success "    Мульти-push хаба завершён: $success remote"
-    else
-        print_warn "    Мульти-push хаба с ошибками: $success успешно, $fail ошибок"
-    fi
-    exit $fail
+    exit 0
 }
 
 main "$@"
