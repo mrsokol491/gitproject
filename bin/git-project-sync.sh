@@ -12,7 +12,8 @@
 
 set -uo pipefail
 
-source "$HOME/gitproject/bin/lib/common.sh"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/common.sh"
 
 # ============================================================================
 # Автоматическое добавление remote проекта из .env
@@ -20,7 +21,7 @@ source "$HOME/gitproject/bin/lib/common.sh"
 ensure_project_remotes_from_env() {
     local repo="$1" slug="$2"
     local added=0
-    local env_file="$HOME/gitproject/.env"
+    local env_file="$HUB_ROOT/.env"
     local line key value prefix token host_id domain url_template owner_var owner url remote_name
 
     while IFS= read -r line || [ -n "$line" ]; do
@@ -44,9 +45,9 @@ ensure_project_remotes_from_env() {
             host_id="$(printf '%s' "$prefix" | tr '[:upper:]' '[:lower:]')"
             domain=""
             url_template=""
-            if [ -f "$HOME/gitproject/config/hosts.json" ]; then
-                domain="$(jq -r --arg id "$host_id" '.[$id].host // empty' "$HOME/gitproject/config/hosts.json" 2>/dev/null)"
-                url_template="$(jq -r --arg id "$host_id" '.[$id].url_template // empty' "$HOME/gitproject/config/hosts.json" 2>/dev/null)"
+            if [ -f "$HUB_ROOT/config/hosts.json" ]; then
+                domain="$(jq -r --arg id "$host_id" '.[$id].host // empty' "$HUB_ROOT/config/hosts.json" 2>/dev/null)"
+                url_template="$(jq -r --arg id "$host_id" '.[$id].url_template // empty' "$HUB_ROOT/config/hosts.json" 2>/dev/null)"
             fi
             [ -z "$domain" ] && continue
             [ -z "$url_template" ] && continue
