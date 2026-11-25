@@ -219,7 +219,9 @@ main() {
             print_warn "    Тег $TAG_VERSION уже существует — пропускаю создание"
         else
             print_info "    Создаю аннотированный тег: $TAG_VERSION"
-            if GIT_COMMITTER_DATE="$(date)" git tag -a "$TAG_VERSION" -m "$TAG_MESSAGE"; then
+            # Убран GIT_COMMITTER_DATE="$(date)", так как date в русской локали ломает парсер Git.
+            # Git сам подставит корректную текущую дату и время.
+            if git tag -a "$TAG_VERSION" -m "$TAG_MESSAGE"; then
                 print_success "    ✓ Тег $TAG_VERSION создан"
             else
                 print_error "    ✗ Не удалось создать тег $TAG_VERSION"
