@@ -4,10 +4,10 @@
 # Не зависит от /home/user/gitproject — корректно работает в ~/СавинМихаил/gitproject и т.п.
 
 # --- Динамическое определение корня репозитория ---
+# SCRIPT_DIR = /path/to/repo/bin/lib (где лежит этот файл)
+# HUB_ROOT должен быть на два уровня выше: /path/to/repo
 if [ -z "${HUB_ROOT:-}" ]; then
     SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-    # SCRIPT_DIR = /path/to/repo/bin
-    # HUB_ROOT должен быть на уровень выше: /path/to/repo
     HUB_ROOT="$(cd -- "$SCRIPT_DIR/../.." && pwd)"
     export HUB_ROOT
 fi
@@ -15,6 +15,29 @@ fi
 # PROJECTS_DIR всегда равен HUB_ROOT/projects, без лишних вложенностей
 PROJECTS_DIR="${HUB_ROOT}/projects"
 export PROJECTS_DIR
+
+# --- Цветовые переменные (ANSI) ---
+# Используются скриптами напрямую: echo "${BLUE}текст${NC}"
+# Функции print_* ниже используют те же коды, но инкапсулированно.
+if [ -t 1 ]; then
+    BOLD='\033[1m'
+    NC='\033[0m'
+    RESET='\033[0m'
+    BLACK='\033[30m'
+    RED='\033[31m'
+    GREEN='\033[32m'
+    YELLOW='\033[33m'
+    BLUE='\033[34m'
+    MAGENTA='\033[35m'
+    CYAN='\033[36m'
+    WHITE='\033[37m'
+    GRAY='\033[90m'
+else
+    # Без терминала — без цвета (лог-файлы, cron, pipe)
+    BOLD=''; NC=''; BLACK=''; RED=''; GREEN=''; YELLOW=''
+    BLUE=''; MAGENTA=''; CYAN=''; WHITE=''; GRAY=''
+fi
+export BOLD NC RESET BLACK RED GREEN YELLOW BLUE MAGENTA CYAN WHITE GRAY
 
 # --- Загрузка .env (построчный парсинг, без IFS='=') ---
 load_env() {
@@ -30,12 +53,12 @@ load_env() {
 }
 
 # --- Функции вывода с ANSI-кодами ---
-print_info()   { printf '\033[34mℹ %s\033[0m\n' "$*"; }
-print_success(){ printf '\033[32m✓ %s\033[0m\n' "$*"; }
-print_warn()   { printf '\033[33m⚠ %s\033[0m\n' "$*"; }
-print_error()  { printf '\033[31m✗ %s\033[0m\n' "$*" >&2; }
-print_header() { printf '\n\033[1;36m%s\033[0m\n' "$*"; }
-print_gray()   { printf '\033[90m%s\033[0m\n' "$*"; }
+print_info()    { printf '\033[34mℹ %s\033[0m\n' "$*"; }
+print_success() { printf '\033[32m✓ %s\033[0m\n' "$*"; }
+print_warn()    { printf '\033[33m⚠ %s\033[0m\n' "$*"; }
+print_error()   { printf '\033[31m✗ %s\033[0m\n' "$*" >&2; }
+print_header()  { printf '\n\033[1;36m%s\033[0m\n' "$*"; }
+print_gray()    { printf '\033[90m%s\033[0m\n' "$*"; }
 
 # --- Получение списка remote проекта ---
 get_project_remotes() {
