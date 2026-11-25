@@ -8,7 +8,7 @@
 + ✅ GitFlic (gitflic.ru) — платформа от Астра (реестр ПО РФ)
 + ✅ SourceCraft (sourcecraft.dev) — платформа от Яндекса (реестр ПО РФ)
 + ✅ GitHub (github.com) — международный Git-хостинг (в процессе)
-+ ⚠️ Mos.hub (Mos.hub) — Московская облачная платформа с ИИ-ассистентом «КоДИТ» и антивирусным сканированием (в процессе)
++ ⚠️ Mos.hub (hub.mos.ru) — Московская облачная платформа с ИИ-ассистентом «КоДИТ» и антивирусным сканированием (в процессе)
 + ⚠️ GitLab (gitlab.com) — международный Git-хостинг (в процессе)
 + ⚠️ Bitbucket (bitbucket.org) — международный Git-хостинг (в процессе)
 + ⚠️ Gitea (gitea.com) — международный Git-хостинг (в процессе)
@@ -21,12 +21,18 @@
 
 - индекс проектов, прокси-роутер в docroot проектов, скрипты синхронизации/публикации/аудита, credential helper.
 
-- **Основной репозиторий:** https://gitverse.ru/Sokol491/gitproject
-- **Зеркало:** https://gitflic.ru/project/sokol491/gitproject
-- Локальный путь: ~/gitproject
+**Основной репозиторий:** 
++ GitVerse: https://gitverse.ru/Sokol491/gitproject
 
-Правила разработки: STANDARD.md (приоритетный документ).
-Эксплуатация: gitproject-workspace-guide.md (порты, systemd, git-доступ, changelog).
+**Локальный путь:**
++ ~/gitproject
+
+**Список зеркал:** 
++ ✅ GitFlic: https://gitflic.ru/project/sokol491/gitproject
++ ✅ SourceCraft: https://sourcecraft.dev/sokol491/gitproject
++ ✅ GitHub: https://github.com/mrsokol491/gitproject
++ ⚠️ Mos.hub: https://hub.mos.ru/mrsokol491/gitproject
+
 
 ## Установка (новое устройство / новый пользователь)
 
@@ -41,10 +47,6 @@
 ```
        cp .env.example .env 2>/dev/null || true
        chmod 600 .env
-       # Основные настройки GitVerse
-       GIT_HOST=gitverse.ru
-       GITVERSE_HUB_USER=Sokol491
-       NETWORK_PASSWORD=<пароль>
 ```
 3. Права на скрипты и подключение credential helper
 ```

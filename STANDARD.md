@@ -72,16 +72,11 @@ repo/
  │   ├── Entity/             # <Name>.php
  │   ├── Kit/                # копии готовых модулей, если нет composer-пакета
  │   └── Support/            # вспомогательные классы
- ├── storage/                # опционально: пользовательские файлы и индексы (git игнорирует)
- │   └── .gitkeep
  ├── tests/
  │   ├── Unit/               # <Class>Test.php
  │   └── Integration/
  ├── .env.example
  ├── .gitignore
- ├── composer.json
- ├── phpunit.xml
- ├── phpstan.neon
  └── README.md
 Пустые каталоги держим через .gitkeep; содержимое data/ и storage/ в репозиторий не попадает.
 PHP-код вне src/, bin/, migrations/, public/ запрещён.
