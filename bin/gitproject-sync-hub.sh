@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # gitproject-sync-hub.sh — мульти-push самого хаба на все настроенные remote.
 # Автоматически добавляет remote из .env, если токен не placeholder.
-# После публикации освежает запись хаба в маркетплейсе (refresh-hub).
+# FIX: .env парсится построчно (key=${line%%=*}, value=${line#*=}); раньше IFS='='
+# отрезал значение от key и regex не совпадал — remote не добавлялись никогда.
 
 set -uo pipefail
 
@@ -17,57 +18,57 @@ ENV_FILE="$HOME/gitproject/.env"
 ensure_remotes_from_env() {
     local repo="$1"
     local added=0
-    
-    # Парсим .env и ищем все хосты с реальными токенами
-    # Формат: <PREFIX>_HUB_TOKEN=<value> (для хаба)
-    while IFS='=' read -r key value; do
-        # Пропускаем комментарии и пустые строки
-        [[ "$key" =~ ^#.*$ || -z "$key" ]] && continue
-        
-        # Ищем только HUB_TOKEN (не PROJECT_TOKEN)
-        if [[ "$key" =~ ^([A-Z_]+)_HUB_TOKEN=(.+)$ ]]; then
-            local prefix="${BASH_REMATCH[1]}"
-            local token="${BASH_REMATCH[2]}"
-            
-            # Пропускаем placeholder и пустые значения
-            [[ "$token" == "placeholder" || -z "$token" ]] && continue
-            
-            # Находим домен хоста по префиксу из hosts.json
-            local host_id domain url_template owner_var owner
-            host_id="$(echo "$prefix" | tr '[:upper:]' '[:lower:]' | sed 's/_$//')"
-            
-            # Ищем хост в hosts.json
+    local line key value prefix token host_id domain url_template owner_var owner slug url remote_name
+
+    while IFS= read -r line || [ -n "$line" ]; do
+        line="${line%$'\r'}"
+        case "$line" in
+            ''|\#*) continue ;;
+        esac
+        case "$line" in
+            *=*) ;;
+            *) continue ;;
+        esac
+        key="${line%%=*}"
+        value="${line#*=}"
+
+        if [[ "$key" =~ ^([A-Z][A-Z_]*)_HUB_TOKEN$ ]]; then
+            prefix="${BASH_REMATCH[1]}"
+            token="$value"
+            [ -z "$token" ] && continue
+            [ "$token" = "placeholder" ] && continue
+
+            host_id="$(printf '%s' "$prefix" | tr '[:upper:]' '[:lower:]')"
+            domain=""
+            url_template=""
             if [ -f "$HOME/gitproject/config/hosts.json" ]; then
                 domain="$(jq -r --arg id "$host_id" '.[$id].host // empty' "$HOME/gitproject/config/hosts.json" 2>/dev/null)"
                 url_template="$(jq -r --arg id "$host_id" '.[$id].url_template // empty' "$HOME/gitproject/config/hosts.json" 2>/dev/null)"
             fi
-            
             [ -z "$domain" ] && continue
-            
-            # Получаем owner из .env
+            [ -z "$url_template" ] && continue
+
             owner_var="${prefix}_HUB_USER"
             owner="$(sed -n "s/^${owner_var}=//p" "$ENV_FILE" 2>/dev/null | tail -n 1 | tr -d '\r')"
             [ -z "$owner" ] && owner="sokol491"
-            
-            # Формируем URL
-            local slug="gitproject"
-            local url="${url_template//\{owner\}/$owner}"
+
+            slug="gitproject"
+            url="${url_template//\{owner\}/$owner}"
             url="${url//\{slug\}/$slug}"
-            
-            # Проверяем, есть ли уже такой remote
-            local remote_name="$host_id"
+
+            remote_name="$host_id"
             if ! git -C "$repo" remote get-url "$remote_name" >/dev/null 2>&1; then
                 print_info "    Добавляю remote: $remote_name ($url)"
                 if git -C "$repo" remote add "$remote_name" "$url" 2>/dev/null; then
-                    ((added++))
+                    added=$((added + 1))
                 else
-                    print_warn "     Не удалось добавить $remote_name"
+                    print_warn "    Не удалось добавить $remote_name"
                 fi
             fi
         fi
     done < "$ENV_FILE"
-    
-    if [ $added -gt 0 ]; then
+
+    if [ "$added" -gt 0 ]; then
         print_success "    ✓ Добавлено remote: $added"
     fi
 }
@@ -88,7 +89,6 @@ main() {
     print_header "==> Мульти-push хаба (все remote)"
     print_info "    Ветка: $branch"
 
-    # Автоматически добавляем remote из .env
     print_info "    Проверяю remote из .env..."
     ensure_remotes_from_env "$HUB"
 
@@ -103,7 +103,6 @@ main() {
     fi
     print_info "    Remote: ${remotes[*]}"
 
-    # Коммит локальных изменений (один раз)
     if [ -n "$(git status --porcelain)" ]; then
         print_info "    Коммит локальных изменений..."
         git add -A
@@ -129,26 +128,26 @@ main() {
         print_info "    Публикация: $branch -> $remote"
         if git push "$remote" "$branch" 2>&1 | grep -E "Writing objects|up-to-date|fast-forward|remote: Updating references" >/dev/null; then
             print_success "    ✓ УСПЕХ: hub/$branch -> $remote"
-            ((success++))
+            success=$((success + 1))
         else
             if git push "$remote" "$branch" 2>/dev/null; then
                 print_success "    ✓ УСПЕХ: hub/$branch -> $remote"
-                ((success++))
+                success=$((success + 1))
             else
                 print_error "    ✗ Ошибка push на $remote"
-                ((fail++))
+                fail=$((fail + 1))
             fi
         fi
     done
 
-    # Маркетплейс: освежить запись хаба сразу после публикации
+    # Маркетплейс: освежить запись хаба после публикации (если CLI ещё существует)
     if command -v php >/dev/null 2>&1 && [ -f "$HUB/bin/marketplace.php" ]; then
         print_info "    Освежаю запись хаба в маркетплейсе..."
         php "$HUB/bin/marketplace.php" refresh-hub >&2 || true
     fi
 
     print_header ""
-    if [ $fail -eq 0 ]; then
+    if [ "$fail" -eq 0 ]; then
         print_success "    Мульти-push хаба завершён: $success remote"
     else
         print_warn "    Мульти-push хаба с ошибками: $success успешно, $fail ошибок"

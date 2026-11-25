@@ -2,7 +2,7 @@
 # git-credential-multi.sh — credential helper нескольких Git-хостов (GitProject Workspace Hub).
 # Читает запрос git из stdin ЦЕЛИКОМ (protocol/host/path), выбирает токен из .env
 # по схеме <PREFIX>_<SCOPE>_TOKEN: PREFIX по домену, SCOPE = HUB (репозиторий хаба
-# gitflicproject на любом хосте) или PROJECT (остальные репозитории).
+# gitproject на любом хосте) или PROJECT (остальные репозитории).
 # Значение "placeholder" в .env трактуется как отсутствие токена.
 # При пустом токене: подсказка в stderr про API-ТОКЕН, молчаливый выход (git спросит сам).
 
@@ -17,7 +17,6 @@ fi
 input="$(cat 2>/dev/null || true)"
 host="$(printf '%s\n' "$input" | sed -n 's/^host=//p' | tail -n 1 | tr -d '\r')"
 path="$(printf '%s\n' "$input" | sed -n 's/^path=//p' | tail -n 1 | tr -d '\r')"
-
 [ -n "$host" ] || exit 0
 
 env_file="${HOME}/gitproject/.env"
@@ -27,17 +26,18 @@ if [ ! -r "$env_file" ]; then
 fi
 
 case "$host" in
-    gitflic.ru)  prefix="GITFLIC" ;;
-    gitverse.ru) prefix="GITVERSE" ;;
-    github.com)  prefix="GITHUB" ;;
-    gitlab.com)  prefix="GITLAB" ;;
-    git.sourcecraft.dev)  prefix="SOURCECRAFT" ;;
+    gitflic.ru)          prefix="GITFLIC" ;;
+    gitverse.ru)         prefix="GITVERSE" ;;
+    github.com)          prefix="GITHUB" ;;
+    gitlab.com)          prefix="GITLAB" ;;
+    git.sourcecraft.dev) prefix="SOURCECRAFT" ;;
+    hub.mos.ru)          prefix="MOSHUB" ;;
     *) exit 0 ;;
 esac
 
-# HUB: путь репозитория хаба (gitflicproject, регистронезависимо) на ЛЮБОМ хосте
+# HUB: путь репозитория хаба (gitproject, регистронезависимо) на ЛЮБОМ хосте
 path_lc="${path,,}"
-if [[ "$path_lc" == *gitproject* ]]; then
+if [ "$path_lc" == *gitproject* ]; then
     scope="HUB"
 else
     scope="PROJECT"
@@ -45,8 +45,7 @@ fi
 
 user="$(sed -n "s/^${prefix}_${scope}_USER=//p" "$env_file" | tail -n 1 | tr -d '\r')"
 token="$(sed -n "s/^${prefix}_${scope}_TOKEN=//p" "$env_file" | tail -n 1 | tr -d '\r')"
-
-if { [ -z "$token" ] || [ "$token" = "placeholder" ]; } && [ "$scope" = "PROJECT" ]; then
+if [ -z "$token" ] || { [ "$token" = "placeholder" ] && [ "$scope" = "PROJECT" ]; }; then
     user="$(sed -n "s/^${prefix}_HUB_USER=//p" "$env_file" | tail -n 1 | tr -d '\r')"
     token="$(sed -n "s/^${prefix}_HUB_TOKEN=//p" "$env_file" | tail -n 1 | tr -d '\r')"
 fi
