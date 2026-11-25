@@ -10,7 +10,7 @@ root="${PROJECTS_DIR}/$proj"
 
 # Отчёты кладём ВНЕ репозиториев — в коммиты они не попадут
 mkdir -p "${HUB_ROOT}/data/audits"
-out="$HOME/gitproject/data/audits/${proj}-$(date +%Y%m%d_%H%M%S).txt"
+out="${HUB_ROOT}/data/audits/${proj}-$(date +%Y%m%d_%H%M%S).txt"
 
 cd "$root"
 {

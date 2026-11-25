@@ -10,7 +10,7 @@ set -uo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/common.sh"
 
-HUB="$HOME/gitproject"
+HUB="${HUB_ROOT}"
 ENV_FILE="${HUB_ROOT}/.env"
 
 # ============================================================================

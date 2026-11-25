@@ -14,6 +14,8 @@ set -uo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/common.sh"
+ENV_FILE="${HUB_ROOT}/.env"
+export ENV_FILE
 
 # ============================================================================
 # Автоматическое добавление remote проекта из .env
