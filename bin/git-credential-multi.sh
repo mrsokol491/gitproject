@@ -1,11 +1,4 @@
 #!/usr/bin/env bash
-# git-credential-multi.sh — credential helper нескольких Git-хостов (GitProject Workspace Hub).
-# Читает запрос git из stdin ЦЕЛИКОМ (protocol/host/path), выбирает токен из .env
-# по схеме <PREFIX>_<SCOPE>_TOKEN: PREFIX по домену, SCOPE = HUB (репозиторий хаба
-# gitproject на любом хосте) или PROJECT (остальные репозитории).
-# Значение "placeholder" в .env трактуется как отсутствие токена.
-# При пустом токене: подсказка в stderr про API-ТОКЕН, молчаливый выход (git спросит сам).
-
 set -u
 
 op="${1:-}"
@@ -21,21 +14,22 @@ path="$(printf '%s\n' "$input" | sed -n 's/^path=//p' | tail -n 1 | tr -d '\r')"
 
 env_file="${HOME}/gitproject/.env"
 if [ ! -r "$env_file" ]; then
-    echo "git-credential-multi: нет читаемого .env ($env_file) — git запросит API-ТОКЕН вручную" >&2
+    echo "git-credential-multi: нет читаемого .env ($env_file)" >&2
     exit 0
 fi
 
 case "$host" in
-    gitflic.ru)          prefix="GITFLIC" ;;
     gitverse.ru)         prefix="GITVERSE" ;;
-    github.com)          prefix="GITHUB" ;;
-    gitlab.com)          prefix="GITLAB" ;;
+    gitflic.ru)          prefix="GITFLIC" ;;
     git.sourcecraft.dev) prefix="SOURCECRAFT" ;;
     hub.mos.ru)          prefix="MOSHUB" ;;
+    github.com)          prefix="GITHUB" ;;
+    gitlab.com)          prefix="GITLAB" ;;
+    codeberg.org)        prefix="CODEBERG" ;;
+    gitea.com)           prefix="GITEA" ;;
     *) exit 0 ;;
 esac
 
-# HUB: путь репозитория хаба (gitproject, регистронезависимо) на ЛЮБОМ хосте
 path_lc="${path,,}"
 if [ "$path_lc" == *gitproject* ]; then
     scope="HUB"
@@ -54,7 +48,6 @@ fi
 
 if [ -z "$token" ]; then
     echo "git-credential-multi: для $host не задан ${prefix}_${scope}_TOKEN в .env." >&2
-    echo "Если git спросит Password — введите API-ТОКЕН $host (Настройки -> Приложения/Access Tokens), НЕ пароль аккаунта." >&2
     exit 0
 fi
 

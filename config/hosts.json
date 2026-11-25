@@ -6,7 +6,7 @@
     "env_prefix": "GITVERSE",
     "url_template": "https://gitverse.ru/{owner}/{slug}.git",
     "registry": "rf",
-    "description": "GitVerse — основной хост обновлений (реестр ПО РФ, Сбер)"
+    "description": "GitVerse — платформа от Сбера (реестр ПО РФ)"
   },
   "gitflic": {
     "host": "gitflic.ru",
@@ -38,7 +38,7 @@
     "env_prefix": "MOSHUB",
     "url_template": "https://hub.mos.ru/{owner}/{slug}.git",
     "registry": "rf",
-    "description": "Mos.hub — Московская облачная платформа с ИИ-ассистентом «КоДИТ» и антивирусным сканированием (в процессе)"
+    "description": "Mos.hub — Московская облачная платформа с ИИ-ассистентом «КоДИТ» и антивирусным сканированием"
   },
   "gitlab": {
     "host": "gitlab.com",
@@ -46,15 +46,15 @@
     "env_prefix": "GITLAB",
     "url_template": "https://gitlab.com/{owner}/{slug}.git",
     "registry": "foreign",
-    "description": "GitLab — международный Git-хостинг (в процессе)"
+    "description": "GitLab — международный Git-хостинг"
   },
-  "bitbucket": {
-    "host": "bitbucket.org",
-    "status": "integrating",
-    "env_prefix": "BITBUCKET",
-    "url_template": "https://bitbucket.org/{owner}/{slug}.git",
+    "codeberg": {
+    "host": "codeberg.org",
+    "status": "ready",
+    "env_prefix": "CODEBERG",
+    "url_template": "https://codeberg.org/{owner}/{slug}.git",
     "registry": "foreign",
-    "description": "Bitbucket — международный Git-хостинг от Atlassian (в процессе)"
+    "description": "Codeberg — международный Git-хостинг"
   },
   "gitea": {
     "host": "gitea.com",
@@ -62,22 +62,6 @@
     "env_prefix": "GITEA",
     "url_template": "https://gitea.com/{owner}/{slug}.git",
     "registry": "foreign",
-    "description": "Gitea — международный Git-хостинг (в процессе)"
-  },
-  "forgejo": {
-    "host": "forgejo.org",
-    "status": "integrating",
-    "env_prefix": "FORGEJO",
-    "url_template": "https://forgejo.org/{owner}/{slug}.git",
-    "registry": "foreign",
-    "description": "Forgejo — community-fork Gitea (в процессе)"
-  },
-  "gosh": {
-    "host": "gosh.sh",
-    "status": "integrating",
-    "env_prefix": "GOSH",
-    "url_template": "https://gosh.sh/{owner}/{slug}.git",
-    "registry": "foreign",
-    "description": "GOSH — Git Open Source Hodler (в процессе)"
+    "description": "Gitea — международный Git-хостинг"
   }
 }

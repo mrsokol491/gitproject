@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 /**
  * Маркетплейс — ядро: хосты, fetch, санитайзер HTML, markdown, аватарки.
- * README рендерится через whitelist-санитайзер сырого HTML + markdown поверх:
- * разрешённые теги/атрибуты сохраняются, опасные вырезаются, неизвестные экранируются.
- * Без токенов: только публичные endpoint'ы.
+ * README рендерится через whitelist-санитайзер сырого HTML + markdown поверх.
+ * Поддерживаемые хосты: GitVerse, GitFlic, SourceCraft, Mos.hub, GitHub, GitLab, Codeberg, Gitea.
  */
 
 const MP_CATEGORIES = ['dev-tools', 'ux-ui', 'components', 'learning', 'self-hosted'];
@@ -28,6 +27,33 @@ function mpHosts(): array
             'raw'       => 'https://gitverse.ru/api/repos/%s/%s/raw/branch/%s/',
             'stats'     => true,
         ],
+        'gitflic' => [
+            'domain'    => 'gitflic.ru',
+            'name'      => 'GitFlic',
+            'repo_url'  => 'https://gitflic.ru/project/%s/%s',
+            'clone_url' => 'https://gitflic.ru/project/%s/%s.git',
+            'api'       => null,
+            'raw'       => 'https://gitflic.ru/project/%s/%s/blob/raw?file=',
+            'stats'     => false,
+        ],
+        'sourcecraft' => [
+            'domain'    => 'git.sourcecraft.dev',
+            'name'      => 'SourceCraft',
+            'repo_url'  => 'https://git.sourcecraft.dev/%s/%s',
+            'clone_url' => 'https://git.sourcecraft.dev/%s/%s.git',
+            'api'       => 'https://git.sourcecraft.dev/api/v4/projects/%s%%2F%s',
+            'raw'       => 'https://git.sourcecraft.dev/%s/%s/-/raw/%s/',
+            'stats'     => true,
+        ],
+        'moshub' => [
+            'domain'    => 'hub.mos.ru',
+            'name'      => 'Mos.hub',
+            'repo_url'  => 'https://hub.mos.ru/%s/%s',
+            'clone_url' => 'https://hub.mos.ru/%s/%s.git',
+            'api'       => 'https://hub.mos.ru/api/v4/projects/%s%%2F%s',
+            'raw'       => 'https://hub.mos.ru/%s/%s/-/raw/%s/',
+            'stats'     => true,
+        ],
         'github' => [
             'domain'    => 'github.com',
             'name'      => 'GitHub',
@@ -37,22 +63,31 @@ function mpHosts(): array
             'raw'       => 'https://raw.githubusercontent.com/%s/%s/%s/',
             'stats'     => true,
         ],
-        'gitflic' => [
-            'domain'    => 'gitflic.ru',
-            'name'      => 'GitFlic',
-            'repo_url'  => 'https://gitflic.ru/project/%s/%s',
-            'clone_url' => 'https://gitflic.ru/project/%s/%s.git',
-            'api'       => null,
-            'raw'       => null,
-            'stats'     => false,
+        'gitlab' => [
+            'domain'    => 'gitlab.com',
+            'name'      => 'GitLab',
+            'repo_url'  => 'https://gitlab.com/%s/%s',
+            'clone_url' => 'https://gitlab.com/%s/%s.git',
+            'api'       => 'https://gitlab.com/api/v4/projects/%s%%2F%s',
+            'raw'       => 'https://gitlab.com/%s/%s/-/raw/%s/',
+            'stats'     => true,
         ],
-            'moshub' => [
-            'domain'    => 'hub.mos.ru',
-            'name'      => 'Mos.hub',
-            'repo_url'  => 'https://hub.mos.ru/%s/%s',
-            'clone_url' => 'https://hub.mos.ru/%s/%s.git',
-            'api'       => 'https://hub.mos.ru/api/v4/projects/%s%%2F%s',
-            'raw'       => 'https://hub.mos.ru/%s/%s/-/raw/%s/',
+        'codeberg' => [
+            'domain'    => 'codeberg.org',
+            'name'      => 'Codeberg',
+            'repo_url'  => 'https://codeberg.org/%s/%s',
+            'clone_url' => 'https://codeberg.org/%s/%s.git',
+            'api'       => 'https://codeberg.org/api/v1/repos/%s/%s',
+            'raw'       => 'https://codeberg.org/%s/%s/raw/branch/%s/',
+            'stats'     => true,
+        ],
+        'gitea' => [
+            'domain'    => 'gitea.com',
+            'name'      => 'Gitea',
+            'repo_url'  => 'https://gitea.com/%s/%s',
+            'clone_url' => 'https://gitea.com/%s/%s.git',
+            'api'       => 'https://gitea.com/api/v1/repos/%s/%s',
+            'raw'       => 'https://gitea.com/%s/%s/raw/branch/%s/',
             'stats'     => true,
         ],
     ];
@@ -120,7 +155,6 @@ function mpSchema(PDO $pdo): void
     $pdo->exec('CREATE INDEX IF NOT EXISTS idx_mp_items_status ON mp_items(status, category)');
 }
 
-/** HTTPS GET без редиректов (SSRF), с лимитом размера и таймаутом. */
 function mpHttp(string $url, int $maxBytes): ?array
 {
     if (preg_match('#^https://#i', $url) !== 1) {
@@ -153,7 +187,6 @@ function mpHttp(string $url, int $maxBytes): ?array
     return ['body' => $body, 'ct' => $ct];
 }
 
-/** GitFlic: SHA и ветка по умолчанию через git-протокол, без токена. */
 function mpGitFlicSha(string $owner, string $slug, string &$branch): ?string
 {
     $url = sprintf('https://gitflic.ru/project/%s/%s.git', $owner, $slug);
@@ -176,7 +209,6 @@ function mpGitFlicSha(string $owner, string $slug, string &$branch): ?string
     return $sha;
 }
 
-/** Резолв URL: абсолютные http(s), //, относительные с dot-сегментами; прочие схемы — запрет. */
 function mpResolveUrl(string $url, string $base): ?string
 {
     $url = trim($url);
@@ -222,7 +254,6 @@ function mpResolveUrl(string $url, string $base): ?string
     return $p['scheme'] . '://' . $p['host'] . '/' . $clean($path);
 }
 
-/** Вырезает опасные блоки и обработчики событий до разбора тегов. */
 function mpStripDangerous(string $md): string
 {
     $md = (string) preg_replace('#<(script|style|iframe|object|embed|form|textarea|select|button|link|meta|base|svg|math)\b[^>]*>.*?</\1\s*>#is', '', $md);
@@ -231,7 +262,6 @@ function mpStripDangerous(string $md): string
     return $md;
 }
 
-/** Санитайзер атрибутов: whitelist, только http(s)/относительные URL, без style и on*. */
 function mpSanitizeAttrs(string $tag, string $raw, string $rawBase): string
 {
     $out = '';
@@ -293,7 +323,6 @@ function mpSanitizeAttrs(string $tag, string $raw, string $rawBase): string
     return $out;
 }
 
-/** Один сырой тег: разрешённый — санитайз, неизвестный — экранирование в текст. */
 function mpRenderTag(bool $close, string $tag, string $attrRaw, string $rawBase): string
 {
     $allowed = ['p', 'br', 'hr', 'img', 'a', 'strong', 'b', 'em', 'i', 'u', 's', 'del', 'code', 'pre',
@@ -312,7 +341,6 @@ function mpRenderTag(bool $close, string $tag, string $attrRaw, string $rawBase)
     return '<' . $tag . $attrs . ($void ? ' /' : '') . '>';
 }
 
-/** Inline: code-спаны -> сырой HTML в плейсхолдеры -> экранирование текста -> markdown -> возврат тегов. */
 function mpInline(string $raw, string $rawBase): string
 {
     $codes = [];
@@ -354,7 +382,6 @@ function mpInline(string $raw, string $rawBase): string
     return $s;
 }
 
-/** Markdown -> HTML: блоки + inline с whitelist-санитайзером сырого HTML. */
 function mpMarkdown(string $md, string $rawBase): string
 {
     $md = str_replace(["\r\n", "\r", "\x00", "\x01"], ["\n", "\n", '', ''], $md);
@@ -507,7 +534,6 @@ function mpMarkdown(string $md, string $rawBase): string
     return implode("\n", $out);
 }
 
-/** Аватар: поле репо -> первая не-бейдж картинка README -> null (монограмма). */
 function mpExtractAvatar(string $md, string $rawBase, string $repoAvatar): ?string
 {
     if ($repoAvatar !== '' && preg_match('#^https://#i', $repoAvatar) === 1) {
@@ -540,7 +566,6 @@ function mpExtractAvatar(string $md, string $rawBase, string $repoAvatar): ?stri
     return null;
 }
 
-/** Прокси-кэш аватара: whitelist хостов, <=2 МБ, только растровые форматы. */
 function mpProxyAvatar(string $url, int $itemId): ?string
 {
     $host = parse_url($url, PHP_URL_HOST);
@@ -581,7 +606,6 @@ function mpProxyAvatar(string $url, int $itemId): ?string
     return $file;
 }
 
-/** Локальная монограмма-SVG (генерируется нами, безопасна). */
 function mpMonogram(string $name): string
 {
     $clean = (string) preg_replace('/[^A-Za-z0-9]+/', '', $name);
@@ -594,7 +618,6 @@ function mpMonogram(string $name): string
         . htmlspecialchars($ini, ENT_QUOTES) . '</text></svg>';
 }
 
-/** Plain-text выжимка из README. */
 function mpPlainExcerpt(string $md, int $len): string
 {
     $t = (string) preg_replace('/```.*?```/s', ' ', $md);
@@ -609,11 +632,6 @@ function mpPlainExcerpt(string $md, int $len): string
     return $t;
 }
 
-/**
- * Fetch одной записи: мета (опционально) -> ветка -> README через raw/blob -> описание -> аватар.
- * README запрашивается ВСЕГДА через raw/blob: лимиты/падения API не фатальны —
- * без меты запись отдаётся с README и предупреждением, статистика null.
- */
 function mpFetchItem(array $item): array
 {
     $hosts = mpHosts();
@@ -633,18 +651,29 @@ function mpFetchItem(array $item): array
     }
     $owner = $item['owner'];
     $slug = $item['slug'];
+    $branch = $c['branch'];
+    $metaDesc = '';
+    $repoAvatar = '';
 
-    $meta = null;
-    if ($item['host_id'] !== 'gitflic' && $host['api'] !== null) {
-        $resp = mpHttp(sprintf($host['api'], $owner, $slug), 262144);
-        if ($resp !== null) {
-            $dec = json_decode($resp['body'], true);
-            if (is_array($dec)) {
-                $meta = $dec;
-            }
+    if ($item['host_id'] === 'gitflic') {
+        $sha = mpGitFlicSha($owner, $slug, $branch);
+        if ($sha === null) {
+            $c['fetch_error'] = 'git ls-remote: репозиторий недоступен';
+            return $c;
         }
-    }
-    if ($meta !== null) {
+        $c['branch'] = $branch;
+        $rawBase = sprintf('https://gitflic.ru/project/%s/%s/blob/raw?file=', $owner, $slug);
+    } else {
+        $resp = mpHttp(sprintf($host['api'], $owner, $slug), 262144);
+        if ($resp === null) {
+            $c['fetch_error'] = 'API недоступен (лимит или сеть)';
+            return $c;
+        }
+        $meta = json_decode($resp['body'], true);
+        if (!is_array($meta)) {
+            $c['fetch_error'] = 'API: не JSON';
+            return $c;
+        }
         if ($item['host_id'] === 'gitverse') {
             $c['stars'] = isset($meta['stars_count']) ? (int) $meta['stars_count'] : null;
             $c['forks'] = isset($meta['forks_count']) ? (int) $meta['forks_count'] : null;
@@ -653,14 +682,49 @@ function mpFetchItem(array $item): array
             $lr = $meta['last_release'] ?? null;
             $c['last_release'] = is_array($lr) ? (string) ($lr['tag_name'] ?? $lr['name'] ?? '') : (is_string($lr) ? $lr : null);
             $c['pushed_at'] = isset($meta['updated_at']) ? (string) $meta['updated_at'] : null;
-                } elseif ($item['host_id'] === 'moshub') {
-            // GitLab-совместимый API v4 (гипотеза; при отказе — карточка без счётчиков, README через raw)
+            $repoAvatar = (string) ($meta['avatar_url'] ?? '');
+        } elseif ($item['host_id'] === 'sourcecraft') {
             $c['stars'] = isset($meta['star_count']) ? (int) $meta['star_count'] : null;
             $c['forks'] = isset($meta['forks_count']) ? (int) $meta['forks_count'] : null;
             $c['open_issues'] = isset($meta['open_issues_count']) ? (int) $meta['open_issues_count'] : null;
             $lic = $meta['license'] ?? null;
             $c['license'] = is_array($lic) ? (string) ($lic['name'] ?? '') : null;
             $c['pushed_at'] = isset($meta['last_activity_at']) ? (string) $meta['last_activity_at'] : null;
+        } elseif ($item['host_id'] === 'moshub') {
+            $c['stars'] = isset($meta['star_count']) ? (int) $meta['star_count'] : null;
+            $c['forks'] = isset($meta['forks_count']) ? (int) $meta['forks_count'] : null;
+            $c['open_issues'] = isset($meta['open_issues_count']) ? (int) $meta['open_issues_count'] : null;
+            $lic = $meta['license'] ?? null;
+            $c['license'] = is_array($lic) ? (string) ($lic['name'] ?? '') : null;
+            $c['pushed_at'] = isset($meta['last_activity_at']) ? (string) $meta['last_activity_at'] : null;
+        } elseif ($item['host_id'] === 'github') {
+            $c['stars'] = isset($meta['stargazers_count']) ? (int) $meta['stargazers_count'] : null;
+            $c['forks'] = isset($meta['forks_count']) ? (int) $meta['forks_count'] : null;
+            $c['open_issues'] = isset($meta['open_issues_count']) ? (int) $meta['open_issues_count'] : null;
+            $lic = $meta['license'] ?? null;
+            $c['license'] = is_array($lic) ? (string) ($lic['spdx_id'] ?? '') : null;
+            $c['pushed_at'] = isset($meta['pushed_at']) ? (string) $meta['pushed_at'] : null;
+        } elseif ($item['host_id'] === 'gitlab') {
+            $c['stars'] = isset($meta['star_count']) ? (int) $meta['star_count'] : null;
+            $c['forks'] = isset($meta['forks_count']) ? (int) $meta['forks_count'] : null;
+            $c['open_issues'] = isset($meta['open_issues_count']) ? (int) $meta['open_issues_count'] : null;
+            $lic = $meta['license'] ?? null;
+            $c['license'] = is_array($lic) ? (string) ($lic['name'] ?? '') : null;
+            $c['pushed_at'] = isset($meta['last_activity_at']) ? (string) $meta['last_activity_at'] : null;
+        } elseif ($item['host_id'] === 'codeberg') {
+            $c['stars'] = isset($meta['stargazers_count']) ? (int) $meta['stargazers_count'] : null;
+            $c['forks'] = isset($meta['forks_count']) ? (int) $meta['forks_count'] : null;
+            $c['open_issues'] = isset($meta['open_issues_count']) ? (int) $meta['open_issues_count'] : null;
+            $lic = $meta['license'] ?? null;
+            $c['license'] = is_array($lic) ? (string) ($lic['name'] ?? '') : null;
+            $c['pushed_at'] = isset($meta['updated_at']) ? (string) $meta['updated_at'] : null;
+        } elseif ($item['host_id'] === 'gitea') {
+            $c['stars'] = isset($meta['stargazers_count']) ? (int) $meta['stargazers_count'] : null;
+            $c['forks'] = isset($meta['forks_count']) ? (int) $meta['forks_count'] : null;
+            $c['open_issues'] = isset($meta['open_issues_count']) ? (int) $meta['open_issues_count'] : null;
+            $lic = $meta['license'] ?? null;
+            $c['license'] = is_array($lic) ? (string) ($lic['name'] ?? '') : null;
+            $c['pushed_at'] = isset($meta['updated_at']) ? (string) $meta['updated_at'] : null;
         } else {
             $c['stars'] = isset($meta['stargazers_count']) ? (int) $meta['stargazers_count'] : null;
             $c['forks'] = isset($meta['forks_count']) ? (int) $meta['forks_count'] : null;
@@ -674,62 +738,30 @@ function mpFetchItem(array $item): array
         $topics = isset($meta['topics']) && is_array($meta['topics'])
             ? array_values(array_filter($meta['topics'], 'is_string')) : [];
         $c['topics_json'] = (string) (json_encode($topics, JSON_UNESCAPED_UNICODE) ?: '[]');
+        $metaDesc = trim((string) ($meta['description'] ?? ''));
+        if (isset($meta['default_branch']) && is_string($meta['default_branch']) && $meta['default_branch'] !== '') {
+            $branch = $meta['default_branch'];
+        }
+        $c['branch'] = $branch;
+        $rawBase = sprintf($host['raw'], $owner, $slug, $branch);
     }
-
-    $branches = [];
-    if ($meta !== null && isset($meta['default_branch']) && is_string($meta['default_branch']) && $meta['default_branch'] !== '') {
-        $branches[] = $meta['default_branch'];
-    }
-    $branches[] = $c['branch'];
-    $branches[] = 'master';
-    $branches[] = 'main';
-    $branches = array_values(array_unique($branches));
 
     $md = null;
-    $rawBase = '';
-    $usedBranch = $branches[0];
-    $readmeNames = ['README.md', 'readme.md', 'README.MD', 'Readme.md'];
-
-    if ($item['host_id'] === 'gitflic') {
-        $sha = mpGitFlicSha($owner, $slug, $usedBranch);
-        if ($sha !== null) {
-            $rawBase = sprintf('https://gitflic.ru/project/%s/%s/blob/raw?commit=%s&file=', $owner, $slug, $sha);
-            foreach ($readmeNames as $name) {
-                $r = mpHttp($rawBase . $name, 524288);
-                if ($r !== null && $r['body'] !== '') {
-                    $md = $r['body'];
-                    break;
-                }
-            }
-        }
-    } else {
-        foreach ($branches as $b) {
-            $base = sprintf($host['raw'], $owner, $slug, $b);
-            foreach ($readmeNames as $name) {
-                $r = mpHttp($base . $name, 524288);
-                if ($r !== null && $r['body'] !== '') {
-                    $md = $r['body'];
-                    $rawBase = $base;
-                    $usedBranch = $b;
-                    break 2;
-                }
-            }
+    foreach (['README.md', 'readme.md', 'README.MD', 'Readme.md'] as $name) {
+        $resp = mpHttp($rawBase . $name, 524288);
+        if ($resp !== null && $resp['body'] !== '') {
+            $md = $resp['body'];
+            break;
         }
     }
-    $c['branch'] = $usedBranch;
-
     if ($md === null) {
-        $c['fetch_error'] = ($meta === null ? 'API недоступен и ' : '') . 'README не найден через raw/blob';
+        $c['fetch_error'] = 'README не найден';
         return $c;
     }
     $c['readme_html'] = mpMarkdown($md, $rawBase);
     $c['readme_excerpt'] = mpPlainExcerpt($md, 240);
-    $metaDesc = $meta !== null ? trim((string) ($meta['description'] ?? '')) : '';
     $c['description'] = $metaDesc !== '' ? $metaDesc : mpPlainExcerpt($md, 200);
-    if ($meta === null) {
-        $c['fetch_error'] = 'API недоступен: README показан без статистики (raw/blob)';
-    }
-    $repoAvatar = $meta !== null ? (string) ($meta['avatar_url'] ?? '') : '';
+
     $avatarUrl = mpExtractAvatar($md, $rawBase, $repoAvatar);
     if ($avatarUrl !== null) {
         $c['avatar_url'] = $avatarUrl;
@@ -738,7 +770,6 @@ function mpFetchItem(array $item): array
     return $c;
 }
 
-/** Полный успех/частичный: COALESCE сохраняет старый контент при временных сбоях. */
 function mpSaveCache(PDO $pdo, int $id, array $c): void
 {
     $sql = 'INSERT INTO mp_cache
@@ -782,7 +813,6 @@ function mpSaveCache(PDO $pdo, int $id, array $c): void
     ]);
 }
 
-/** Полный сбой: только метка ошибки, кэш не затирается. */
 function mpMarkError(PDO $pdo, int $id, string $error): void
 {
     $sql = 'INSERT INTO mp_cache (item_id, fetched_at, fetch_error)
@@ -791,7 +821,6 @@ function mpMarkError(PDO $pdo, int $id, string $error): void
     $pdo->prepare($sql)->execute([':id' => $id, ':now' => gmdate('Y-m-d\TH:i:s\Z'), ':err' => $error]);
 }
 
-/** Валидация записи каталога. */
 function mpValidateEntry(array $it): array
 {
     $hosts = mpHosts();
