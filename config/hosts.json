@@ -42,7 +42,7 @@
   },
   "gitlab": {
     "host": "gitlab.com",
-    "status": "integrating",
+    "status": "ready",
     "env_prefix": "GITLAB",
     "url_template": "https://gitlab.com/{owner}/{slug}.git",
     "registry": "foreign",

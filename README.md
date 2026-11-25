@@ -9,7 +9,7 @@
 + ✅ SourceCraft (sourcecraft.dev) — платформа от Яндекса (реестр ПО РФ)
 + ✅ GitHub (github.com) — международный Git-хостинг (в процессе)
 + ✅ Mos.hub (hub.mos.ru) — Московская облачная платформа с ИИ-ассистентом «КоДИТ» и антивирусным сканированием (в процессе)
-+ ⚠️ GitLab (gitlab.com) — международный Git-хостинг (в процессе)
++ ✅ GitLab (gitlab.com) — международный Git-хостинг (в процессе)
 + ⚠️ Bitbucket (bitbucket.org) — международный Git-хостинг (в процессе)
 + ⚠️ Gitea (gitea.com) — международный Git-хостинг (в процессе)
 + ⚠️ Forgejo (forgejo.org) — Активно развивающийся community-fork (ответвление) от Gitea (в процессе)
@@ -32,7 +32,7 @@
 + ✅ SourceCraft: https://sourcecraft.dev/sokol491/gitproject
 + ✅ GitHub: https://github.com/mrsokol491/gitproject
 + ✅ Mos.hub: https://hub.mos.ru/mrsokol491/gitproject
-+ ⚠️ GitLab: https://gitlab.com/sokol491/gitproject
++ ✅ GitLab: https://gitlab.com/sokol491/gitproject
 
 
 ## Установка (новое устройство / новый пользователь)
