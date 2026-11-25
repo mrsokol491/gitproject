@@ -8,7 +8,7 @@ if [ -z "${HUB_ROOT:-}" ]; then
     SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
     # SCRIPT_DIR = /path/to/repo/bin
     # HUB_ROOT должен быть на уровень выше: /path/to/repo
-    HUB_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
+    HUB_ROOT="$(cd -- "$SCRIPT_DIR/../.." && pwd)"
     export HUB_ROOT
 fi
 
