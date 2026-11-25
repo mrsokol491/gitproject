@@ -1,4 +1,5 @@
-// workspace.js v2 — виды рабочего поля: таблица проектов, хосты, маркетплейс, добавление git.
+// workspace.js v3 — виды рабочего поля: таблица проектов, хосты, маркетплейс, добавление git.
+// git-add: whitelist доменов читается динамически из hosts.json (hosts_manage list).
 import { MARKET_ITEMS, MARKET_HOSTS, MARKET_CATEGORIES } from './marketplace-data.js';
 
 const $ = (id) => document.getElementById(id);
@@ -36,7 +37,7 @@ function monogramHtml(name) {
 const navAdd = $('nav-git-add');
 if (navAdd) { navAdd.addEventListener('click', () => { window.location.href = '/?view=git-add'; }); }
 const emptyAdd = $('empty-go-add');
-if (emptyAdd) { emptyAdd.addEventListener('click', () => { window.location.href = '/?view=git-add'; }); }
+if (emptyAdd) { emptyAdd.addEventListener('click', (e) => { e.preventDefault(); window.location.href = '/?view=git-add'; }); }
 const marketCount = document.querySelector('a[href="/?view=market"] .ws-count');
 if (marketCount) { marketCount.textContent = String(MARKET_ITEMS.length); }
 
@@ -357,7 +358,7 @@ if (view === 'market') {
     if (sort === 'category') { items = items.slice().sort((a, b) => a.category.localeCompare(b.category) || a.slug.localeCompare(b.slug)); }
     const empty = $('mp-empty');
     if (empty) { empty.hidden = items.length !== 0; }
-    grid.innerHTML = items.map((it, idx) => {
+    grid.innerHTML = items.map((it) => {
       const m = monogramHtml(it.slug);
       const h = MARKET_HOSTS[it.host] || { name: it.host };
       return '<button type="button" class="mp-card" data-idx="' + MARKET_ITEMS.indexOf(it) + '">'
@@ -373,7 +374,6 @@ if (view === 'market') {
         + '<div class="mp-card-foot"><span class="mp-fresh">README и статистика — по клику</span></div>'
         + '</button>';
     }).join('');
-    void idx;
   };
 
   const openDetail = async (it) => {
@@ -398,8 +398,7 @@ if (view === 'market') {
       + '<span class="mp-cat">' + escapeHtml(MARKET_CATEGORIES[it.category] || it.category) + '</span>'
       + (it.tags || []).map((t) => '<span class="mp-lang">#' + escapeHtml(t) + '</span>').join('');
     $('mp-desc').textContent = it.note || '';
-    const note = $('mp-note');
-    note.hidden = true;
+    $('mp-note').hidden = true;
     $('mp-stats').innerHTML = '<span class="mp-fresh">Загрузка статистики…</span>';
     $('mp-open').href = h.repo.replace('%o', encodeURIComponent(it.owner)).replace('%s', encodeURIComponent(it.slug));
     $('mp-clone').dataset.owner = it.owner;
@@ -474,17 +473,37 @@ if (view === 'market') {
 
 // === ВИД: GIT-ADD ==============================================================
 if (view === 'git-add') {
+  // Домены берём из hosts.json через API: новый хост появляется здесь без правок кода.
+  const hostDomains = {};
+  const CLONE_TEMPLATES = { gitflic: 'https://gitflic.ru/project/%o/%s.git' };
+  const cloneTemplate = (id, domain, owner, slug) =>
+    (CLONE_TEMPLATES[id] || ('https://' + domain + '/%o/%s.git')).replace('%o', owner).replace('%s', slug);
+
+  const loadHostDomains = async () => {
+    const r = await api('/api/hosts_manage.php?action=list');
+    if (r.ok) {
+      r.data.hosts.forEach((h) => { hostDomains[h.host] = h.id; });
+    }
+  };
+
   const parseRepoUrl = (u) => {
     try {
       const url = new URL(u);
-      const parts = url.pathname.replace(/\.git$/, '').split('/').filter(Boolean);
-      if (url.hostname === 'github.com' && parts.length >= 2) { return { domain: 'github.com', owner: parts[0], slug: parts[1] }; }
-      if (url.hostname === 'gitverse.ru' && parts.length >= 2) { return { domain: 'gitverse.ru', owner: parts[0], slug: parts[1] }; }
-      if (url.hostname === 'gitflic.ru' && parts.length >= 3 && parts[0] === 'project') { return { domain: 'gitflic.ru', owner: parts[1], slug: parts[2] }; }
-      if (url.hostname === 'git.sourcecraft.dev' && parts.length >= 2) { return { domain: 'git.sourcecraft.dev', owner: parts[0], slug: parts[1] }; }
-    } catch { /* не URL */ }
-    return null;
+      if (url.protocol !== 'https:') { return null; }
+      const domain = url.hostname.toLowerCase();
+      const id = hostDomains[domain];
+      if (!id) { return null; }
+      let parts = url.pathname.replace(/\.git$/, '').split('/').filter(Boolean);
+      if (id === 'gitflic' && parts[0] === 'project') { parts = parts.slice(1); }
+      if (parts.length < 2) { return null; }
+      const owner = parts[parts.length - 2];
+      const slug = parts[parts.length - 1];
+      if (!/^[A-Za-z0-9][A-Za-z0-9.-]{0,38}$/.test(owner)) { return null; }
+      if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(slug)) { return null; }
+      return { domain, owner, slug, id };
+    } catch { return null; }
   };
+
   const urlInput = $('ga-url');
   const nameInput = $('ga-name');
   const preview = $('ga-preview');
@@ -503,7 +522,7 @@ if (view === 'git-add') {
       const p = parseRepoUrl(urlInput.value.trim());
       log.hidden = false;
       if (!p) {
-        log.textContent = '✗ Не распознан URL. Поддерживаются: github.com, gitverse.ru, gitflic.ru/project/, git.sourcecraft.dev';
+        log.textContent = '✗ Не распознан URL.';
         return;
       }
       const local = nameInput.value.trim() || p.slug;
@@ -520,9 +539,12 @@ if (view === 'git-add') {
         toast('Проект клонирован: ' + local);
         setTimeout(() => { window.location.href = '/?view=home'; }, 1200);
       } else {
-        log.textContent = '✗ ' + (r.error || 'Ошибка клонирования') + '\n' + (r.data?.log || '') + '\n\nВручную:\ngit clone ' + urlInput.value.trim() + ' ~/gitproject/projects/' + local;
+        log.textContent = '✗ ' + (r.error || 'Ошибка клонирования') + '\n' + (r.data?.log || '')
+          + '\n\nВручную:\ngit clone ' + cloneTemplate(p.id, p.domain, p.owner, p.slug) + ' ~/gitproject/projects/' + local;
         toast(r.error || 'Не удалось клонировать', false);
       }
     });
   }
+  await loadHostDomains();
+  updatePreview();
 }

@@ -46,6 +46,15 @@ function mpHosts(): array
             'raw'       => null,
             'stats'     => false,
         ],
+            'moshub' => [
+            'domain'    => 'hub.mos.ru',
+            'name'      => 'Mos.hub',
+            'repo_url'  => 'https://hub.mos.ru/%s/%s',
+            'clone_url' => 'https://hub.mos.ru/%s/%s.git',
+            'api'       => 'https://hub.mos.ru/api/v4/projects/%s%%2F%s',
+            'raw'       => 'https://hub.mos.ru/%s/%s/-/raw/%s/',
+            'stats'     => true,
+        ],
     ];
 }
 
@@ -644,6 +653,14 @@ function mpFetchItem(array $item): array
             $lr = $meta['last_release'] ?? null;
             $c['last_release'] = is_array($lr) ? (string) ($lr['tag_name'] ?? $lr['name'] ?? '') : (is_string($lr) ? $lr : null);
             $c['pushed_at'] = isset($meta['updated_at']) ? (string) $meta['updated_at'] : null;
+                } elseif ($item['host_id'] === 'moshub') {
+            // GitLab-совместимый API v4 (гипотеза; при отказе — карточка без счётчиков, README через raw)
+            $c['stars'] = isset($meta['star_count']) ? (int) $meta['star_count'] : null;
+            $c['forks'] = isset($meta['forks_count']) ? (int) $meta['forks_count'] : null;
+            $c['open_issues'] = isset($meta['open_issues_count']) ? (int) $meta['open_issues_count'] : null;
+            $lic = $meta['license'] ?? null;
+            $c['license'] = is_array($lic) ? (string) ($lic['name'] ?? '') : null;
+            $c['pushed_at'] = isset($meta['last_activity_at']) ? (string) $meta['last_activity_at'] : null;
         } else {
             $c['stars'] = isset($meta['stargazers_count']) ? (int) $meta['stargazers_count'] : null;
             $c['forks'] = isset($meta['forks_count']) ? (int) $meta['forks_count'] : null;
