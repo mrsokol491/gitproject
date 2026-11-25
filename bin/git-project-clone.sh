@@ -11,7 +11,8 @@
 
 set -uo pipefail
 
-source "$HOME/gitproject/bin/lib/common.sh"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/common.sh"
 
 # ============================================================================
 # Вспомогательные функции для UX

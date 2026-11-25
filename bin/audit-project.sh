@@ -5,11 +5,11 @@
 set -eu
 
 proj="${1:?Нужен slug проекта, например: archive}"
-root="$HOME/gitproject/projects/$proj"
+root="${PROJECTS_DIR}/$proj"
 [ -d "$root" ] || { echo "Нет такого проекта: $root"; exit 1; }
 
 # Отчёты кладём ВНЕ репозиториев — в коммиты они не попадут
-mkdir -p "$HOME/gitproject/data/audits"
+mkdir -p "${HUB_ROOT}/data/audits"
 out="$HOME/gitproject/data/audits/${proj}-$(date +%Y%m%d_%H%M%S).txt"
 
 cd "$root"

@@ -17,10 +17,11 @@
 
 set -uo pipefail
 
-source "$HOME/gitproject/bin/lib/common.sh"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/common.sh"
 
-CONFIG_FILE="$HOME/gitproject/config/hosts.json"
-ENV_FILE="$HOME/gitproject/.env"
+CONFIG_FILE="${HUB_ROOT}/config/hosts.json"
+ENV_FILE="${HUB_ROOT}/.env"
 
 # ============================================================================
 # Вспомогательные функции

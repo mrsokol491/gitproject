@@ -5,9 +5,12 @@
 # ЗАПРЕЩЕНО: запускать через sudo.
 # Использует --ff-only для предотвращения случайных merge-коммитов при обновлении.
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/common.sh"
+
 set -uo pipefail
 
-HUB="$HOME/gitproject"
+HUB="${HUB_ROOT}"
 PROJECTS_DIR="$HUB/projects"
 
 echo "==> 1. Обновление хаба (gitproject)..."

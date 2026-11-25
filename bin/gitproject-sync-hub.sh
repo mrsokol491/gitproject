@@ -7,10 +7,11 @@
 
 set -uo pipefail
 
-source "$HOME/gitproject/bin/lib/common.sh"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/common.sh"
 
 HUB="$HOME/gitproject"
-ENV_FILE="$HOME/gitproject/.env"
+ENV_FILE="${HUB_ROOT}/.env"
 
 # ============================================================================
 # Автоматическое добавление remote из .env
@@ -42,9 +43,9 @@ ensure_remotes_from_env() {
             host_id="$(printf '%s' "$prefix" | tr '[:upper:]' '[:lower:]')"
             domain=""
             url_template=""
-            if [ -f "$HOME/gitproject/config/hosts.json" ]; then
-                domain="$(jq -r --arg id "$host_id" '.[$id].host // empty' "$HOME/gitproject/config/hosts.json" 2>/dev/null)"
-                url_template="$(jq -r --arg id "$host_id" '.[$id].url_template // empty' "$HOME/gitproject/config/hosts.json" 2>/dev/null)"
+            if [ -f "${HUB_ROOT}/config/hosts.json" ]; then
+                domain="$(jq -r --arg id "$host_id" '.[$id].host // empty' "${HUB_ROOT}/config/hosts.json" 2>/dev/null)"
+                url_template="$(jq -r --arg id "$host_id" '.[$id].url_template // empty' "${HUB_ROOT}/config/hosts.json" 2>/dev/null)"
             fi
             [ -z "$domain" ] && continue
             [ -z "$url_template" ] && continue

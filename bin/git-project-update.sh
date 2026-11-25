@@ -4,6 +4,9 @@
 # Идемпотентность: общие файлы совпадают → только метка версии. Backup + stash. Без force-push.
 # Портативно: remote gitverse создаётся сам; origin на GitVerse используется как есть.
 # После обновления освежает запись хаба в маркетплейсе (refresh-hub).
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/common.sh"
+
 set -euo pipefail
 HUB="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 REMOTE="gitverse"; REMOTE_URL="https://gitverse.ru/Sokol491/gitproject.git"; BRANCH="master"

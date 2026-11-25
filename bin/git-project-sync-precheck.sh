@@ -4,7 +4,7 @@
 
 set -Eeuo pipefail
 
-GIT_PROJECT_WORKSPACE="${GIT_PROJECT_WORKSPACE:-$HOME/gitproject}"
+GIT_PROJECT_WORKSPACE="${GIT_PROJECT_WORKSPACE:-${HUB_ROOT}}"
 GIT_PROJECT_PROJECTS="$GIT_PROJECT_WORKSPACE/projects"
 
 if [[ -x "$GIT_PROJECT_WORKSPACE/bin/git-project-sync.sh" ]]; then
@@ -84,7 +84,7 @@ has_composer_script() {
 
 check_markdown_quality() {
   local dir="$1"
-  local agent_knowledge="$HOME/gitproject/projects/agent-knowledge"
+  local agent_knowledge="${PROJECTS_DIR}/agent-knowledge"
   local slopcheck="$agent_knowledge/skills/anti-ai-slop/scripts/slopcheck.py"
   local rules_ru="$agent_knowledge/skills/anti-ai-slop/scripts/rules-ru.json"
 
