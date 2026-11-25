@@ -34,7 +34,7 @@
   },
     "moshub": {
     "host": "hub.mos.ru",
-    "status": "integrating",
+    "status": "ready",
     "env_prefix": "MOSHUB",
     "url_template": "https://hub.mos.ru/{owner}/{slug}.git",
     "registry": "rf",
