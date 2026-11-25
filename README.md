@@ -20,11 +20,11 @@
     + ⚠️ - В процессе интеграции
     + ❌ - На данный момент интеграция не планируется
 
-**Основной репозиторий:** 
-+ GitVerse: https://gitverse.ru/Sokol491/gitproject
-
 **Локальный путь:**
 + ~/gitproject
+
+**Основной репозиторий:** 
++ ✅ GitVerse: https://gitverse.ru/Sokol491/gitproject
 
 **Список зеркал:** 
 + ✅ GitFlic: https://gitflic.ru/project/sokol491/gitproject
@@ -33,7 +33,6 @@
 + ✅ Mos.hub: https://hub.mos.ru/mrsokol491/gitproject
 + ✅ GitLab: https://gitlab.com/sokol491/gitproject
 + ✅ Сodeberg: https://codeberg.org/mrsokol491/gitproject
-
 
 ## Установка (новое устройство / новый пользователь)
 

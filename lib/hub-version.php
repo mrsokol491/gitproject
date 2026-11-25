@@ -12,13 +12,17 @@ declare(strict_types=1);
  * Покрыто тестами: tests/hub-version-test.php (bin/run-tests.php).
  */
 
-function hvCurrentLabel(?string $localSha, ?string $tagAtHead, ?string $baseTag, string $appliedLabel): string
+function hvCurrentLabel(?string $localSha, ?string $tagAtHead, ?string $baseTag, string $appliedLabel, bool $isStableDescendant = false): string
 {
     if ($localSha === null) {
         return $appliedLabel !== '' ? $appliedLabel : 'неизвестно';
     }
     if ($tagAtHead !== null) {
         return $tagAtHead;
+    }
+    // После даунгрейда HEAD — потомок stable с совпадающими файлами → current = stable
+    if ($isStableDescendant && $baseTag !== null) {
+        return $baseTag;
     }
     if ($baseTag !== null) {
         return $baseTag . '-r' . substr($localSha, 0, 6);
