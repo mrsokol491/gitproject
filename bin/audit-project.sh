@@ -4,6 +4,9 @@
 # Пример:        chmod 700 ~/gitproject/bin/audit-project.sh archive
 set -eu
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/common.sh"
+
 proj="${1:?Нужен slug проекта, например: archive}"
 root="${PROJECTS_DIR}/$proj"
 [ -d "$root" ] || { echo "Нет такого проекта: $root"; exit 1; }
