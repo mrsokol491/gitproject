@@ -1,36 +1,34 @@
 #!/usr/bin/env bash
 # gitproject-sync-hub.sh — мульти-push самого хаба на все настроенные remote.
 # Автоматически добавляет remote из .env, если токен не placeholder.
-# --tag <version> "<message>" создаёт аннотированный тег и пушит его на все remote
-#   после обычного push (если есть изменения) или без него (если каталог чист).
-# Пример: ~/gitproject/bin/gitproject-sync-hub.sh --tag 0.1.9 "Добавлена поддержка Mos.Hub"
+# --tag <version> "<message>" создаёт аннотированный тег и пушит его на все remote.
+# Сообщение релиза используется и как сообщение авто-коммита локальных изменений
+# (без тега авто-коммит получает служебное сообщение sync: gitproject hub <дата>).
 
 set -uo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/common.sh"
 
-HUB="${HUB_ROOT}"
 ENV_FILE="${HUB_ROOT}/.env"
+HOSTS_JSON="${HUB_ROOT}/config/hosts.json"
+export ENV_FILE HOSTS_JSON
 
 # ============================================================================
 # Автоматическое добавление remote из .env
 # ============================================================================
-
 ensure_remotes_from_env() {
     local repo="$1"
     local added=0
     local line key value prefix token host_id domain url_template owner_var owner slug url remote_name
 
+    [ -f "$ENV_FILE" ] || return 0
+    [ -f "$HOSTS_JSON" ] || return 0
+
     while IFS= read -r line || [ -n "$line" ]; do
         line="${line%$'\r'}"
-        case "$line" in
-            ''|\#*) continue ;;
-        esac
-        case "$line" in
-            *=*) ;;
-            *) continue ;;
-        esac
+        case "$line" in ''|\#*) continue ;; esac
+        case "$line" in *=*) ;; *) continue ;; esac
         key="${line%%=*}"
         value="${line#*=}"
 
@@ -41,12 +39,8 @@ ensure_remotes_from_env() {
             [ "$token" = "placeholder" ] && continue
 
             host_id="$(printf '%s' "$prefix" | tr '[:upper:]' '[:lower:]')"
-            domain=""
-            url_template=""
-            if [ -f "${HUB_ROOT}/config/hosts.json" ]; then
-                domain="$(jq -r --arg id "$host_id" '.[$id].host // empty' "${HUB_ROOT}/config/hosts.json" 2>/dev/null)"
-                url_template="$(jq -r --arg id "$host_id" '.[$id].url_template // empty' "${HUB_ROOT}/config/hosts.json" 2>/dev/null)"
-            fi
+            domain="$(jq -r --arg id "$host_id" '.[$id].host // empty' "$HOSTS_JSON" 2>/dev/null)"
+            url_template="$(jq -r --arg id "$host_id" '.[$id].url_template // empty' "$HOSTS_JSON" 2>/dev/null)"
             [ -z "$domain" ] && continue
             [ -z "$url_template" ] && continue
 
@@ -78,12 +72,10 @@ ensure_remotes_from_env() {
 # ============================================================================
 # Push тега на все remote
 # ============================================================================
-
 push_tag_to_all_remotes() {
     local tag="$1"
+    shift
     local -a remotes=("$@")
-    # Первый элемент массива — это tag, удаляем его из списка remote
-    remotes=("${remotes[@]:1}")
 
     if [ ${#remotes[@]} -eq 0 ]; then
         print_warn "    Нет remote для push тега $tag"
@@ -114,13 +106,18 @@ push_tag_to_all_remotes() {
 # ============================================================================
 # Главная функция
 # ============================================================================
-
 main() {
     load_env
-    cd "$HUB" || exit 2
+    cd "$HUB_ROOT" || exit 2
     [ -d ".git" ] || { print_error "Хаб не является git-репозиторием"; exit 2; }
 
-    # --- Парсинг аргументов ---
+    # Identity-guard: repo-local, если глобальный не настроен (новые устройства)
+    if ! git config user.email >/dev/null 2>&1 || ! git config user.name >/dev/null 2>&1; then
+        git config user.name "GitProject Hub"
+        git config user.email "hub@localhost"
+        print_info "    repo-local git identity задан (глобальный не настроен)"
+    fi
+
     TAG_VERSION=""
     TAG_MESSAGE=""
     while [[ $# -gt 0 ]]; do
@@ -150,7 +147,7 @@ main() {
     [ -n "$TAG_VERSION" ] && print_info "    Тег: $TAG_VERSION — $TAG_MESSAGE"
 
     print_info "    Проверяю remote из .env..."
-    ensure_remotes_from_env "$HUB"
+    ensure_remotes_from_env "$HUB_ROOT"
 
     local -a remotes=()
     while read -r remote; do
@@ -164,7 +161,7 @@ main() {
     print_info "    Remote: ${remotes[*]}"
 
     # --- Коммит и push ветки ---
-    local branch_pushed=0
+    local branch_fail=0
     if [ -n "$(git status --porcelain)" ]; then
         print_info "    Коммит локальных изменений..."
         git add -A
@@ -178,8 +175,14 @@ main() {
             git reset -q
             exit 5
         fi
-        git commit -q -m "sync: gitproject hub $(date +%Y-%m-%d_%H:%M)"
-        print_success "    ✓ Коммит создан"
+        local commit_msg
+        if [ -n "$TAG_MESSAGE" ]; then
+            commit_msg="$TAG_MESSAGE"
+        else
+            commit_msg="sync: gitproject hub $(date +%Y-%m-%d_%H:%M)"
+        fi
+        git commit -q -m "$commit_msg"
+        print_success "    ✓ Коммит создан: $commit_msg"
 
         local success=0 fail=0
         for remote in "${remotes[@]}"; do
@@ -198,11 +201,10 @@ main() {
                 fi
             fi
         done
-        branch_pushed=1
+        branch_fail=$fail
 
         if [ "$fail" -gt 0 ]; then
             print_warn "    Мульти-push ветки с ошибками: $success успешно, $fail ошибок"
-            # Не пушим тег, если ветка не ушла полностью — тег повиснет в воздухе
             if [ -n "$TAG_VERSION" ]; then
                 print_warn "    Тег $TAG_VERSION не опубликован из-за ошибок push ветки"
             fi
@@ -214,14 +216,12 @@ main() {
     fi
 
     # --- Создание и push тега ---
-    if [ -n "$TAG_VERSION" ]; then
+    if [ -n "$TAG_VERSION" ] && [ "$branch_fail" -eq 0 ]; then
         print_info ""
         if git rev-parse "$TAG_VERSION" >/dev/null 2>&1; then
             print_warn "    Тег $TAG_VERSION уже существует — пропускаю создание"
         else
             print_info "    Создаю аннотированный тег: $TAG_VERSION"
-            # Убран GIT_COMMITTER_DATE="$(date)", так как date в русской локали ломает парсер Git.
-            # Git сам подставит корректную текущую дату и время.
             if git tag -a "$TAG_VERSION" -m "$TAG_MESSAGE"; then
                 print_success "    ✓ Тег $TAG_VERSION создан"
             else
@@ -233,12 +233,12 @@ main() {
     fi
 
     # Маркетплейс: освежить запись хаба после публикации (если CLI ещё существует)
-    if command -v php >/dev/null 2>&1 && [ -f "$HUB/bin/marketplace.php" ]; then
+    if command -v php >/dev/null 2>&1 && [ -f "$HUB_ROOT/bin/marketplace.php" ]; then
         print_info "    Освежаю запись хаба в маркетплейсе..."
-        php "$HUB/bin/marketplace.php" refresh-hub >&2 || true
+        php "$HUB_ROOT/bin/marketplace.php" refresh-hub >&2 || true
     fi
 
-    exit 0
+    exit "$branch_fail"
 }
 
 main "$@"

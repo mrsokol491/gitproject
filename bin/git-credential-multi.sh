@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # git-credential-multi.sh — credential helper нескольких Git-хостов (GitProject Workspace Hub).
-# Портативно: корень репозитория и .env берутся из HUB_ROOT (bin/lib/common.sh),
-# а не из $HOME/gitproject — работает на любом устройстве и в любом каталоге.
+# Портативно: корень репозитория и .env берутся из HUB_ROOT (bin/lib/common.sh).
 # Читает запрос git из stdin ЦЕЛИКОМ (protocol/host/path), выбирает токен из .env
 # по схеме <PREFIX>_<SCOPE>_TOKEN: PREFIX по домену, SCOPE = HUB (репозиторий хаба
 # gitproject на любом хосте) или PROJECT (остальные репозитории).
+# Username: <PREFIX>_<SCOPE>_USER -> <PREFIX>_HUB_USER -> owner из path (первый сегмент).
+# Персональных констант в коде нет: логины владельца различаются по хостам.
 # Значение "placeholder" в .env трактуется как отсутствие токена.
 # При пустом токене: подсказка в stderr про API-ТОКЕН, молчаливый выход (git спросит сам).
 
@@ -59,9 +60,19 @@ fi
 [ "$token" = "placeholder" ] && token=""
 [ "$user" = "placeholder" ] && user=""
 
+# Fallback username: owner из path, который передаёт git (owner/repo.git).
+if [ -z "$user" ] && [ -n "$path" ]; then
+    user="${path%%/*}"
+fi
+
 if [ -z "$token" ]; then
     echo "git-credential-multi: для $host не задан ${prefix}_${scope}_TOKEN в .env." >&2
+    echo "Если git спросит Password — введите API-ТОКЕН $host (Настройки -> Приложения/Access Tokens), НЕ пароль аккаунта." >&2
+    exit 0
+fi
+if [ -z "$user" ]; then
+    echo "git-credential-multi: для $host не определён username: задайте ${prefix}_${scope}_USER в .env." >&2
     exit 0
 fi
 
-printf 'username=%s\npassword=%s\n' "${user:-sokol491}" "$token"
+printf 'username=%s\npassword=%s\n' "$user" "$token"
