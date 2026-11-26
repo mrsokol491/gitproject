@@ -118,7 +118,7 @@ show_hosts_menu() {
             configured_display="${GRAY}❌ нет${RESET}"
         fi
         
-        echo -ne "  ${CYAN}${BOLD}%-3s${RESET}  ${BOLD}%-12s${RESET}  %-20s  %-14s  %s\n" "$num" "$id" "$domain" "$status_display" "$configured_display" >&2
+        printf "  ${CYAN}${BOLD}%-3s${RESET}  ${BOLD}%-12s${RESET}  %-20s  %-14s  %s\n" "$num" "$id" "$domain" "$status_display" "$configured_display" >&2
     done
     
     echo "" >&2
@@ -444,7 +444,7 @@ main() {
             configured_display="${GRAY}❌ нет${RESET}"
         fi
         
-        echo -ne "  ${CYAN}${BOLD}%-3s${RESET}  ${BOLD}%-12s${RESET}  %-20s  %-14s  %s\n" "$num" "$id" "$domain" "$status_display" "$configured_display" >&2
+        printf "  ${CYAN}${BOLD}%-3s${RESET}  ${BOLD}%-12s${RESET}  %-20s  %-14s  %s\n" "$num" "$id" "$domain" "$status_display" "$configured_display" >&2
     done
     
     if [ $host_idx -eq -1 ]; then

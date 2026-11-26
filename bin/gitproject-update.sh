@@ -12,11 +12,6 @@ CHANNEL="${1:-stable}"; ASSUME_YES=0
 [ "${2:-}" = "--yes" ] && ASSUME_YES=1
 log(){ printf '%s\n' "$*" >&2; }
 die(){ log "✗ ОШИБКА: $*"; exit 1; }
-refresh_marketplace_hub() {
-  if command -v php >/dev/null 2>&1 && [ -f "$HUB/bin/marketplace.php" ]; then
-    php "$HUB/bin/marketplace.php" refresh-hub >&2 || true
-  fi
-}
 case "$CHANNEL" in stable|edge) ;; *) die "канал: stable|edge" ;; esac
 cd -- "$HUB"
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 || die "не git-репозиторий"

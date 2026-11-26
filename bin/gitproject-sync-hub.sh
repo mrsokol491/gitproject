@@ -46,7 +46,7 @@ ensure_remotes_from_env() {
 
             owner_var="${prefix}_HUB_USER"
             owner="$(sed -n "s/^${owner_var}=//p" "$ENV_FILE" 2>/dev/null | tail -n 1 | tr -d '\r')"
-            [ -z "$owner" ] && owner="sokol491"
+            [ -z "$owner" ] && { print_warn "    Пропускаю ${host_id}: задайте ${owner_var} в .env"; continue; }
 
             slug="gitproject"
             url="${url_template//\{owner\}/$owner}"
@@ -232,11 +232,6 @@ main() {
         push_tag_to_all_remotes "$TAG_VERSION" "${remotes[@]}"
     fi
 
-    # Маркетплейс: освежить запись хаба после публикации (если CLI ещё существует)
-    if command -v php >/dev/null 2>&1 && [ -f "$HUB_ROOT/bin/marketplace.php" ]; then
-        print_info "    Освежаю запись хаба в маркетплейсе..."
-        php "$HUB_ROOT/bin/marketplace.php" refresh-hub >&2 || true
-    fi
 
     exit "$branch_fail"
 }

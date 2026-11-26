@@ -64,7 +64,7 @@ cmd_list() {
         local sha="${shas[$i]}" date="${dates[$i]}" status
         if [ -z "$sha" ]; then
             status="${GRAY}⚪ не инициализирован${RESET}"
-            printf "  ${BOLD}%-12s${RESET} %-44s %-9s %-17s %b\n" "${names[$i]}" "${urls[$i]}" "—" "—" "$status"
+            printf "  ${BOLD}%-18s${RESET} %-44s %-9s %-17s %b\n" "$(remote_display_name "$slug" "${names[$i]}")" "${urls[$i]}" "—" "—" "$status"
         elif [ "$sha" = "$latest_sha" ]; then
             status="${GREEN}✅ актуален${RESET}"
             printf "  ${BOLD}%-18s${RESET} %-44s %-9s %-17s %b\n" "$(remote_display_name "$slug" "${names[$i]}")" "${urls[$i]}" "${sha:0:7}" "$date" "$status"

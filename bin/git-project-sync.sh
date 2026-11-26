@@ -58,7 +58,7 @@ ensure_project_remotes_from_env() {
 
             owner_var="${prefix}_PROJECT_USER"
             owner="$(sed -n "s/^${owner_var}=//p" "$ENV_FILE" 2>/dev/null | tail -n 1 | tr -d '\r')"
-            [ -z "$owner" ] && owner="sokol491"
+            [ -z "$owner" ] && { print_warn "    Пропускаю ${host_id}: задайте ${owner_var} в .env"; continue; }
 
             url="${url_template//\{owner\}/$owner}"
             url="${url//\{slug\}/$slug}"
