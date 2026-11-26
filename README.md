@@ -11,8 +11,8 @@
 + ✅ GitHub (github.com) — международный Git-хостинг
 + ✅ GitLab (gitlab.com) — международный Git-хостинг
 + ✅ Сodeberg (codeberg.org) — международный Git-хостинг
-+ ⚠️ AltLinux Space (altlinux.space) — платформа от Alt Linux (реестр ПО РФ)
-+ ⚠️ Gitea (gitea.com) — международный Git-хостинг
++ ✅ AltLinux Space (altlinux.space) — платформа от Alt Linux (реестр ПО РФ)
++ ✅ Gitea (gitea.com) — международный Git-хостинг
 + ❌ GOSH (gosh.sh) — Git Open Source Hodler, международный Git-хостинг
 + ❌ Bitbucket (bitbucket.org) — международный Git-хостинг
 + ⚠️ КОД'ОК (https://kodok.dev) — Российский Git-хостинг
@@ -38,8 +38,8 @@
 + ✅ Mos.hub: https://hub.mos.ru/mrsokol491/gitproject
 + ✅ GitLab: https://gitlab.com/sokol491/gitproject
 + ✅ Сodeberg: https://codeberg.org/mrsokol491/gitproject
-+ ⚠️ Gitea: https://gitea.com/mrsokol491/gitproject
-+ ⚠️ AltLinux Space: https://altlinux.space/mrsokol491/gitproject
++ ✅ Gitea: https://gitea.com/mrsokol491/gitproject
++ ✅ AltLinux Space: https://altlinux.space/mrsokol491/gitproject
 
 ## Установка (новое устройство / новый пользователь)
 
