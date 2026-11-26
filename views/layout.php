@@ -27,8 +27,8 @@ $ws_content = $ws_view_files[$ws_view] ?? $ws_view_files['home'];
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="csrf-token" content="<?= htmlspecialchars($csrf ?? '') ?>">
 <title><?= htmlspecialchars($ws_title ?? 'GitProject Workspace Hub') ?></title>
-<link rel="stylesheet" href="/assets/css/tokens.css?v=1">
-<link rel="stylesheet" href="/assets/style.css?v=5">
+<link rel="stylesheet" href="/assets/css/tokens.css?v=12">
+<link rel="stylesheet" href="/assets/style.css?v=12">
 </head>
 <body class="ws-body" data-view="<?= htmlspecialchars($ws_view) ?>">
 
@@ -55,6 +55,22 @@ $ws_content = $ws_view_files[$ws_view] ?? $ws_view_files['home'];
   </div>
 </aside>
 
+<?php
+// Пользователь воркспейса: первый не-placeholder *_HUB_USER из .env.
+$wsUser = 'local';
+$wsEnv = dirname(__DIR__) . '/.env';
+if (is_readable($wsEnv)) {
+    foreach (file($wsEnv, FILE_IGNORE_NEW_LINES) ?: [] as $wsLine) {
+        if (preg_match('/^[A-Z][A-Z_]*_HUB_USER=(.+)$/', $wsLine, $wsM) === 1) {
+            $wsU = trim($wsM[1]);
+            if ($wsU !== '' && $wsU !== 'placeholder') {
+                $wsUser = $wsU;
+                break;
+            }
+        }
+    }
+}
+?>
 <div class="ws-main">
   <header class="ws-head">
     <div class="ws-crumb"><?= $ws_crumb ?></div>
@@ -62,7 +78,7 @@ $ws_content = $ws_view_files[$ws_view] ?? $ws_view_files['home'];
     <div class="ws-head-right">
       <input type="search" class="ws-search" id="ws-search" placeholder="<?= htmlspecialchars($ws_search_ph) ?>" maxlength="80">
       <a class="ws-gear" href="/?view=hosts" title="Хосты и токены">⚙</a>
-      <span class="ws-user">@sokol491</span>
+      <span class="ws-user">@<?= htmlspecialchars($wsUser, ENT_QUOTES) ?></span>
     </div>
   </header>
   <main class="ws-content">
@@ -71,7 +87,7 @@ $ws_content = $ws_view_files[$ws_view] ?? $ws_view_files['home'];
 </div>
 
 <div class="mp-toast" id="mp-toast" hidden></div>
-<script type="module" src="/assets/js/project-page.js?v=11"></script>
-<script type="module" src="/assets/js/workspace.js?v=2"></script>
+<script type="module" src="/assets/js/project-page.js?v=12"></script>
+<script type="module" src="/assets/js/workspace.js?v=12"></script>
 </body>
 </html>

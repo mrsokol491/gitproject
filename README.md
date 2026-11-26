@@ -15,10 +15,10 @@
 + ✅ Gitea (gitea.com) — международный Git-хостинг
 + ❌ GOSH (gosh.sh) — Git Open Source Hodler, международный Git-хостинг
 + ❌ Bitbucket (bitbucket.org) — международный Git-хостинг
-+ ⚠️ КОД'ОК (https://kodok.dev) — Российский Git-хостинг
-+ ⚠️ AppSec.Code (https://appsec.global/appseccode) — Российский Git-хостинг
-+ ⚠️ Fenix (РТК) — (https://rtk-market.ru/product/fenix) — Российский Git-хостинг
-+ ⚠️ КОД (Сфера) — (https://sferaplatform.ru/kod) — Российский Git-хостинг
++ ⚠️ КОД'ОК (kodok.dev) — Российский Git-хостинг
++ ⚠️ AppSec.Code (appsec.global/appseccode) — Российский Git-хостинг
++ ⚠️ Fenix (РТК) — (rtk-market.ru/product/fenix) — Российский Git-хостинг
++ ⚠️ КОД (Сфера) — (sferaplatform.ru/kod) — Российский Git-хостинг
 
 
     + ✅ - Интегрирован
@@ -47,20 +47,20 @@
 
 1. Клонирование хаба (из GitVerse)
 ```
-       git clone https://gitverse.ru/Sokol491/gitproject.git ~/gitproject
-       cd ~/gitproject
+git clone https://gitverse.ru/Sokol491/gitproject.git ~/gitproject
+cd ~/gitproject
 ```
 2. Создать .env из шаблона и вписать свои значения
 ```
-       cp .env.example .env 2>/dev/null || true
-       chmod 600 .env
+cp .env.example .env 2>/dev/null || true
+chmod 600 .env
 ```
 3. Права на скрипты и подключение credential helper
 ```
-       chmod 700 bin/git-credential-multi.sh bin/git-project-*.sh
-       git config --global credential.helper "$HOME/gitproject/bin/git-credential-multi.sh"
-       git config --global user.name "Ваше Имя"
-       git config --global user.email "ваш_email@example.com"
+chmod 700 bin/git-credential-multi.sh bin/git-project-*.sh
+git config --global credential.helper "$HOME/gitproject/bin/git-credential-multi.sh"
+git config --global user.name "Ваше Имя"
+git config --global user.email "ваш_email@example.com"
 ```
 4. Проверка helper (токен маскируется)
 ```
@@ -69,21 +69,21 @@
 ```
 5. Запуск хаба
 ```
-       php -S 0.0.0.0:8000 -t ~/gitproject ~/gitproject/router.php
+php -S 0.0.0.0:8000 -t ~/gitproject ~/gitproject/router.php
 ```
   или через systemd:
 ```
-       systemctl --user enable --now gitproject-workspace.service
-       sudo loginctl enable-linger $USER
+systemctl --user enable --now gitproject-workspace.service
+sudo loginctl enable-linger $USER
 ```
 6. Клонирование проектов в контейнер
 ```
-       git clone https://gitverse.ru/<owner>/<slug>.git ~/gitproject/projects/<slug>
-       ~/gitproject/bin/git-project-sync.sh fix <slug>
+git clone https://gitverse.ru/<owner>/<slug>.git ~/gitproject/projects/<slug>
+~/gitproject/bin/git-project-sync.sh fix <slug>
 ```
 Обновление окружения хаба — только из репозитория Sokol491 на GitVerse:
 ```
-    ~/gitproject/bin/git-project-pull.sh
+~/gitproject/bin/git-project-pull.sh
 ```
 ## Порты и URL
 

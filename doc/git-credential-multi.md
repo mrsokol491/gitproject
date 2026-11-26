@@ -21,5 +21,5 @@ Credential helper нескольких Git-хостов для git (credential.h
 
 ## Ограничения
 - .env читается по $HOME/gitproject/.env. На устройстве с другим путём создайте симлинк:
-  ln -s ~/СавинМихаил/gitproject ~/gitproject
+  ln -s ~/ИмяВашейПапки/gitproject ~/gitproject
 - Токены не логируются.
