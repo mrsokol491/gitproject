@@ -1,5 +1,17 @@
 #!/usr/bin/env bash
+# git-credential-multi.sh — credential helper нескольких Git-хостов (GitProject Workspace Hub).
+# Портативно: корень репозитория и .env берутся из HUB_ROOT (bin/lib/common.sh),
+# а не из $HOME/gitproject — работает на любом устройстве и в любом каталоге.
+# Читает запрос git из stdin ЦЕЛИКОМ (protocol/host/path), выбирает токен из .env
+# по схеме <PREFIX>_<SCOPE>_TOKEN: PREFIX по домену, SCOPE = HUB (репозиторий хаба
+# gitproject на любом хосте) или PROJECT (остальные репозитории).
+# Значение "placeholder" в .env трактуется как отсутствие токена.
+# При пустом токене: подсказка в stderr про API-ТОКЕН, молчаливый выход (git спросит сам).
+
 set -u
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/common.sh"
 
 op="${1:-}"
 if [ "$op" != "get" ]; then
@@ -12,7 +24,7 @@ host="$(printf '%s\n' "$input" | sed -n 's/^host=//p' | tail -n 1 | tr -d '\r')"
 path="$(printf '%s\n' "$input" | sed -n 's/^path=//p' | tail -n 1 | tr -d '\r')"
 [ -n "$host" ] || exit 0
 
-env_file="${HOME}/gitproject/.env"
+env_file="${HUB_ROOT}/.env"
 if [ ! -r "$env_file" ]; then
     echo "git-credential-multi: нет читаемого .env ($env_file)" >&2
     exit 0
@@ -23,6 +35,7 @@ case "$host" in
     gitflic.ru)          prefix="GITFLIC" ;;
     git.sourcecraft.dev) prefix="SOURCECRAFT" ;;
     hub.mos.ru)          prefix="MOSHUB" ;;
+    altlinux.space)      prefix="ALTLINUX" ;;
     github.com)          prefix="GITHUB" ;;
     gitlab.com)          prefix="GITLAB" ;;
     codeberg.org)        prefix="CODEBERG" ;;

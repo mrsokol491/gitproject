@@ -24,6 +24,22 @@
     "registry": "rf",
     "description": "SourceCraft — платформа от Яндекса (реестр ПО РФ)"
   },
+  "moshub": {
+    "host": "hub.mos.ru",
+    "status": "ready",
+    "env_prefix": "MOSHUB",
+    "url_template": "https://hub.mos.ru/{owner}/{slug}.git",
+    "registry": "rf",
+    "description": "Mos.hub — Московская облачная платформа с ИИ-ассистентом «КоДИТ» и антивирусным сканированием (реестр ПО РФ)"
+  },
+  "altlinux": {
+    "host": "altlinux.space",
+    "status": "ready",
+    "env_prefix": "ALTLINUX",
+    "url_template": "https://altlinux.space/{owner}/{slug}.git",
+    "registry": "rf",
+    "description": "AltLinux Space — Git-хостинг ALT Linux на Forgejo (РФ)"
+  },
   "github": {
     "host": "github.com",
     "status": "ready",
@@ -31,14 +47,6 @@
     "url_template": "https://github.com/{owner}/{slug}.git",
     "registry": "foreign",
     "description": "GitHub — международный Git-хостинг"
-  },
-    "moshub": {
-    "host": "hub.mos.ru",
-    "status": "ready",
-    "env_prefix": "MOSHUB",
-    "url_template": "https://hub.mos.ru/{owner}/{slug}.git",
-    "registry": "rf",
-    "description": "Mos.hub — Московская облачная платформа с ИИ-ассистентом «КоДИТ» и антивирусным сканированием"
   },
   "gitlab": {
     "host": "gitlab.com",
@@ -48,17 +56,17 @@
     "registry": "foreign",
     "description": "GitLab — международный Git-хостинг"
   },
-    "codeberg": {
+  "codeberg": {
     "host": "codeberg.org",
     "status": "ready",
     "env_prefix": "CODEBERG",
     "url_template": "https://codeberg.org/{owner}/{slug}.git",
     "registry": "foreign",
-    "description": "Codeberg — международный Git-хостинг"
+    "description": "Codeberg — международный Git-хостинг на Forgejo"
   },
   "gitea": {
     "host": "gitea.com",
-    "status": "integrating",
+    "status": "ready",
     "env_prefix": "GITEA",
     "url_template": "https://gitea.com/{owner}/{slug}.git",
     "registry": "foreign",

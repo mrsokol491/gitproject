@@ -90,6 +90,15 @@ function mpHosts(): array
             'raw'       => 'https://gitea.com/%s/%s/raw/branch/%s/',
             'stats'     => true,
         ],
+            'altlinux' => [
+            'domain'    => 'altlinux.space',
+            'name'      => 'AltLinux Space',
+            'repo_url'  => 'https://altlinux.space/%s/%s',
+            'clone_url' => 'https://altlinux.space/%s/%s.git',
+            'api'       => 'https://altlinux.space/api/v1/repos/%s/%s',
+            'raw'       => 'https://altlinux.space/%s/%s/raw/branch/%s/',
+            'stats'     => true,
+        ],
     ];
 }
 
@@ -711,14 +720,7 @@ function mpFetchItem(array $item): array
             $lic = $meta['license'] ?? null;
             $c['license'] = is_array($lic) ? (string) ($lic['name'] ?? '') : null;
             $c['pushed_at'] = isset($meta['last_activity_at']) ? (string) $meta['last_activity_at'] : null;
-        } elseif ($item['host_id'] === 'codeberg') {
-            $c['stars'] = isset($meta['stargazers_count']) ? (int) $meta['stargazers_count'] : null;
-            $c['forks'] = isset($meta['forks_count']) ? (int) $meta['forks_count'] : null;
-            $c['open_issues'] = isset($meta['open_issues_count']) ? (int) $meta['open_issues_count'] : null;
-            $lic = $meta['license'] ?? null;
-            $c['license'] = is_array($lic) ? (string) ($lic['name'] ?? '') : null;
-            $c['pushed_at'] = isset($meta['updated_at']) ? (string) $meta['updated_at'] : null;
-        } elseif ($item['host_id'] === 'gitea') {
+        } elseif (in_array($item['host_id'], ['gitea', 'altlinux', 'codeberg'], true)) {
             $c['stars'] = isset($meta['stargazers_count']) ? (int) $meta['stargazers_count'] : null;
             $c['forks'] = isset($meta['forks_count']) ? (int) $meta['forks_count'] : null;
             $c['open_issues'] = isset($meta['open_issues_count']) ? (int) $meta['open_issues_count'] : null;

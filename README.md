@@ -11,9 +11,14 @@
 + ✅ GitHub (github.com) — международный Git-хостинг
 + ✅ GitLab (gitlab.com) — международный Git-хостинг
 + ✅ Сodeberg (codeberg.org) — международный Git-хостинг
++ ⚠️ AltLinux Space (altlinux.space) — платформа от Alt Linux (реестр ПО РФ)
 + ⚠️ Gitea (gitea.com) — международный Git-хостинг
 + ❌ GOSH (gosh.sh) — Git Open Source Hodler, международный Git-хостинг
 + ❌ Bitbucket (bitbucket.org) — международный Git-хостинг
++ ⚠️ КОД'ОК (https://kodok.dev) — Российский Git-хостинг
++ ⚠️ AppSec.Code (https://appsec.global/appseccode) — Российский Git-хостинг
++ ⚠️ Fenix (РТК) — (https://rtk-market.ru/product/fenix) — Российский Git-хостинг
++ ⚠️ КОД (Сфера) — (https://sferaplatform.ru/kod) — Российский Git-хостинг
 
 
     + ✅ - Интегрирован
@@ -33,6 +38,8 @@
 + ✅ Mos.hub: https://hub.mos.ru/mrsokol491/gitproject
 + ✅ GitLab: https://gitlab.com/sokol491/gitproject
 + ✅ Сodeberg: https://codeberg.org/mrsokol491/gitproject
++ ⚠️ Gitea: https://gitea.com/mrsokol491/gitproject
++ ⚠️ AltLinux Space: https://altlinux.space/mrsokol491/gitproject
 
 ## Установка (новое устройство / новый пользователь)
 
@@ -150,3 +157,13 @@ credential helper; в выводе команд маскируются ([скр�
 ## Логи
 
 data/workspace.log, data/workspace-error.log, data/<host>.log — в репозиторий не попадают.
+## Лицензия
+
+Apache License 2.0 — полный текст в [LICENSE](LICENSE).
+Выбор обусловлен упором на российское ПО: лицензия принята в РФ-практике
+(Яндекс, Сбер, VK), даёт явную патентную защиту и совместима с GPL.
+
+## Документация скриптов
+
+`doc/` — инструкция по каждому `bin/*.sh`: все флаги, режимы, коды подтверждения,
+ограничения и примеры вызова. Оглавление: `doc/README.md`.
