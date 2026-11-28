@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# git-project-sync-precheck.sh — общие проверки перед sync проекта.
+# gitproject-sync-precheck.sh — общие проверки перед sync проекта.
 # Не является отдельным sync-скриптом; подключается обёртками.
 
 set -Eeuo pipefail
@@ -7,10 +7,10 @@ set -Eeuo pipefail
 GIT_PROJECT_WORKSPACE="${GIT_PROJECT_WORKSPACE:-${HUB_ROOT}}"
 GIT_PROJECT_PROJECTS="$GIT_PROJECT_WORKSPACE/projects"
 
-if [[ -x "$GIT_PROJECT_WORKSPACE/bin/git-project-sync.sh" ]]; then
-  GIT_PROJECT_SYNC_BIN="$GIT_PROJECT_WORKSPACE/bin/git-project-sync.sh"
+if [[ -x "$GIT_PROJECT_WORKSPACE/bin/project/gitproject-sync.sh" ]]; then
+  GIT_PROJECT_SYNC_BIN="$GIT_PROJECT_WORKSPACE/bin/project/gitproject-sync.sh"
 else
-  print_error "Не найден bin/git-project-sync.sh"
+  print_error "Не найден bin/project/gitproject-sync.sh"
   exit 2
 fi
 

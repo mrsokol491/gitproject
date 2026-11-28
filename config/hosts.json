@@ -71,5 +71,13 @@
     "url_template": "https://gitea.com/{owner}/{slug}.git",
     "registry": "foreign",
     "description": "Gitea — международный Git-хостинг"
+  },
+  "forgejo": {
+    "host": "v17.next.forgejo.org",
+    "status": "ready",
+    "env_prefix": "FORGEJO",
+    "url_template": "https://v17.next.forgejo.org/{owner}/{slug}.git",
+    "registry": "foreign",
+    "description": "Forgejo — международный Git-хостинг (форк Gitea)"
   }
 }

@@ -1,4 +1,4 @@
-# git-project-sync-precheck.sh
+# gitproject-sync-precheck.sh
 
 Библиотека общих проверок перед sync проекта. Не самостоятельный sync-скрипт:
 подключается обёртками (source).
@@ -6,7 +6,7 @@
 ## Окружение
 - GIT_PROJECT_WORKSPACE (по умолчанию HUB_ROOT) — корень workspace.
 - GIT_PROJECT_PROJECTS = $GIT_PROJECT_WORKSPACE/projects.
-- Требует исполняемый bin/git-project-sync.sh, иначе exit 2.
+- Требует исполняемый bin/project/gitproject-sync.sh, иначе exit 2.
 
 ## Функции
 - preflight_info / preflight_die — лог и аварийный выход.

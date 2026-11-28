@@ -3,7 +3,7 @@
 Zip-экспорт отслеживаемых файлов проекта.
 
 ## Вызов
-    bin/gitproject-export.sh <slug>
+    bin/project/gitproject-export.sh <slug>
 
 ## Поведение
 - git archive --format=zip HEAD → data/exports/<slug>-<stamp>.zip.

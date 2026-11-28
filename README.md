@@ -57,15 +57,15 @@ chmod 600 .env
 ```
 3. Права на скрипты и подключение credential helper
 ```
-chmod 700 bin/git-credential-multi.sh bin/git-project-*.sh
-git config --global credential.helper "$HOME/gitproject/bin/git-credential-multi.sh"
+chmod 700 bin/lib/git-credential-multi.sh bin/gitproject-*.sh
+git config --global credential.helper "$HOME/gitproject/bin/lib/git-credential-multi.sh"
 git config --global user.name "Ваше Имя"
 git config --global user.email "ваш_email@example.com"
 ```
 4. Проверка helper (токен маскируется)
 ```
        printf 'protocol=https\nhost=gitverse.ru\npath=Sokol491/gitproject.git\n' \
-         | bin/git-credential-multi.sh get | sed -E 's/^(password=).*/\1[скрыто]/'
+         | bin/lib/git-credential-multi.sh get | sed -E 's/^(password=).*/\1[скрыто]/'
 ```
 5. Запуск хаба
 ```
@@ -79,11 +79,11 @@ sudo loginctl enable-linger $USER
 6. Клонирование проектов в контейнер
 ```
 git clone https://gitverse.ru/<owner>/<slug>.git ~/gitproject/projects/<slug>
-~/gitproject/bin/git-project-sync.sh fix <slug>
+~/gitproject/bin/project/gitproject-sync.sh fix <slug>
 ```
 Обновление окружения хаба — только из репозитория Sokol491 на GitVerse:
 ```
-~/gitproject/bin/git-project-pull.sh
+~/gitproject/bin/project/gitproject-pull.sh
 ```
 ## Порты и URL
 
@@ -96,36 +96,36 @@ git clone https://gitverse.ru/<owner>/<slug>.git ~/gitproject/projects/<slug>
 Все скрипты в bin/ требуют права 700. Токены подставляются из .env через
 credential helper; в выводе команд маскируются ([скрыто]).
 
-### Интерактивная синхронизация проектов (bin/git-project-sync.sh)
+### Интерактивная синхронизация проектов (bin/project/gitproject-sync.sh)
 
 Запуск без аргументов открывает меню: нумерованный список проектов с цветным
 состоянием; выбор — номера через запятую (1,3), all — все, q — выход.
 
-    ~/gitproject/bin/git-project-sync.sh                 # интерактивное меню
-    ~/gitproject/bin/git-project-sync.sh <slug>          # один проект без меню
-    ~/gitproject/bin/git-project-sync.sh <slug> -m "сообщение"
-    ~/gitproject/bin/git-project-sync.sh status          # таблица состояний
-    ~/gitproject/bin/git-project-sync.sh fix <slug>      # init/origin/контроль
+    ~/gitproject/bin/project/gitproject-sync.sh                 # интерактивное меню
+    ~/gitproject/bin/project/gitproject-sync.sh <slug>          # один проект без меню
+    ~/gitproject/bin/project/gitproject-sync.sh <slug> -m "сообщение"
+    ~/gitproject/bin/project/gitproject-sync.sh status          # таблица состояний
+    ~/gitproject/bin/project/gitproject-sync.sh fix <slug>      # init/origin/контроль
 
-### Публикация хаба (bin/git-project-update.sh)
+### Публикация хаба (bin/gitproject-update.sh)
 
-    ~/gitproject/bin/git-project-update.sh -m "Тест"     # публикация с сообщением
-    ~/gitproject/bin/git-project-update.sh               # авто-сообщение с датой
-    ~/gitproject/bin/git-project-update.sh status        # состояние хаба
-    ~/gitproject/bin/git-project-update.sh fix           # подготовка к первой публикации
+    ~/gitproject/bin/gitproject-update.sh -m "Тест"     # публикация с сообщением
+    ~/gitproject/bin/gitproject-update.sh               # авто-сообщение с датой
+    ~/gitproject/bin/gitproject-update.sh status        # состояние хаба
+    ~/gitproject/bin/gitproject-update.sh fix           # подготовка к первой публикации
 
 ### Мульти-хост система
 
-    ~/gitproject/bin/git-project-clone.sh                # мастер клонирования с выбором хоста
-    ~/gitproject/bin/git-project-remote.sh <slug> --list # remote + актуальность
-    ~/gitproject/bin/git-project-remote.sh <slug> --add <domain>
+    ~/gitproject/bin/project/gitproject-clone.sh                # мастер клонирования с выбором хоста
+    ~/gitproject/bin/project/gitproject-remote.sh <slug> --list # remote + актуальность
+    ~/gitproject/bin/project/gitproject-remote.sh <slug> --add <domain>
 
-### Credential helper (bin/git-credential-multi.sh)
+### Credential helper (bin/lib/git-credential-multi.sh)
 
 Вызывается только git, вручную не нужен. Проверка БЕЗ вывода токена:
 
     printf 'protocol=https\nhost=gitverse.ru\n' \
-      | ~/gitproject/bin/git-credential-multi.sh get \
+      | ~/gitproject/bin/lib/git-credential-multi.sh get \
       | sed -E 's/^(password=).*/\1[скрыто]/'
 
 ### Сервис хаба (systemd)

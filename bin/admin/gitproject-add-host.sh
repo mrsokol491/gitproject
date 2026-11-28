@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# git-project-add-host.sh — интерактивный wizard добавления нового Git-хоста.
+# gitproject-add-host.sh — интерактивный wizard добавления нового Git-хоста.
 #
 # Возможности:
 #   - Выбор хоста из каталога (ready/integrating/disabled)
@@ -11,14 +11,14 @@
 #   - Поддержка российских Git-хостов (реестр ПО РФ)
 #
 # Вызовы:
-#   git-project-add-host.sh                # интерактивный wizard
-#   git-project-add-host.sh --host <id>    # сразу выбрать хост
-#   git-project-add-host.sh --list         # показать список хостов
+#   gitproject-add-host.sh                # интерактивный wizard
+#   gitproject-add-host.sh --host <id>    # сразу выбрать хост
+#   gitproject-add-host.sh --list         # показать список хостов
 
 set -uo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/lib/common.sh"
+source "$SCRIPT_DIR/../lib/common.sh"
 
 CONFIG_FILE="${HUB_ROOT}/config/hosts.json"
 ENV_FILE="${HUB_ROOT}/.env"
@@ -394,9 +394,9 @@ main() {
                 ;;
             -h|--help)
                 echo "Использование:"
-                echo "  git-project-add-host.sh              # интерактивный wizard"
-                echo "  git-project-add-host.sh --host <id>  # сразу выбрать хост"
-                echo "  git-project-add-host.sh --list       # показать список хостов"
+                echo "  gitproject-add-host.sh              # интерактивный wizard"
+                echo "  gitproject-add-host.sh --host <id>  # сразу выбрать хост"
+                echo "  gitproject-add-host.sh --list       # показать список хостов"
                 exit 0
                 ;;
             *)
@@ -529,9 +529,9 @@ main() {
     print_info "  Пользователь: $user"
     echo "" >&2
     print_info "  Следующие шаги:"
-    echo "    1. Проверить подключение: git-project-clone.sh" >&2
-    echo "    2. Добавить remote к проекту: git-project-remote.sh <slug> --add $HOST_DOMAIN" >&2
-    echo "    3. Синхронизировать на все хосты: git-project-sync.sh <slug> --all" >&2
+    echo "    1. Проверить подключение: gitproject-clone.sh" >&2
+    echo "    2. Добавить remote к проекту: gitproject-remote.sh <slug> --add $HOST_DOMAIN" >&2
+    echo "    3. Синхронизировать на все хосты: gitproject-sync.sh <slug> --all" >&2
     echo "" >&2
 }
 

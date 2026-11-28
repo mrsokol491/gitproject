@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# git-project-remove.sh — удаление проекта с выбором области (local/host/all).
+# gitproject-remove.sh — удаление проекта с выбором области (local/host/all).
 #
 # Возможности:
 #   - Удаление только локально (сохранить на всех хостах)
@@ -9,15 +9,15 @@
 #   - Логирование операций
 #
 # Вызовы:
-#   git-project-remove.sh <slug>              # интерактивный выбор области
-#   git-project-remove.sh <slug> --local      # удалить только локально
-#   git-project-remove.sh <slug> --host <id>  # удалить с конкретного хоста
-#   git-project-remove.sh <slug> --all        # удалить со всех хостов
+#   gitproject-remove.sh <slug>              # интерактивный выбор области
+#   gitproject-remove.sh <slug> --local      # удалить только локально
+#   gitproject-remove.sh <slug> --host <id>  # удалить с конкретного хоста
+#   gitproject-remove.sh <slug> --all        # удалить со всех хостов
 
 set -uo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/lib/common.sh"
+source "$SCRIPT_DIR/../lib/common.sh"
 
 # ============================================================================
 # Вспомогательные функции
@@ -322,10 +322,10 @@ main() {
     
     if [ $# -lt 1 ]; then
         echo "Использование:"
-        echo "  git-project-remove.sh <slug>              # интерактивный выбор"
-        echo "  git-project-remove.sh <slug> --local      # удалить только локально"
-        echo "  git-project-remove.sh <slug> --host <id>  # удалить с конкретного хоста"
-        echo "  git-project-remove.sh <slug> --all        # удалить со всех хостов"
+        echo "  gitproject-remove.sh <slug>              # интерактивный выбор"
+        echo "  gitproject-remove.sh <slug> --local      # удалить только локально"
+        echo "  gitproject-remove.sh <slug> --host <id>  # удалить с конкретного хоста"
+        echo "  gitproject-remove.sh <slug> --all        # удалить со всех хостов"
         exit 2
     fi
     

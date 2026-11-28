@@ -113,9 +113,9 @@ if ($action === 'export') {
     if (!is_dir($realRepo . '/.git')) {
         respond(false, [], 'Проект не является git-репозиторием', 'NOT_GIT');
     }
-    $script = $hubRoot . '/bin/gitproject-export.sh';
+    $script = $hubRoot . '/bin/project/gitproject-export.sh';
     if (!is_executable($script)) {
-        respond(false, [], 'bin/gitproject-export.sh не найден', 'SCRIPT_ERROR');
+        respond(false, [], 'bin/project/gitproject-export.sh не найден', 'SCRIPT_ERROR');
     }
     $output = [];
     $rc = 0;

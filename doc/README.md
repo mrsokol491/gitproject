@@ -7,14 +7,14 @@
 | [audit-php-security.sh](audit-php-security.md) | аудит PHP на CVE-2026-109618/9 и конфигурацию php.ini |
 | [audit-project.sh](audit-project.md) | полный аудиторский отчёт по проекту в файл |
 | [git-credential-multi.sh](git-credential-multi.md) | credential helper нескольких Git-хостов |
-| [git-project-add-host.sh](git-project-add-host.md) | wizard добавления Git-хоста и токенов |
-| [git-project-clone.sh](git-project-clone.md) | интерактивное клонирование с выбором хоста |
-| [git-project-migrate.sh](git-project-migrate.md) | миграция проекта между хостами |
-| [git-project-pull.sh](git-project-pull.md) | безопасное обновление хаба и проектов (--ff-only) |
-| [git-project-remote.sh](git-project-remote.md) | управление remote проекта + актуальность |
-| [git-project-remove.sh](git-project-remove.md) | удаление проекта local/host/all |
-| [git-project-sync-precheck.sh](git-project-sync-precheck.md) | библиотека предпроверок перед sync |
-| [git-project-sync.sh](git-project-sync.md) | синхронизация проектов: push/pull/all/status/fix/probe |
+| [gitproject-add-host.sh](gitproject-add-host.md) | wizard добавления Git-хоста и токенов |
+| [gitproject-clone.sh](gitproject-clone.md) | интерактивное клонирование с выбором хоста |
+| [gitproject-migrate.sh](gitproject-migrate.md) | миграция проекта между хостами |
+| [gitproject-pull.sh](gitproject-pull.md) | безопасное обновление хаба и проектов (--ff-only) |
+| [gitproject-remote.sh](gitproject-remote.md) | управление remote проекта + актуальность |
+| [gitproject-remove.sh](gitproject-remove.md) | удаление проекта local/host/all |
+| [gitproject-sync-precheck.sh](gitproject-sync-precheck.md) | библиотека предпроверок перед sync |
+| [gitproject-sync.sh](gitproject-sync.md) | синхронизация проектов: push/pull/all/status/fix/probe |
 | [gitproject-export.sh](gitproject-export.md) | zip-экспорт tracked-файлов проекта |
 | [gitproject-fetch.sh](gitproject-fetch.md) | fetch хаба из GitVerse с троттлингом 24ч |
 | [gitproject-force-update.sh](gitproject-force-update.md) | принудительное обновление хаба (reset --hard) |

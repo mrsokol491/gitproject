@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# git-project-clone.sh — интерактивное клонирование проекта с выбором Git-хоста.
+# gitproject-clone.sh — интерактивное клонирование проекта с выбором Git-хоста.
 #
 # Возможности:
 #   - Пошаговое клонирование с явными этапами и описаниями
@@ -12,7 +12,7 @@
 set -uo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/lib/common.sh"
+source "$SCRIPT_DIR/../lib/common.sh"
 
 # ============================================================================
 # Вспомогательные функции для UX
@@ -189,7 +189,7 @@ ask_add_more_remotes() {
     print_info "  Хотите добавить remote с других хостов?" >&2
     echo "" >&2
     print_info "  Это позволит синхронизировать проект на несколько Git-хостов" >&2
-    print_info "  одновременно через команду: git-project-sync.sh $slug --all" >&2
+    print_info "  одновременно через команду: gitproject-sync.sh $slug --all" >&2
     echo "" >&2
     
     local ready_count=0

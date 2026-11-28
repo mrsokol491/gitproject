@@ -3,8 +3,8 @@
 Полный аудиторский отчёт по проекту workspace в файл вне репозитория.
 
 ## Вызов
-    bin/audit-project.sh <slug>
-Пример: bin/audit-project.sh archive
+    bin/admin/audit-project.sh <slug>
+Пример: bin/admin/audit-project.sh archive
 
 ## Поведение
 - Отчёт: data/audits/<slug>-<YYYYmmdd_HHMMSS>.txt (в коммиты не попадает).

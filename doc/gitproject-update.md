@@ -3,7 +3,7 @@
 Обновление хаба из GitVerse: stable (релиз-тег) или edge (master).
 
 ## Вызов
-    bin/gitproject-update.sh [stable|edge] [--yes]
+    bin/hub/gitproject-update.sh [stable|edge] [--yes]
 
 ## Поведение
 - Identity-guard: repo-local user.name/email, если глобальный не настроен.

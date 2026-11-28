@@ -3,8 +3,8 @@
 Откат хаба к backup-ветке.
 
 ## Вызовы
-    bin/gitproject-rollback.sh list
-    bin/gitproject-rollback.sh <branch> [--yes]
+    bin/hub/gitproject-rollback.sh list
+    bin/hub/gitproject-rollback.sh <branch> [--yes]
 
 ## Поведение
 - list: таблица backup/pre-* (branch, sha, дата), сортировка по имени убыв.

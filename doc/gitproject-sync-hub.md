@@ -3,8 +3,8 @@
 Мульти-push самого хаба на все настроенные remote + публикация тегов.
 
 ## Вызовы
-    bin/gitproject-sync-hub.sh
-    bin/gitproject-sync-hub.sh --tag <version> "<message>"
+    bin/hub/gitproject-sync-hub.sh
+    bin/hub/gitproject-sync-hub.sh --tag <version> "<message>"
 
 ## Поведение
 1. Автодобавление remote из .env (<PREFIX>_HUB_TOKEN, не placeholder) по hosts.json.

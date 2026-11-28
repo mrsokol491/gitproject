@@ -1,9 +1,9 @@
-# git-project-pull.sh
+# gitproject-pull.sh
 
 Безопасное обновление локальных репозиториев из основного хоста.
 
 ## Вызов
-    bin/git-project-pull.sh
+    bin/project/gitproject-pull.sh
 Аргументов и флагов нет.
 
 ## Поведение

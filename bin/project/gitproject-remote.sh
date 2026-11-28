@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# git-project-remote.sh — управление remote проекта с подсветкой актуальности версий.
+# gitproject-remote.sh — управление remote проекта с подсветкой актуальности версий.
 #
 # Вызовы:
-#   git-project-remote.sh <slug> --list                    # таблица remote + актуальность
-#   git-project-remote.sh <slug> --add <domain>            # добавить remote (owner из .env)
-#   git-project-remote.sh <slug> --add <domain> --owner <owner>
-#   git-project-remote.sh <slug> --remove <remote>         # удалить remote (с подтверждением)
+#   gitproject-remote.sh <slug> --list                    # таблица remote + актуальность
+#   gitproject-remote.sh <slug> --add <domain>            # добавить remote (owner из .env)
+#   gitproject-remote.sh <slug> --add <domain> --owner <owner>
+#   gitproject-remote.sh <slug> --remove <remote>         # удалить remote (с подтверждением)
 
 set -uo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/lib/common.sh"
+source "$SCRIPT_DIR/../lib/common.sh"
 
 cmd_list() {
     local slug="$1" repo="$PROJECTS_DIR/$1"
@@ -150,7 +150,7 @@ cmd_remove() {
 
 load_env
 if [ $# -lt 2 ]; then
-    echo "Использование: git-project-remote.sh <slug> --list | --add <domain> [--owner <owner>] | --remove <remote>"
+    echo "Использование: gitproject-remote.sh <slug> --list | --add <domain> [--owner <owner>] | --remove <remote>"
     exit 2
 fi
 SLUG="$1"; shift

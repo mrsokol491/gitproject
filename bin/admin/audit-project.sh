@@ -5,7 +5,7 @@
 set -eu
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/lib/common.sh"
+source "$SCRIPT_DIR/../lib/common.sh"
 
 proj="${1:?Нужен slug проекта, например: archive}"
 root="${PROJECTS_DIR}/$proj"

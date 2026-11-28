@@ -720,7 +720,7 @@ function mpFetchItem(array $item): array
             $lic = $meta['license'] ?? null;
             $c['license'] = is_array($lic) ? (string) ($lic['name'] ?? '') : null;
             $c['pushed_at'] = isset($meta['last_activity_at']) ? (string) $meta['last_activity_at'] : null;
-        } elseif (in_array($item['host_id'], ['gitea', 'altlinux', 'codeberg'], true)) {
+        } elseif (in_array($item['host_id'], ['gitea', 'altlinux', 'codeberg', 'forgejo'], true)) {
             $c['stars'] = isset($meta['stargazers_count']) ? (int) $meta['stargazers_count'] : null;
             $c['forks'] = isset($meta['forks_count']) ? (int) $meta['forks_count'] : null;
             $c['open_issues'] = isset($meta['open_issues_count']) ? (int) $meta['open_issues_count'] : null;

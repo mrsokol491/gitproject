@@ -1,10 +1,10 @@
-# git-project-migrate.sh
+# gitproject-migrate.sh
 
 Миграция проекта между Git-хостами с подсветкой актуальности версий.
 
 ## Вызовы
-    bin/git-project-migrate.sh <slug>                                # интерактивно
-    bin/git-project-migrate.sh <slug> --source <имя|local> --target <имя>
+    bin/project/gitproject-migrate.sh <slug>                                # интерактивно
+    bin/project/gitproject-migrate.sh <slug> --source <имя|local> --target <имя>
 
 ## Таблица версий
 local + все remote: SHA, дата, состояние: 🟢 самый свежий | 🟡 отстаёт на N |

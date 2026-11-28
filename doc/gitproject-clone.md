@@ -1,9 +1,9 @@
-# git-project-clone.sh
+# gitproject-clone.sh
 
 Интерактивное клонирование проекта с выбором Git-хоста.
 
 ## Вызов
-    bin/git-project-clone.sh
+    bin/project/gitproject-clone.sh
 CLI-флагов нет: только пошаговый wizard.
 
 ## Шаги

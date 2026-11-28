@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# git-project-migrate.sh — миграция проекта между Git-хостами с подсветкой актуальности.
+# gitproject-migrate.sh — миграция проекта между Git-хостами с подсветкой актуальности.
 #
 # Показывает таблицу версий: локальная + все remote (SHA, дата, отставание).
 # Подсветка: 🟢 самый свежий | 🟡 отстаёт на N | 🔴 расходится | ⚪ не инициализирован.
@@ -12,13 +12,13 @@
 # Подтверждение: код MIGRATE-<SOURCE>-TO-<TARGET> (верхний регистр).
 #
 # Вызовы:
-#   git-project-migrate.sh <slug>                          # интерактивно
-#   git-project-migrate.sh <slug> --source <имя|local> --target <имя>
+#   gitproject-migrate.sh <slug>                          # интерактивно
+#   gitproject-migrate.sh <slug> --source <имя|local> --target <имя>
 
 set -uo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/lib/common.sh"
+source "$SCRIPT_DIR/../lib/common.sh"
 
 print_hint() {
     echo -e "${GRAY}   💡 $1${RESET}" >&2
@@ -243,7 +243,7 @@ do_migrate() {
 
 main() {
     load_env
-    [ -n "${1:-}" ] || { echo "Использование: git-project-migrate.sh <slug> [--source <имя|local>] --target <имя>"; exit 2; }
+    [ -n "${1:-}" ] || { echo "Использование: gitproject-migrate.sh <slug> [--source <имя|local>] --target <имя>"; exit 2; }
     local slug="$1"; shift
     local src_arg="" tgt_arg=""
     while [ $# -gt 0 ]; do

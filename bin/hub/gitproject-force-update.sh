@@ -2,7 +2,7 @@
 # gitproject-force-update.sh — принудительное обновление хаба gitproject из GitVerse.
 # Источник (основной репозиторий): https://gitverse.ru/Sokol491/gitproject.git
 # Семантика: fetch + reset --hard до состояния сервера (сервер всегда прав).
-# В отличие от git-project-pull.sh (--ff-only) этот скрипт ОТБРАСЫВАЕТ локальные
+# В отличие от gitproject-pull.sh (--ff-only) этот скрипт ОТБРАСЫВАЕТ локальные
 # коммиты и правки, сохраняя их перед этим:
 #   - локальные коммиты      -> backup-ветка backup/pre-force-<timestamp>
 #   - незакоммиченные правки -> git stash

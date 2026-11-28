@@ -3,7 +3,7 @@
 Fetch хаба из GitVerse с троттлингом.
 
 ## Вызов
-    bin/gitproject-fetch.sh [--force]
+    bin/hub/gitproject-fetch.sh [--force]
 
 ## Поведение
 - Троттлинг 24ч по data/last-fetch.txt; --force обходит троттлинг.

@@ -3,7 +3,7 @@
 Принудительное обновление хаба из GitVerse: сервер всегда прав (fetch + reset --hard).
 
 ## Вызов
-    bin/gitproject-force-update.sh [ветка] [--yes] [--clean] [-h|--help]
+    bin/hub/gitproject-force-update.sh [ветка] [--yes] [--clean] [-h|--help]
 
 ## Флаги
 - ветка: ветка GitVerse (по умолчанию текущая; detached → master).

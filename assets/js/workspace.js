@@ -548,3 +548,27 @@ if (view === 'git-add') {
   await loadHostDomains();
   updatePreview();
 }
+// === Кнопка "Создать проект" ===
+const btnCreate = document.getElementById('nav-create-project');
+if (btnCreate) {
+    btnCreate.addEventListener('click', () => {
+        const slug = prompt('Название проекта (латиница, цифры, - и _, не начинать с -):');
+        if (!slug) return;
+        
+        fetch('/api/project_create.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({slug: slug.toLowerCase().trim()})
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.ok) {
+                alert('✅ Проект создан: projects/' + data.data.slug);
+                location.reload();
+            } else {
+                alert('✗ ' + (data.error || 'Ошибка'));
+            }
+        })
+        .catch(err => alert('✗ Сеть: ' + err.message));
+    });
+}

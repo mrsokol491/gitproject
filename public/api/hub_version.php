@@ -248,9 +248,9 @@ if ($action === 'refresh') {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         respond(false, [], 'Метод не разрешён', 'METHOD_NOT_ALLOWED');
     }
-    $script = $hubRoot . '/bin/gitproject-fetch.sh';
+    $script = $hubRoot . '/bin/hub/gitproject-fetch.sh';
     if (!is_executable($script)) {
-        respond(false, [], 'bin/gitproject-fetch.sh не найден', 'SCRIPT_ERROR');
+        respond(false, [], 'bin/hub/gitproject-fetch.sh не найден', 'SCRIPT_ERROR');
     }
     $force = isset($_GET['force']) && $_GET['force'] === '1';
     $cmd = escapeshellarg($script) . ($force ? ' --force' : '');
@@ -282,9 +282,9 @@ if ($action === 'update') {
     if ($channel === 'edge' && $confirm !== 'EDGE') {
         respond(false, [], 'Для edge введите confirm=EDGE (нестабильная версия)', 'CONFIRM_REQUIRED');
     }
-    $script = $hubRoot . '/bin/gitproject-update.sh';
+    $script = $hubRoot . '/bin/hub/gitproject-update.sh';
     if (!is_executable($script)) {
-        respond(false, [], 'bin/gitproject-update.sh не найден', 'SCRIPT_ERROR');
+        respond(false, [], 'bin/hub/gitproject-update.sh не найден', 'SCRIPT_ERROR');
     }
     $cmd = escapeshellarg($script) . ' ' . escapeshellarg($channel) . ' --yes';
     $output = [];
@@ -300,9 +300,9 @@ if ($action === 'update') {
 
 // --- GET backups -------------------------------------------------------------------
 if ($action === 'backups') {
-    $script = $hubRoot . '/bin/gitproject-rollback.sh';
+    $script = $hubRoot . '/bin/hub/gitproject-rollback.sh';
     if (!is_executable($script)) {
-        respond(false, [], 'bin/gitproject-rollback.sh не найден', 'SCRIPT_ERROR');
+        respond(false, [], 'bin/hub/gitproject-rollback.sh не найден', 'SCRIPT_ERROR');
     }
     $output = [];
     $rc = 0;
@@ -331,9 +331,9 @@ if ($action === 'rollback') {
     if (preg_match('/^backup\/pre-[a-z]+-\d{8}-\d{6}(-\d+)?$/', $branch) !== 1) {
         respond(false, [], 'Допустимы только ветки backup/pre-*', 'INVALID_BRANCH');
     }
-    $script = $hubRoot . '/bin/gitproject-rollback.sh';
+    $script = $hubRoot . '/bin/hub/gitproject-rollback.sh';
     if (!is_executable($script)) {
-        respond(false, [], 'bin/gitproject-rollback.sh не найден', 'SCRIPT_ERROR');
+        respond(false, [], 'bin/hub/gitproject-rollback.sh не найден', 'SCRIPT_ERROR');
     }
     $output = [];
     $rc = 0;

@@ -15,11 +15,11 @@
 ├── README.md                        <- документация хаба: структура, установка, команды управления
 ├── bin/
 │   ├── git-credential-multi.sh      <- мульти-хост credential helper (700)
-│   ├── git-project-sync.sh          <- синхронизация/публикация проектов projects/<slug> (меню)
-│   ├── git-project-update.sh        <- публикация самого хаба
-│   ├── git-project-pull.sh          <- обновление хаба и проектов из remote
-│   ├── git-project-clone.sh         <- интерактивный мастер клонирования с выбором хоста
-│   ├── git-project-remote.sh        <- управление remote (add/remove/list + актуальность)
+│   ├── gitproject-sync.sh          <- синхронизация/публикация проектов projects/<slug> (меню)
+│   ├── gitproject-update.sh        <- публикация самого хаба
+│   ├── gitproject-pull.sh          <- обновление хаба и проектов из remote
+│   ├── gitproject-clone.sh         <- интерактивный мастер клонирования с выбором хоста
+│   ├── gitproject-remote.sh        <- управление remote (add/remove/list + актуальность)
 │   ├── audit-project.sh             <- аудит проекта перед паспортом
 │   ├── lib/common.sh                <- общие функции мульти-хост (цвета, hosts.json, .env)
 ├── config/
@@ -110,7 +110,7 @@ sed -E 's/=(.+)$/=[скрыто]/' ~/gitproject/.env
 
 ## 3. Мульти-хост credential helper (основной канал)
 
-Помощник: ~/gitproject/bin/git-credential-multi.sh, права 700.
+Помощник: ~/gitproject/bin/lib/git-credential-multi.sh, права 700.
 Логика:
 1) читает запрос git из stdin ЦЕЛИКОМ до разбора (protocol/host/path);
 2) префикс по домену: gitflic.ru -> GITFLIC, gitverse.ru -> GITVERSE,
@@ -123,7 +123,7 @@ sed -E 's/=(.+)$/=[скрыто]/' ~/gitproject/.env
 
 Подключение (выполнено один раз):
 git config --global --unset-all credential.helper
-git config --global credential.helper '/home/sokol491/gitproject/bin/git-credential-multi.sh'
+git config --global credential.helper '/home/sokol491/gitproject/bin/lib/git-credential-multi.sh'
 
 Однократная настройка идентичности (без неё commit падает с Author identity unknown):
 git config --global user.name "Alexander Sokolyuk"
@@ -132,7 +132,7 @@ git config --global --get user.name && git config --global --get user.email   # 
 
 Проверка помощника БЕЗ вывода токена:
 printf 'protocol=https\nhost=gitflic.ru\npath=sokol491/gitproject.git\n\n' \
-  | ~/gitproject/bin/git-credential-multi.sh get \
+  | ~/gitproject/bin/lib/git-credential-multi.sh get \
   | sed -E 's/^(password=).*/\1[скрыто]/'
 
 Клонирование и push по HTTPS идут без ввода пароля:
@@ -183,7 +183,7 @@ tail -f ~/gitproject/data/workspace-error.log
 Ветки только master: локально и на хостах. Все публикации — напрямую в master.
 
 ### Интерактивное клонирование (мульти-хост мастер)
-~/gitproject/bin/git-project-clone.sh
+~/gitproject/bin/gitproject-clone.sh
 Четыре шага с пояснениями, подсказками и сводкой перед выполнением:
 1) выбор хоста-источника (ОТКУДА) — список только ready-хостов со статусами;
 2) параметры проекта (owner, slug на этом хосте);
@@ -195,9 +195,9 @@ tail -f ~/gitproject/data/workspace-error.log
 Неинтерактивный режим: --host <domain> --owner <owner> --slug <slug> [--as-origin].
 
 ### Управление remote и актуальность
-~/gitproject/bin/git-project-remote.sh <slug> --list     # таблица: remote, URL, SHA, дата, статус
-~/gitproject/bin/git-project-remote.sh <slug> --add <domain> [--owner <owner>]
-~/gitproject/bin/git-project-remote.sh <slug> --remove <remote>
+~/gitproject/bin/gitproject-remote.sh <slug> --list     # таблица: remote, URL, SHA, дата, статус
+~/gitproject/bin/gitproject-remote.sh <slug> --add <domain> [--owner <owner>]
+~/gitproject/bin/gitproject-remote.sh <slug> --remove <remote>
 Подсветка актуальности в --list: зелёный — самый свежий коммит среди remote;
 жёлтый — отстаёт на N коммитов; серый — не инициализирован (нет refs).
 --add: проверка статуса хоста (только ready), URL из url_template hosts.json, проверка
@@ -205,23 +205,23 @@ tail -f ~/gitproject/data/workspace-error.log
 --remove: origin не удаляется; подтверждение y/N; репозиторий на хосте НЕ удаляется.
 
 ### Синхронизация и публикация проекта
-~/gitproject/bin/git-project-sync.sh                  # интерактивное меню проектов (цвет, all, q)
-~/gitproject/bin/git-project-sync.sh <slug> [-m "сообщение"]
+~/gitproject/bin/gitproject-sync.sh                  # интерактивное меню проектов (цвет, all, q)
+~/gitproject/bin/gitproject-sync.sh <slug> [-m "сообщение"]
 Режимы: status [slug], fix [slug], probe.
 Полный цикл: fetch, сверка ahead/behind, коммит локальных изменений (защита запрещённых путей),
 merge upstream с приоритетом локальной версии (merge -X ours), push, сверка хэшей.
 Мульти-push (--all, --remote <имя>) — этапы 1-2 ТЗ-001 v2, в реализации.
 
 ### Публикация репозитория хаба
-~/gitproject/bin/git-project-update.sh [-m "сообщение"]
-~/gitproject/bin/git-project-update.sh status
-~/gitproject/bin/git-project-update.sh fix
+~/gitproject/bin/gitproject-update.sh [-m "сообщение"]
+~/gitproject/bin/gitproject-update.sh status
+~/gitproject/bin/gitproject-update.sh fix
 URL origin хаба — только нижний регистр slug: https://gitflic.ru/project/sokol491/gitproject.git
 Если у origin/master есть посторонняя история (например gitflic-cl.yaml),
 связать без force-push: git merge origin/master --allow-unrelated-histories -X ours
 
 ### Обновление хаба и проектов
-~/gitproject/bin/git-project-pull.sh
+~/gitproject/bin/gitproject-pull.sh
 Хаб — только из HUB_UPDATE_* (GitFlic, sokol491/gitproject); проекты — из их origin.
 
 ### Аудит перед паспортом (раздел 13 STANDARD.md), секреты не присылать:
@@ -259,18 +259,18 @@ kit-модули, аудит. Этот файл — эксплуатация wor
 ## 10. Cheat sheet
 
 Хаб:
-~/gitproject/bin/git-project-update.sh -m "docs: правки"   # публикация хаба
-~/gitproject/bin/git-project-update.sh status               # состояние хаба
-~/gitproject/bin/git-project-update.sh fix                  # подготовка к первой публикации
-~/gitproject/bin/git-project-pull.sh                        # обновление хаба из GitFlic
+~/gitproject/bin/gitproject-update.sh -m "docs: правки"   # публикация хаба
+~/gitproject/bin/gitproject-update.sh status               # состояние хаба
+~/gitproject/bin/gitproject-update.sh fix                  # подготовка к первой публикации
+~/gitproject/bin/gitproject-pull.sh                        # обновление хаба из GitFlic
 
 Проекты:
-~/gitproject/bin/git-project-clone.sh                       # мастер клонирования с выбором хоста
-~/gitproject/bin/git-project-remote.sh <slug> --list        # remote + актуальность
-~/gitproject/bin/git-project-remote.sh <slug> --add <domain>
-~/gitproject/bin/git-project-sync.sh                        # интерактивное меню проектов
-~/gitproject/bin/git-project-sync.sh <slug> -m "sync: правки"
-~/gitproject/bin/git-project-sync.sh status                 # таблица состояний
+~/gitproject/bin/gitproject-clone.sh                       # мастер клонирования с выбором хоста
+~/gitproject/bin/gitproject-remote.sh <slug> --list        # remote + актуальность
+~/gitproject/bin/gitproject-remote.sh <slug> --add <domain>
+~/gitproject/bin/gitproject-sync.sh                        # интерактивное меню проектов
+~/gitproject/bin/gitproject-sync.sh <slug> -m "sync: правки"
+~/gitproject/bin/gitproject-sync.sh status                 # таблица состояний
 
 Общее:
 git config --global --get user.name                             # идентичность настроена?

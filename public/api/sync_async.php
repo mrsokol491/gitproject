@@ -88,7 +88,7 @@ $jobData = [
 file_put_contents($jobFile, json_encode($jobData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 
 // --- Формируем команду ----------------------------------------------------
-$syncScript = "$workspace/bin/git-project-sync.sh";
+$syncScript = "$workspace/bin/project/gitproject-sync.sh";
 if (!is_executable($syncScript)) {
     @unlink($jobFile);
     echo json_encode(['ok' => false, 'error' => 'Скрипт синхронизации не найден', 'error_code' => 'SCRIPT_MISSING'], JSON_UNESCAPED_UNICODE);

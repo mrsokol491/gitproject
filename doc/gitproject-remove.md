@@ -1,12 +1,12 @@
-# git-project-remove.sh
+# gitproject-remove.sh
 
 Удаление проекта с выбором области: local / host / all.
 
 ## Вызовы
-    bin/git-project-remove.sh <slug>             # интерактивный выбор области
-    bin/git-project-remove.sh <slug> --local     # только локально
-    bin/git-project-remove.sh <slug> --host <id> # с конкретного хоста
-    bin/git-project-remove.sh <slug> --all       # со всех хостов
+    bin/project/gitproject-remove.sh <slug>             # интерактивный выбор области
+    bin/project/gitproject-remove.sh <slug> --local     # только локально
+    bin/project/gitproject-remove.sh <slug> --host <id> # с конкретного хоста
+    bin/project/gitproject-remove.sh <slug> --all       # со всех хостов
 
 ## Подтверждения
 - local: DELETE-LOCAL

@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# git-project-pull.sh — Безопасное обновление локальных репозиториев из основного хоста.
+# gitproject-pull.sh — Безопасное обновление локальных репозиториев из основного хоста.
 # Обновляет сам хаб (gitproject) и все проекты в контейнере projects/.
 #
 # ЗАПРЕЩЕНО: запускать через sudo.
 # Использует --ff-only для предотвращения случайных merge-коммитов при обновлении.
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/lib/common.sh"
+source "$SCRIPT_DIR/../lib/common.sh"
 
 set -uo pipefail
 

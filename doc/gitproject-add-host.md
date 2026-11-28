@@ -1,11 +1,11 @@
-# git-project-add-host.sh
+# gitproject-add-host.sh
 
 Интерактивный wizard добавления Git-хоста и учётных данных.
 
 ## Вызовы
-    bin/git-project-add-host.sh              # wizard
-    bin/git-project-add-host.sh --host <id>  # сразу выбрать хост
-    bin/git-project-add-host.sh --list       # список хостов
+    bin/admin/gitproject-add-host.sh              # wizard
+    bin/admin/gitproject-add-host.sh --host <id>  # сразу выбрать хост
+    bin/admin/gitproject-add-host.sh --list       # список хостов
 
 ## Шаги wizard
 1. Выбор хоста из config/hosts.json (ready/integrating/disabled, признак «настроен»).

@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
-# git-project-sync.sh — синхронизация проектов projects/<slug>.
+# gitproject-sync.sh — синхронизация проектов projects/<slug>.
 # Вызовы:
-#   git-project-sync.sh                       — интерактивное меню
-#   git-project-sync.sh <slug>                — один проект (только origin)
-#   git-project-sync.sh <slug> --all          — один проект на все remote
-#   git-project-sync.sh <slug> --remote <r>   — один проект на конкретный remote
-#   git-project-sync.sh <slug> -m "сообщ."    — с сообщением коммита
-#   git-project-sync.sh status                — таблица состояний
-#   git-project-sync.sh fix <slug>            — подготовка проекта
-#   git-project-sync.sh probe                 — матрица API
+#   gitproject-sync.sh                       — интерактивное меню
+#   gitproject-sync.sh <slug>                — один проект (только origin)
+#   gitproject-sync.sh <slug> --all          — один проект на все remote
+#   gitproject-sync.sh <slug> --remote <r>   — один проект на конкретный remote
+#   gitproject-sync.sh <slug> -m "сообщ."    — с сообщением коммита
+#   gitproject-sync.sh status                — таблица состояний
+#   gitproject-sync.sh fix <slug>            — подготовка проекта
+#   gitproject-sync.sh probe                 — матрица API
 
 set -uo pipefail
 
 # --- Подключение общего модуля ---
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/lib/common.sh"
+source "$SCRIPT_DIR/../lib/common.sh"
 
 # --- Переменные окружения ---
 ENV_FILE="${HUB_ROOT}/.env"

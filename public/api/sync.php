@@ -29,7 +29,7 @@ if (!in_array($mode, ['all', 'specific', 'pull', 'push'], true)) {
 }
 
 $workspace = dirname(__DIR__, 2);
-$syncScript = "$workspace/bin/git-project-sync.sh";
+$syncScript = "$workspace/bin/project/gitproject-sync.sh";
 
 if (!is_executable($syncScript)) {
     echo json_encode(['ok' => false, 'error' => 'Скрипт не найден', 'error_code' => 'SCRIPT_ERROR'], JSON_UNESCAPED_UNICODE);
@@ -59,7 +59,7 @@ $cmd = 'timeout 120 ' . $cmd;
 exec($cmd . ' 2>&1', $output, $returnCode);
 
 if ($returnCode === 124) {
-    echo json_encode(['ok' => false, 'error' => 'Операция длится больше 120 с. Запустите в терминале: bin/git-project-sync.sh ' . $slug, 'error_code' => 'SYNC_TIMEOUT', 'data' => ['log' => strip_ansi(implode("\n", $output))]], JSON_UNESCAPED_UNICODE);
+    echo json_encode(['ok' => false, 'error' => 'Операция длится больше 120 с. Запустите в терминале: bin/project/gitproject-sync.sh ' . $slug, 'error_code' => 'SYNC_TIMEOUT', 'data' => ['log' => strip_ansi(implode("\n", $output))]], JSON_UNESCAPED_UNICODE);
     exit(1);
 }
 if ($returnCode === 0) {

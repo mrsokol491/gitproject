@@ -13,7 +13,7 @@ function strip_ansi($text) {
 }
 
 $workspace = dirname(__DIR__, 2);
-$precheckScript = "$workspace/bin/git-project-sync-precheck.sh";
+$precheckScript = "$workspace/bin/gitproject-sync-precheck.sh";
 
 if (!is_executable($precheckScript)) {
     echo json_encode(['ok' => false, 'error' => 'Скрипт предпроверок не найден', 'error_code' => 'SCRIPT_NOT_FOUND'], JSON_UNESCAPED_UNICODE);

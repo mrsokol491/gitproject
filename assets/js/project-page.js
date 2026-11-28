@@ -358,7 +358,7 @@ if (slug) {
     const push = $('proj-push');
     if (d.state === 'no-remote') {
       text.innerHTML = '<div class="sync-status"><span class="sync-icon sync-none">⚪ Remote не настроен</span></div>'
-        + '<p class="mp-stats-note">Добавьте: <code>bin/git-project-remote.sh ' + escapeHtml(slug) + ' --add &lt;домен&gt;</code></p>';
+        + '<p class="mp-stats-note">Remote не настроен. <a href="/?view=hosts" title="Добавить хост">Добавить хост →</a></p>';
       if (pull) { pull.hidden = true; }
       if (push) { push.hidden = true; }
       return;

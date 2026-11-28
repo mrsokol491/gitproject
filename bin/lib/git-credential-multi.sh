@@ -12,7 +12,7 @@
 set -u
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/lib/common.sh"
+source "$SCRIPT_DIR/common.sh"
 
 op="${1:-}"
 if [ "$op" != "get" ]; then
@@ -41,6 +41,7 @@ case "$host" in
     gitlab.com)          prefix="GITLAB" ;;
     codeberg.org)        prefix="CODEBERG" ;;
     gitea.com)           prefix="GITEA" ;;
+    v17.next.forgejo.org) prefix="FORGEJO" ;;
     *) exit 0 ;;
 esac
 

@@ -17,7 +17,7 @@ function strip_ansi($text) {
 $workspace = dirname(__DIR__, 2);
 $hubRoot = $workspace;
 $hubGitDir = "$hubRoot/.git";
-$hubScript = "$workspace/bin/gitproject-sync-hub.sh";
+$hubScript = "$workspace/bin/hub/gitproject-sync-hub.sh";
 
 if (!is_dir($hubGitDir)) {
     echo json_encode(['ok' => false, 'error' => 'Не git-репозиторий', 'error_code' => 'NOT_A_REPO'], JSON_UNESCAPED_UNICODE);

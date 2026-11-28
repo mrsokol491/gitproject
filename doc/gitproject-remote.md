@@ -1,12 +1,12 @@
-# git-project-remote.sh
+# gitproject-remote.sh
 
 Управление remote проекта с подсветкой актуальности версий.
 
 ## Вызовы
-    bin/git-project-remote.sh <slug> --list
-    bin/git-project-remote.sh <slug> --add <domain>
-    bin/git-project-remote.sh <slug> --add <domain> --owner <owner>
-    bin/git-project-remote.sh <slug> --remove <remote>
+    bin/project/gitproject-remote.sh <slug> --list
+    bin/project/gitproject-remote.sh <slug> --add <domain>
+    bin/project/gitproject-remote.sh <slug> --add <domain> --owner <owner>
+    bin/project/gitproject-remote.sh <slug> --remove <remote>
 
 ## --list
 Таблица: СЕРВЕР | URL | SHA | ДАТА | СТАТУС (✅ актуален | ⚠ отстаёт на N | ⚪ не инициализирован).

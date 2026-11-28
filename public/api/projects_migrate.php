@@ -16,7 +16,7 @@ function strip_ansi($text) {
 }
 
 $workspace = dirname(__DIR__, 2);
-$migrateScript = "$workspace/bin/git-project-migrate.sh";
+$migrateScript = "$workspace/bin/gitproject-migrate.sh";
 
 if (!is_executable($migrateScript)) {
     echo json_encode(['ok' => false, 'error' => 'Скрипт миграции не найден', 'error_code' => 'SCRIPT_NOT_FOUND'], JSON_UNESCAPED_UNICODE);

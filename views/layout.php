@@ -38,6 +38,7 @@ $ws_content = $ws_view_files[$ws_view] ?? $ws_view_files['home'];
     <div class="ws-sec">Workspace</div>
     <a class="ws-item<?= $ws_view === 'home' ? ' ws-item--on' : '' ?>" href="/?view=home">📁 Проекты <span class="ws-count"><?= (int) $ws_side['projects'] ?></span></a>
     <button type="button" class="ws-item ws-item--action<?= $ws_view === 'git-add' ? ' ws-item--on' : '' ?>" id="nav-git-add">➕ Добавить git</button>
+    <button type="button" class="ws-item ws-item--action" id="nav-create-project">📁 Создать проект</button>
     <div class="ws-sec">Marketplace</div>
     <a class="ws-item<?= $ws_view === 'market' ? ' ws-item--on' : '' ?>" href="/?view=market">🛒 Каталог <span class="ws-count"><?= (int) $ws_side['market'] ?></span></a>
     <div class="ws-sec">System</div>

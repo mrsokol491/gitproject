@@ -3,7 +3,7 @@
 Аудит безопасности PHP: CVE-2026-109618 / CVE-2026-109619 (PHP2Shell) и конфигурация php.ini.
 
 ## Вызов
-    bin/audit-php-security.sh
+    bin/admin/audit-php-security.sh
 Аргументов и флагов нет.
 
 ## Что проверяет
