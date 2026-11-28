@@ -1,4 +1,5 @@
 // project-page.js — страница проекта и карточка Hub в сайдбаре.
+import { initRemoteBadges } from './remote-badges.js?v=17';
 // Карточка Hub: текстом только текущая версия; стабильная/edge — на кнопках.
 // Правило кнопок (на SHA, не на метках):
 //   - stable: скрыта, когда current уже на stable (current_label === stable.label)
@@ -171,6 +172,7 @@ if ($('hub-update') && $('hub-check') && $('hub-stable') && $('hub-edge')) {
 
 // --- Кнопки страницы проекта ---------------------------------------------------
 if (slug) {
+    initRemoteBadges(document.getElementById('remote-badges'));
   document.querySelectorAll('[data-op]').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const op = btn.dataset.op;
@@ -414,3 +416,74 @@ if (slug) {
   });
   projCheck(false);
 }
+// --- Статус репозитория: дедупликация alias-remote + человекочитаемые имена ---
+// Перехват кнопки git-status: cloneNode снимает старый listener, новый рендерит
+// группы по нормализованному URL (origin и именованный хост — одна строка).
+(function () {
+    const btn = document.getElementById('git-status');
+    if (!btn || !btn.parentNode) { return; }
+    const fresh = btn.cloneNode(true);
+    btn.parentNode.replaceChild(fresh, btn);
+    fresh.addEventListener('click', async () => {
+        const box = document.getElementById('status-box');
+        if (!box) { return; }
+        const log = document.getElementById('git-log');
+        if (log) { log.hidden = true; }
+        box.hidden = false;
+        box.textContent = 'Загрузка…';
+        const m = location.pathname.match(/^\/hub\/project\/([^/]+)\/?$/);
+        const slug = document.body.dataset.slug || (m ? decodeURIComponent(m[1]) : '');
+        let st;
+        let hs;
+        try {
+            const pair = await Promise.all([
+                fetch('/api/project_actions.php?action=status&slug=' + encodeURIComponent(slug)).then((r) => r.json()),
+                fetch('/api/project_remotes_status.php?slug=' + encodeURIComponent(slug)).then((r) => r.json())
+            ]);
+            st = pair[0];
+            hs = pair[1];
+        } catch (e) {
+            box.textContent = '⚪ сеть: ' + e.message;
+            return;
+        }
+        if (!st.ok) { box.textContent = '✗ ' + st.error; return; }
+        const meta = new Map();
+        if (hs.ok && Array.isArray(hs.data)) {
+            hs.data.forEach((i) => meta.set(i.remote, i));
+        }
+        const groups = new Map();
+        (st.data.remotes || []).forEach((rm) => {
+            const info = meta.get(rm.name) || {};
+            const url = String(info.url || '').toLowerCase().replace(/\.git$/, '').replace(/\/+$/, '');
+            const key = url || ('remote:' + rm.name);
+            if (!groups.has(key)) {
+                groups.set(key, {
+                    name: info.name || rm.name,
+                    domain: info.domain || '',
+                    aliases: [rm.name],
+                    behind: rm.behind,
+                    ahead: rm.ahead
+                });
+            } else {
+                const g = groups.get(key);
+                g.aliases.push(rm.name);
+                if (g.behind === null && rm.behind !== null) {
+                    g.behind = rm.behind;
+                    g.ahead = rm.ahead;
+                }
+            }
+        });
+        let html = '<div class="status-row"><span>Ветка</span><strong>' + escapeHtml(st.data.branch || 'detached HEAD') + '</strong></div>';
+        html += '<div class="status-row"><span>Незакоммиченных</span><strong>' + escapeHtml(String(st.data.dirty_count)) + '</strong></div>';
+        groups.forEach((g) => {
+            const alias = (g.aliases.indexOf('origin') !== -1 && g.name !== 'origin') ? ' · origin' : '';
+            const label = g.name + (g.domain ? ' (' + g.domain + ')' : '') + alias;
+            const val = g.behind === null ? 'ветки нет' : '↓' + g.behind + ' ↑' + g.ahead;
+            html += '<div class="status-row"><span>' + escapeHtml(label) + '</span><strong>' + escapeHtml(val) + '</strong></div>';
+        });
+        if ((st.data.dirty || []).length) {
+            html += '<pre class="hub-log">' + escapeHtml(st.data.dirty.join('\n')) + '</pre>';
+        }
+        box.innerHTML = html;
+    });
+})();

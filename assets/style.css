@@ -355,20 +355,49 @@ code, pre, .version-tag, .hub-log, .fm-view, .mp-log { font-family: var(--ws-mon
   .mp-card:hover, .mp-card:focus-visible { transform: none; }
 }
 
-.remote-badge {
-    display: inline-block;
-    padding: 2px 8px;
-    margin: 2px;
-    border-radius: 12px;
-    font-size: 0.85em;
-    background: #1a1a1a;
-    border: 1px solid #333;
-}
-.remote-badge.exists {
-    border-color: #2ecc71;
-    color: #2ecc71;
-}
-.remote-badge.missing {
-    border-color: #666;
-    color: #999;
-}
+.remote-badges { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+.remote-badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 0.85em; background: #141821; border: 1px solid #2a3140; color: #9aa4b2; }
+.remote-badge.exists { border-color: #2ecc71; color: #2ecc71; }
+.remote-badge.missing { border-color: #4a5160; color: #8b93a1; }
+.remote-badge.loading { border-color: #3d4657; color: #6f7887; }.rp-panel { border: 1px solid #2a3140; border-radius: 12px; background: linear-gradient(160deg, #141821 0%, #10141c 100%); padding: 14px 16px; margin: 12px 0; }
+.rp-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.rp-title { font-weight: 700; color: #e8ecf3; letter-spacing: .02em; }
+.rp-legend { display: inline-flex; align-items: center; gap: 6px; color: #8b93a1; font-size: .82em; }
+.rp-legend-text { margin-right: 8px; }
+.rp-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.rp-dot.ok { background: #2ecc71; box-shadow: 0 0 6px rgba(46,204,113,.55); }
+.rp-dot.no { background: #5b6472; }
+.rp-refresh { margin-left: auto; background: none; border: 1px solid #2a3140; color: #9aa4b2; border-radius: 8px; padding: 4px 10px; cursor: pointer; transition: border-color .15s, color .15s; }
+.rp-refresh:hover { border-color: #3b82f6; color: #cfe0ff; }
+.rp-group { margin-top: 10px; }
+.rp-group-label { color: #9aa4b2; font-size: .85em; margin-bottom: 6px; }
+.rp-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.rp-chip { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; border-radius: 999px; border: 1px solid #2a3140; background: #171c26; color: #c6cdd8; cursor: pointer; transition: transform .12s, border-color .15s, box-shadow .15s; }
+.rp-chip:hover:not(:disabled) { transform: translateY(-1px); border-color: #3d4657; }
+.rp-chip:disabled { opacity: .45; cursor: not-allowed; }
+.rp-chip-name { font-weight: 600; }
+.rp-chip-domain { color: #77808f; font-size: .78em; }
+.rp-chip.on-push { border-color: #3b82f6; box-shadow: 0 0 0 1px #3b82f6 inset, 0 0 10px rgba(59,130,246,.35); color: #dbe7ff; }
+.rp-chip.on-pull { border-color: #2ecc71; box-shadow: 0 0 0 1px #2ecc71 inset, 0 0 10px rgba(46,204,113,.35); color: #d9f7e6; }
+.rp-foot { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.rp-count { color: #8b93a1; font-size: .85em; margin-right: auto; }
+.rp-btn { border-radius: 8px; padding: 6px 14px; cursor: pointer; border: 1px solid transparent; font-weight: 600; transition: filter .15s, transform .12s; }
+.rp-btn:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.12); }
+.rp-btn:disabled { opacity: .45; cursor: not-allowed; }
+.rp-btn.push { background: #2563eb; color: #fff; }
+.rp-btn.pull { background: #16a34a; color: #fff; }
+.rp-btn.ghost { background: none; border-color: #2a3140; color: #9aa4b2; font-weight: 500; }
+.rp-status { margin-top: 10px; font-size: .9em; color: #8b93a1; min-height: 1.2em; }
+.rp-status.ok { color: #2ecc71; }
+.rp-status.warn { color: #f59e0b; }
+.rp-status.busy { color: #60a5fa; }
+.rp-log { margin-top: 8px; max-height: 220px; overflow: auto; background: #0d1117; border: 1px solid #2a3140; border-radius: 8px; padding: 10px; font-size: .8em; color: #b7c0cd; white-space: pre-wrap; }
+.rp-log::-webkit-scrollbar { width: 8px; }
+.rp-log::-webkit-scrollbar-track { background: #0d1117; }
+.rp-log::-webkit-scrollbar-thumb { background: #2a3140; border-radius: 4px; }
+.rp-log::-webkit-scrollbar-thumb:hover { background: #3b82f6; }
+.rp-chip-alias { font-size: .68em; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #f59e0b; border: 1px solid rgba(245,158,11,.45); border-radius: 6px; padding: 1px 5px; background: rgba(245,158,11,.08); }
+/* Панель хостов — на всю ширину карточки: контейнер flex (наследие бейджей),
+   поэтому панель должна занимать всю строку (flex-basis 100%). */
+.remote-badges { width: 100%; box-sizing: border-box; }
+.remote-badges > .rp-panel { flex: 1 1 100%; width: 100%; min-width: 0; box-sizing: border-box; }

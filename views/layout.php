@@ -28,7 +28,7 @@ $ws_content = $ws_view_files[$ws_view] ?? $ws_view_files['home'];
 <meta name="csrf-token" content="<?= htmlspecialchars($csrf ?? '') ?>">
 <title><?= htmlspecialchars($ws_title ?? 'GitProject Workspace Hub') ?></title>
 <link rel="stylesheet" href="/assets/css/tokens.css?v=12">
-<link rel="stylesheet" href="/assets/style.css?v=12">
+<link rel="stylesheet" href="/assets/style.css?v=18">
 </head>
 <body class="ws-body" data-view="<?= htmlspecialchars($ws_view) ?>">
 
@@ -88,7 +88,7 @@ if (is_readable($wsEnv)) {
 </div>
 
 <div class="mp-toast" id="mp-toast" hidden></div>
-<script type="module" src="/assets/js/project-page.js?v=12"></script>
+<script type="module" src="/assets/js/project-page.js?v=18"></script>
 <script type="module" src="/assets/js/workspace.js?v=12"></script>
 </body>
 </html>

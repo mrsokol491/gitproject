@@ -2,33 +2,30 @@
 # gitproject-sync.sh — синхронизация проектов projects/<slug>.
 # Вызовы:
 #   gitproject-sync.sh                       — интерактивное меню
-#   gitproject-sync.sh <slug>                — один проект (только origin)
-#   gitproject-sync.sh <slug> --all          — один проект на все remote
-#   gitproject-sync.sh <slug> --remote <r>   — один проект на конкретный remote
-#   gitproject-sync.sh <slug> -m "сообщ."    — с сообщением коммита
-#   gitproject-sync.sh status                — таблица состояний
+#   gitproject-sync.sh <slug>                — один проект (origin или первый remote)
+#   gitproject-sync.sh <slug> --all          — мульти-push на все существующие remote
+#   gitproject-sync.sh <slug> --remote <r>   — push на конкретный remote
+#   gitproject-sync.sh <slug> --push         — push на первый remote
+#   gitproject-sync.sh <slug> --pull         — pull --ff-only с первого remote
+#   gitproject-sync.sh <slug> -m "сообщ."    — сообщение коммита
+#   gitproject-sync.sh status [host]         — таблица состояний
 #   gitproject-sync.sh fix <slug>            — подготовка проекта
-#   gitproject-sync.sh probe                 — матрица API
+#   gitproject-sync.sh probe                 — матрица хостов
+# Push выполняется ТОЛЬКО в существующие на хосте репозитории (ls-remote + кэш 15 мин).
 
 set -uo pipefail
 
-# --- Подключение общего модуля ---
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/common.sh"
 
-# Валидация slug
-validate_slug "${1:-}" || exit 2
-
-# --- Переменные окружения ---
 ENV_FILE="${HUB_ROOT}/.env"
 HOSTS_JSON="${HUB_ROOT}/config/hosts.json"
 export ENV_FILE HOSTS_JSON
 
-# --- Загрузка .env ---
 load_env
 
 # ============================================================================
-# Автоматическое добавление remote проекта из .env
+# Автодобавление remote проекта из .env (<PREFIX>_PROJECT_TOKEN)
 # ============================================================================
 ensure_project_remotes_from_env() {
     local repo="$1" slug="$2"
@@ -52,8 +49,6 @@ ensure_project_remotes_from_env() {
             [ "$token" = "placeholder" ] && continue
 
             host_id="$(printf '%s' "$prefix" | tr '[:upper:]' '[:lower:]')"
-            domain=""
-            url_template=""
             domain="$(jq -r --arg id "$host_id" '.[$id].host // empty' "$HOSTS_JSON" 2>/dev/null)"
             url_template="$(jq -r --arg id "$host_id" '.[$id].url_template // empty' "$HOSTS_JSON" 2>/dev/null)"
             [ -z "$domain" ] && continue
@@ -61,18 +56,24 @@ ensure_project_remotes_from_env() {
 
             owner_var="${prefix}_PROJECT_USER"
             owner="$(sed -n "s/^${owner_var}=//p" "$ENV_FILE" 2>/dev/null | tail -n 1 | tr -d '\r')"
-            [ -z "$owner" ] && { print_warn "    Пропускаю ${host_id}: задайте ${owner_var} в .env"; continue; }
+            if [ -z "$owner" ] || [ "$owner" = "placeholder" ]; then
+                owner="$(sed -n "s/^${prefix}_HUB_USER=//p" "$ENV_FILE" 2>/dev/null | tail -n 1 | tr -d '\r')"
+            fi
+            if [ -z "$owner" ] || [ "$owner" = "placeholder" ]; then
+                print_warn "    Пропускаю ${host_id}: задайте ${owner_var} в .env"
+                continue
+            fi
 
             url="${url_template//\{owner\}/$owner}"
             url="${url//\{slug\}/$slug}"
-
             remote_name="$host_id"
-            if ! git -C "$repo" remote get-url "$remote_name" >/dev/null 2>&1; then
+
+            if ! git -C "$repo" remote get-url -- "$remote_name" >/dev/null 2>&1; then
                 print_info "    Добавляю remote: $remote_name ($url)"
-                if git -C "$repo" remote add "$remote_name" "$url" 2>/dev/null; then
+                if git -C "$repo" remote add -- "$remote_name" "$url" 2>/dev/null; then
                     added=$((added + 1))
                 else
-                    print_warn "    ⚠ Не удалось добавить $remote_name"
+                    print_warn "    Не удалось добавить $remote_name"
                 fi
             fi
         fi
@@ -84,52 +85,96 @@ ensure_project_remotes_from_env() {
 }
 
 # ============================================================================
-# Синхронизация одного проекта на один remote (push или pull)
+# Существование репозитория на remote (ls-remote + кэш 15 мин)
+# Возврат 0 = существует, 1 = нет/недоступен.
+# ============================================================================
+remote_repo_exists() {
+    local slug="$1" remote="$2"
+    local repo="${PROJECTS_DIR}/${slug}"
+    local cache="${HUB_ROOT}/data/remotes-cache.json"
+    local key="${slug}/${remote}"
+    local url now ttl entry exists tmp
+
+    url="$(git -C "$repo" remote get-url -- "$remote" 2>/dev/null)" || return 1
+    [ -n "$url" ] || return 1
+
+    mkdir -p "${HUB_ROOT}/data"
+    now="$(date +%s)"
+
+    if [ -f "$cache" ]; then
+        entry="$(jq -c --arg k "$key" '.[$k] // empty' "$cache" 2>/dev/null)"
+        if [ -n "$entry" ]; then
+            ttl="$(printf '%s' "$entry" | jq -r '.ttl // 0')"
+            if [ "$now" -lt "$ttl" ]; then
+                exists="$(printf '%s' "$entry" | jq -r '.exists')"
+                [ "$exists" = "true" ] && return 0 || return 1
+            fi
+        fi
+    fi
+
+    exists=false
+    if GIT_TERMINAL_PROMPT=0 timeout 8 git ls-remote -- "$url" HEAD >/dev/null 2>&1; then
+        exists=true
+    fi
+
+    tmp="$(mktemp)"
+    if [ -f "$cache" ]; then
+        jq --arg k "$key" --argjson t "$((now + 900))" --argjson e "$exists" \
+           '.[$k] = {ttl: $t, exists: $e}' "$cache" > "$tmp" 2>/dev/null || printf '{}' > "$tmp"
+    else
+        jq -n --arg k "$key" --argjson t "$((now + 900))" --argjson e "$exists" \
+           '{($k): {ttl: $t, exists: $e}}' > "$tmp" 2>/dev/null || printf '{}' > "$tmp"
+    fi
+    mv "$tmp" "$cache"
+
+    [ "$exists" = "true" ] && return 0 || return 1
+}
+
+# ============================================================================
+# Push/pull одного remote
 # ============================================================================
 sync_project_remote() {
     local slug="$1" remote="$2" mode="${3:-push}"
     local repo="${PROJECTS_DIR}/${slug}"
+    local branch
 
     [ -d "$repo/.git" ] || { print_error "Проект $slug не найден"; return 1; }
-
-    local branch
     branch="$(git -C "$repo" branch --show-current 2>/dev/null)"
     [ -n "$branch" ] || { print_error "Не определена текущая ветка"; return 1; }
 
     if [ "$mode" = "pull" ]; then
         print_info "    Pull: $branch <- $remote"
-        if git -C "$repo" pull "$remote" "$branch" --ff-only 2>&1; then
+        if git -C "$repo" pull --ff-only -- "$remote" "$branch" 2>&1; then
             print_success "    ✓ Pull успешен: $remote"
             return 0
-        else
-            print_error "    ✗ Pull не удался: $remote"
-            return 1
         fi
-    else
-        print_info "    Push: $branch -> $remote"
-        if git -C "$repo" push "$remote" "$branch" 2>&1; then
-            print_success "    ✓ Push успешен: $remote"
-            return 0
-        else
-            print_error "    ✗ Push не удался: $remote"
-            return 1
-        fi
+        print_error "    ✗ Pull не удался: $remote"
+        return 1
     fi
+
+    if ! remote_repo_exists "$slug" "$remote"; then
+        print_warn "    ⚪ Пропуск $remote: репозиторий не существует на хосте"
+        return 0
+    fi
+
+    print_info "    Push: $branch -> $remote"
+    if git -C "$repo" push -- "$remote" "$branch" 2>&1; then
+        print_success "    ✓ Push успешен: $remote"
+        return 0
+    fi
+    print_error "    ✗ Push не удался: $remote"
+    return 1
 }
 
 # ============================================================================
-# Умная синхронизация всех remote (Этап 3 ТЗ-001 v2)
+# Мульти-push на все существующие remote
 # ============================================================================
 sync_project_all_remotes() {
     local slug="$1"
     local repo="${PROJECTS_DIR}/${slug}"
-
-    if [ ! -d "$repo/.git" ]; then
-        print_error "Проект $slug не найден"
-        return 1
-    fi
-
     local branch
+
+    [ -d "$repo/.git" ] || { print_error "Проект $slug не найден"; return 1; }
     branch="$(git -C "$repo" branch --show-current 2>/dev/null)"
     [ -n "$branch" ] || { print_error "Не определена текущая ветка"; return 1; }
 
@@ -137,10 +182,8 @@ sync_project_all_remotes() {
     print_header "==> Мульти-синхронизация: $slug (все remote)"
     print_info "    Ветка: $branch"
 
-    # Автоматически добавляем missing remote из .env
     ensure_project_remotes_from_env "$repo" "$slug"
 
-    # Пересчитываем список remote после возможного добавления
     local -a remotes=()
     while read -r remote; do
         [ -n "$remote" ] && remotes+=("$remote")
@@ -152,14 +195,13 @@ sync_project_all_remotes() {
     fi
     print_info "    Remote: ${remotes[*]}"
 
-    # 1. Коммит локальных изменений
     if [ -n "$(git -C "$repo" status --porcelain)" ]; then
         print_info "    Коммит локальных изменений..."
         git -C "$repo" add -A
         local forbidden
         forbidden="$(git -C "$repo" diff --cached --name-only \
-            | grep -E '^data/|^storage/|^vendor/|\.sqlite(-journal|-wal|-shm)?$|\.log$|\.ged$|^\.env($|[^.])|^\.env\.(local|prod|production)$' \
-            | grep -vE '^data/\.gitkeep$|\.env\.example$' \
+            | grep -E '^data/|^storage/|^vendor/|^node_modules/|\.sqlite(-journal|-wal|-shm)?$|\.log$|\.ged$|^\.env($|[^.])|^\.env\.(local|prod|production)$' \
+            | grep -vE '^data/\.gitkeep$|^storage/\.gitkeep$|\.env\.example$' \
             || true)"
         if [ -n "$forbidden" ]; then
             print_error "    В staging запрещённые пути:"
@@ -173,41 +215,45 @@ sync_project_all_remotes() {
         print_gray "    Рабочий каталог чист"
     fi
 
-    # 2. Push на все remote
-    local success=0 fail=0
+    local success=0 fail=0 skipped=0
     for remote in "${remotes[@]}"; do
         print_info ""
+        if ! remote_repo_exists "$slug" "$remote"; then
+            print_warn "    ⚪ Пропуск $remote: репозиторий не существует на хосте"
+            skipped=$((skipped + 1))
+            continue
+        fi
         print_info "    Публикация: $branch -> $remote"
-        if git -C "$repo" push "$remote" "$branch" 2>&1 | grep -qE "Writing objects|up-to-date|fast-forward|remote: Updating references"; then
+        if git -C "$repo" push -- "$remote" "$branch" 2>/dev/null; then
             print_success "    ✓ УСПЕХ: $slug/$branch -> $remote"
             success=$((success + 1))
         else
-            if git -C "$repo" push "$remote" "$branch" 2>/dev/null; then
-                print_success "    ✓ УСПЕХ: $slug/$branch -> $remote"
-                success=$((success + 1))
-            else
-                print_error "    ✗ Ошибка push на $remote"
-                fail=$((fail + 1))
-            fi
+            print_error "    ✗ Ошибка push на $remote"
+            fail=$((fail + 1))
         fi
     done
 
+    print_info ""
     if [ "$fail" -eq 0 ]; then
-        print_success "    Мульти-push завершён: $success remote"
+        print_success "    Мульти-push завершён: $success успешно, $skipped пропущено"
     else
-        print_warn "    Мульти-push с ошибками: $success успешно, $fail ошибок"
+        print_warn "    Мульти-push с ошибками: $success успешно, $fail ошибок, $skipped пропущено"
     fi
-    return $fail
+    return "$fail"
 }
 
 # ============================================================================
 # Таблица состояний проектов
 # ============================================================================
 show_status() {
-    local host_filter="${1:-gitverse.ru}"
+    local host_filter="${1:-}"
 
     print_header ""
-    print_header "Состояние проектов (хост: $host_filter)"
+    if [ -n "$host_filter" ]; then
+        print_header "Состояние проектов (хост: $host_filter)"
+    else
+        print_header "Состояние проектов (все хосты)"
+    fi
     print_header ""
 
     if [ ! -d "$PROJECTS_DIR" ]; then
@@ -215,44 +261,34 @@ show_status() {
         return 0
     fi
 
-    # Заголовок таблицы
-    printf "${BLUE}${BOLD}%-24s %-6s %-7s %-24s %s${RESET}\n" "ПРОЕКТ" "LOCAL" "REMOTE" "ВЕТКА" "ГРЯЗЬ"
-    printf "${BLUE}%-24s %-6s %-7s %-24s %s${RESET}\n" "------------------------" "------" "-------" "------------------------" "-----"
+    printf "${BLUE}${BOLD}%-24s %-8s %-8s %-14s %s${RESET}\n" "ПРОЕКТ" "LOCAL" "REMOTE" "ВЕТКА" "ГРЯЗЬ"
+    printf "${BLUE}%-24s %-8s %-8s %-14s %s${RESET}\n" "------------------------" "--------" "--------" "--------------" "-----"
 
     local found=0
     for dir in "$PROJECTS_DIR"/*/; do
         [ -d "$dir" ] || continue
         [ -d "$dir/.git" ] || continue
 
-        local slug
+        local slug branch local_sha remote_name remote_sha dirty color
         slug="$(basename "$dir")"
-        local branch
         branch="$(git -C "$dir" branch --show-current 2>/dev/null || echo '?')"
-        local local_sha
         local_sha="$(git -C "$dir" rev-parse --short=6 HEAD 2>/dev/null || echo '?')"
-        local dirty
         dirty="$(git -C "$dir" status --porcelain 2>/dev/null | wc -l | tr -d ' ')"
 
-        # Первый remote для отображения
-        local remote_name="?"
-        local remote_sha="?"
-        local first_remote
-        first_remote="$(git -C "$dir" remote 2>/dev/null | head -n 1)"
-        if [ -n "$first_remote" ]; then
-            remote_name="$first_remote"
-            # Пытаемся получить SHA remote (требует fetch)
-            remote_sha="$(git -C "$dir" rev-parse --short=6 "$first_remote/$branch" 2>/dev/null || echo '—')"
+        remote_name="$(git -C "$dir" remote 2>/dev/null | head -n 1)"
+        remote_sha="—"
+        if [ -n "$remote_name" ]; then
+            remote_sha="$(git -C "$dir" rev-parse --short=6 "$remote_name/$branch" 2>/dev/null || echo '—')"
         fi
 
-        # Цвета по состоянию
-        local color="$WHITE"
+        color="$WHITE"
         if [ "$dirty" -gt 0 ]; then
             color="$YELLOW"
-        elif [ "$local_sha" != "$remote_sha" ] && [ "$remote_sha" != "—" ]; then
+        elif [ "$remote_sha" != "—" ] && [ "$local_sha" != "$remote_sha" ]; then
             color="$CYAN"
         fi
 
-        printf "${color}%-24s %-6s %-7s %-24s %s${RESET}\n" "$slug" "$local_sha" "$remote_sha" "$branch" "$dirty"
+        printf "${color}%-24s %-8s %-8s %-14s %s${RESET}\n" "$slug" "$local_sha" "$remote_sha" "$branch" "$dirty"
         found=$((found + 1))
     done
 
@@ -269,17 +305,11 @@ fix_project() {
     local slug="$1"
     local repo="${PROJECTS_DIR}/${slug}"
 
-    if [ ! -d "$repo/.git" ]; then
-        print_error "Проект $slug не найден"
-        return 1
-    fi
+    [ -d "$repo/.git" ] || { print_error "Проект $slug не найден"; return 1; }
 
     print_header "==> Подготовка проекта: $slug"
-
-    # 1. Добавляем remote из .env
     ensure_project_remotes_from_env "$repo" "$slug"
 
-    # 2. Fetch со всех remote
     local -a remotes=()
     while read -r remote; do
         [ -n "$remote" ] && remotes+=("$remote")
@@ -288,12 +318,11 @@ fix_project() {
     if [ ${#remotes[@]} -gt 0 ]; then
         print_info "    Fetch со всех remote..."
         for remote in "${remotes[@]}"; do
-            git -C "$repo" fetch "$remote" 2>&1 | tail -n 1
+            git -C "$repo" fetch -- "$remote" 2>&1 | tail -n 1
         done
         print_success "    ✓ Fetch завершён"
     fi
 
-    # 3. Проверка ветки
     local branch
     branch="$(git -C "$repo" branch --show-current 2>/dev/null)"
     if [ -z "$branch" ]; then
@@ -307,35 +336,34 @@ fix_project() {
 }
 
 # ============================================================================
-# Матрица API (probe)
+# Матрица хостов (probe)
 # ============================================================================
 probe_api() {
     print_header "==> Матрица API хостов"
-
     [ -f "$HOSTS_JSON" ] || { print_error "hosts.json не найден"; return 1; }
 
     local ids
     ids="$(jq -r 'keys[]' "$HOSTS_JSON" 2>/dev/null)"
     [ -n "$ids" ] || { print_error "hosts.json пуст"; return 1; }
 
-    printf "${BLUE}${BOLD}%-15s %-25s %-10s %-10s %s${RESET}\n" "ID" "ДОМЕН" "СТАТУС" "РЕЕСТР" "URL"
-    printf "${BLUE}%-15s %-25s %-10s %-10s %s${RESET}\n" "---------------" "-------------------------" "----------" "----------" "--------------------"
+    printf "${BLUE}${BOLD}%-14s %-24s %-12s %-10s %s${RESET}\n" "ID" "ДОМЕН" "СТАТУС" "РЕЕСТР" "URL"
+    printf "${BLUE}%-14s %-24s %-12s %-10s %s${RESET}\n" "--------------" "------------------------" "------------" "----------" "--------------------"
 
     for id in $ids; do
-        local domain status registry url_template
+        local domain status registry url_template color
         domain="$(jq -r --arg id "$id" '.[$id].host // "?"' "$HOSTS_JSON")"
         status="$(jq -r --arg id "$id" '.[$id].status // "?"' "$HOSTS_JSON")"
         registry="$(jq -r --arg id "$id" '.[$id].registry // "?"' "$HOSTS_JSON")"
         url_template="$(jq -r --arg id "$id" '.[$id].url_template // "?"' "$HOSTS_JSON")"
 
-        local color="$WHITE"
+        color="$WHITE"
         case "$status" in
             ready) color="$GREEN" ;;
             integrating) color="$YELLOW" ;;
             *) color="$RED" ;;
         esac
 
-        printf "${color}%-15s %-25s %-10s %-10s %s${RESET}\n" "$id" "$domain" "$status" "$registry" "$url_template"
+        printf "${color}%-14s %-24s %-12s %-10s %s${RESET}\n" "$id" "$domain" "$status" "$registry" "$url_template"
     done
     print_header ""
 }
@@ -384,7 +412,7 @@ interactive_menu() {
 }
 
 # ============================================================================
-# Главная функция — парсинг аргументов
+# Главная функция
 # ============================================================================
 main() {
     local slug=""
@@ -394,23 +422,14 @@ main() {
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
-            --all)
-                mode="all"
-                shift
-                ;;
+            --all) mode="all"; shift ;;
+            --push) mode="push"; shift ;;
+            --pull) mode="pull"; shift ;;
             --remote)
-                mode="specific"
                 remote="${2:-}"
+                if [ "$mode" != "pull" ]; then mode="specific"; fi
                 [ -z "$remote" ] && { print_error "--remote требует аргумент"; exit 2; }
                 shift 2
-                ;;
-            --push)
-                mode="push"
-                shift
-                ;;
-            --pull)
-                mode="pull"
-                shift
                 ;;
             -m)
                 message="${2:-}"
@@ -418,12 +437,13 @@ main() {
                 shift 2
                 ;;
             status)
-                show_status "${2:-gitverse.ru}"
+                show_status "${2:-}"
                 exit 0
                 ;;
             fix)
                 slug="${2:-}"
                 [ -z "$slug" ] && { print_error "fix требует <slug>"; exit 2; }
+                validate_slug "$slug" || exit 2
                 fix_project "$slug"
                 exit $?
                 ;;
@@ -447,20 +467,19 @@ main() {
         esac
     done
 
-    # Интерактивное меню, если slug не передан
     if [ -z "$slug" ]; then
         interactive_menu
         exit $?
     fi
 
-    # Проверка существования проекта
+    validate_slug "$slug" || exit 2
+
     local repo="${PROJECTS_DIR}/${slug}"
     if [ ! -d "$repo/.git" ]; then
         print_error "Проект $slug не найден в $PROJECTS_DIR/"
         exit 1
     fi
 
-    # Режимы синхронизации
     case "$mode" in
         all)
             sync_project_all_remotes "$slug"
@@ -471,7 +490,6 @@ main() {
             exit $?
             ;;
         push)
-            # Push на origin (или первый remote)
             local first_remote
             first_remote="$(get_project_remotes "$slug" | head -n 1)"
             [ -n "$first_remote" ] || { print_error "Нет remote у проекта $slug"; exit 1; }
@@ -479,15 +497,14 @@ main() {
             exit $?
             ;;
         pull)
-            local first_remote
-            first_remote="$(get_project_remotes "$slug" | head -n 1)"
-            [ -n "$first_remote" ] || { print_error "Нет remote у проекта $slug"; exit 1; }
-            sync_project_remote "$slug" "$first_remote" "pull"
+            local src_remote
+            src_remote="${remote:-$(get_project_remotes "$slug" | head -n 1)}"
+            [ -n "$src_remote" ] || { print_error "Нет remote у проекта $slug"; exit 1; }
+            sync_project_remote "$slug" "$src_remote" "pull"
             exit $?
             ;;
         single)
-            # По умолчанию — push на origin
-            if git -C "$repo" remote get-url origin >/dev/null 2>&1; then
+            if git -C "$repo" remote get-url -- origin >/dev/null 2>&1; then
                 sync_project_remote "$slug" "origin" "push"
             else
                 local first_remote

@@ -97,6 +97,7 @@ if ($project === null): ?>
     <div class="info-row"><span class="info-label">Размер</span><span class="info-value"><?= htmlspecialchars($project['size_human']) ?></span></div>
     <div class="info-row"><span class="info-label">Обновлено</span><span class="info-value"><?= htmlspecialchars($project['modified_full']) ?></span></div>
     <hr class="info-divider">
+    <div class="remote-badges" id="remote-badges"></div>
     <div id="proj-update">
       <div class="hosts-head">
         <span class="info-label">Сравнение с сервером</span>
@@ -113,10 +114,10 @@ if ($project === null): ?>
 
   <section class="project-actions">
     <div class="action-group">
-      <h3 class="action-group-title">Git-операции</h3>
+      <h3 class="action-group-title">Интеграция и статус</h3>
       <div class="action-buttons">
-        <button type="button" class="btn btn--primary" data-op="pull">⬇ Получить версию с Git-сервера</button>
-        <button type="button" class="btn" data-op="push">⬆ Загрузить локальную версию на Git-сервер</button>
+        <button type="button" class="btn btn--primary" data-op="pull" hidden>⬇ Получить версию с Git-сервера</button>
+        <button type="button" class="btn" data-op="push" hidden>⬆ Загрузить локальную версию на Git-сервер</button>
         <button type="button" class="btn" data-op="merge">🔀 Merge (все remote)</button>
         <button type="button" class="btn" id="git-status">📊 Статус репозитория</button>
       </div>
@@ -171,7 +172,7 @@ if ($project === null): ?>
       <div class="action-buttons">
         <button type="button" class="btn btn--danger" id="delete-local">🗑 Удалить локально</button>
       </div>
-      <p class="action-hint">Удаление с хостов — через CLI bin/git-project-remote.sh и migrate. Локальное удаление необратимо.</p>
+      <p class="action-hint">Удаление с хостов выполняется в Web-UI самого хоста. Локальное удаление необратимо.</p>
     </div>
   </section>
 <?php endif; ?>
