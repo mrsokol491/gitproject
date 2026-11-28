@@ -66,8 +66,8 @@ git config --global user.email "ваш_email@example.com"
 ```
 4. Проверка helper (токен маскируется)
 ```
-       printf 'protocol=https\nhost=gitverse.ru\npath=Sokol491/gitproject.git\n' \
-         | bin/lib/git-credential-multi.sh get | sed -E 's/^(password=).*/\1[скрыто]/'
+printf 'protocol=https\nhost=gitverse.ru\npath=Sokol491/gitproject.git\n' \
+| bin/lib/git-credential-multi.sh get | sed -E 's/^(password=).*/\1[скрыто]/'
 ```
 5. Запуск хаба
 ```
@@ -109,13 +109,6 @@ credential helper; в выводе команд маскируются ([скр�
     ~/gitproject/bin/project/gitproject-sync.sh status          # таблица состояний
     ~/gitproject/bin/project/gitproject-sync.sh fix <slug>      # init/origin/контроль
 
-### Публикация хаба (bin/gitproject-update.sh)
-
-    ~/gitproject/bin/gitproject-update.sh -m "Тест"     # публикация с сообщением
-    ~/gitproject/bin/gitproject-update.sh               # авто-сообщение с датой
-    ~/gitproject/bin/gitproject-update.sh status        # состояние хаба
-    ~/gitproject/bin/gitproject-update.sh fix           # подготовка к первой публикации
-
 ### Мульти-хост система
 
     ~/gitproject/bin/project/gitproject-clone.sh                # мастер клонирования с выбором хоста
@@ -150,7 +143,7 @@ credential helper; в выводе команд маскируются ([скр�
   sed -E 's/=(.+)$/=[скрыто]/' ~/gitproject/.env
 - Токены: ограниченные права, срок 1-2 дня, после работ отзываются.
 - Защита от PHP2Shell (CVE-2026-109618/9):
-  - Обновить PHP до патчной версии (>= 8.1.33, 8.2.25, 8.3.12, 8.4.0+).
+  - Обновить PHP до патчной версии (>= 8.3.12, 8.4.0+).
   - Настроить `disable_functions` и `open_basedir` в php.ini.
 - Из LAN хаб закрыт HTTP Basic Auth; с 127.0.0.1 — без пароля.
 - Роутер: forbidden-список (.env, bin/, data/, projects/, *.md), защита path
