@@ -354,3 +354,21 @@ code, pre, .version-tag, .hub-log, .fm-view, .mp-log { font-family: var(--ws-mon
   .btn, .mp-card, .ws-act { transition: none; }
   .mp-card:hover, .mp-card:focus-visible { transform: none; }
 }
+
+.remote-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    margin: 2px;
+    border-radius: 12px;
+    font-size: 0.85em;
+    background: #1a1a1a;
+    border: 1px solid #333;
+}
+.remote-badge.exists {
+    border-color: #2ecc71;
+    color: #2ecc71;
+}
+.remote-badge.missing {
+    border-color: #666;
+    color: #999;
+}

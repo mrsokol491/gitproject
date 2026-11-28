@@ -89,6 +89,75 @@ validate_slug() {
     return 0
 }
 
+# --- Проверка существования репозитория на remote (с кэшем 15 мин) ---
+# Возвращает 0 если репо существует, 1 если нет.
+# Кэш: data/remotes-cache.json, TTL 15 минут.
+check_remote_repo_exists() {
+    local slug="$1" remote="$2"
+    local repo="${PROJECTS_DIR}/${slug}"
+    local cache_file="${HUB_ROOT}/data/remotes-cache.json"
+    local cache_key="${slug}/${remote}"
+    local now ttl cached_val
+
+    [ -d "$repo/.git" ] || return 1
+
+    # Получить URL remote
+    local url
+    url="$(git -C "$repo" remote get-url -- "$remote" 2>/dev/null)" || return 1
+    [ -n "$url" ] || return 1
+
+    # Проверить кэш
+    mkdir -p "${HUB_ROOT}/data"
+    if [ -f "$cache_file" ]; then
+        now="$(date +%s)"
+        cached_val="$(jq -r --arg k "$cache_key" '.[$k] // empty' "$cache_file" 2>/dev/null)"
+        if [ -n "$cached_val" ]; then
+            ttl="$(echo "$cached_val" | jq -r '.ttl // 0' 2>/dev/null)"
+            if [ "$now" -lt "$ttl" ]; then
+                local exists
+                exists="$(echo "$cached_val" | jq -r '.exists' 2>/dev/null)"
+                [ "$exists" = "true" ] && return 0 || return 1
+            fi
+        fi
+    fi
+
+    # Реальная проверка через ls-remote (требует credentials)
+    local exists=false
+    if GIT_TERMINAL_PROMPT=0 git ls-remote -- "$url" HEAD >/dev/null 2>&1; then
+        exists=true
+    fi
+
+    # Записать в кэш (TTL 15 мин = 900 сек)
+    local new_ttl=$(( now + 900 ))
+    local tmp_cache
+    tmp_cache="$(mktemp)"
+    if [ -f "$cache_file" ]; then
+        jq --arg k "$cache_key" --argjson t "$new_ttl" --argjson e "$exists" \
+           '.[$k] = {ttl: $t, exists: $e}' "$cache_file" > "$tmp_cache" 2>/dev/null
+    else
+        printf '{"%s":{"ttl":%d,"exists":%s}}' "$cache_key" "$new_ttl" "$exists" > "$tmp_cache"
+    fi
+    mv "$tmp_cache" "$cache_file"
+
+    [ "$exists" = "true" ] && return 0 || return 1
+}
+
+# Сброс кэша (вызывать после добавления/удаления remote)
+clear_remotes_cache() {
+    local slug="${1:-}"
+    local cache_file="${HUB_ROOT}/data/remotes-cache.json"
+    [ -f "$cache_file" ] || return 0
+    if [ -z "$slug" ]; then
+        rm -f "$cache_file"
+    else
+        local tmp
+        tmp="$(mktemp)"
+        jq --arg s "$slug" 'to_entries | map(select((.key | startswith($s + "/")) | not)) | from_entries' \
+           "$cache_file" > "$tmp" 2>/dev/null
+        mv "$tmp" "$cache_file"
+    fi
+}
+
 # --- Helper'ы wizard-скриптов (hosts.json + .env) ---
 
 host_field() {
