@@ -73,6 +73,22 @@ get_project_remotes() {
     git -C "$repo" remote 2>/dev/null | sort
 }
 
+# --- Валидация slug проекта ---
+# Допустимые символы: латиница, цифры, - и _, не начинать с -, длина 1-50.
+# Вызывать во всех скриптах, где slug попадает в путь.
+validate_slug() {
+    local slug="$1"
+    if [ -z "$slug" ]; then
+        print_error "Slug пустой"
+        return 1
+    fi
+    if ! [[ "$slug" =~ ^[a-z][a-z0-9_-]{0,49}$ ]]; then
+        print_error "Некорректный slug '$slug': только латиница, цифры, - и _, не начинать с -, длина 1-50"
+        return 1
+    fi
+    return 0
+}
+
 # --- Helper'ы wizard-скриптов (hosts.json + .env) ---
 
 host_field() {

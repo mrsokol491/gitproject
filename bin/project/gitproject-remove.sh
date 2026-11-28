@@ -19,6 +19,9 @@ set -uo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/common.sh"
 
+# Валидация slug
+validate_slug "${1:-}" || exit 2
+
 # ============================================================================
 # Вспомогательные функции
 # ============================================================================
@@ -55,7 +58,16 @@ remove_local() {
         return 1
     fi
     
-    print_warn "  ⚠ Будет удалён локальный каталог: $repo" >&2
+    # Защита от path traversal: realpath + проверка префикса
+    local real_repo real_projects
+    real_repo="$(realpath "$repo" 2>/dev/null)" || { print_error "Не удалось определить путь" >&2; return 1; }
+    real_projects="$(realpath "$PROJECTS_DIR" 2>/dev/null)" || { print_error "Не удалось определить projects/" >&2; return 1; }
+    if [[ "$real_repo" != "$real_projects/"* ]]; then
+        print_error "Путь вне projects/: $real_repo" >&2
+        return 1
+    fi
+    
+    print_warn "  ⚠ Будет удалён локальный каталог: $real_repo" >&2
     print_info "  Репозитории на хостах НЕ будут затронуты" >&2
     echo "" >&2
     print_hint "Введите 'DELETE-LOCAL' для подтверждения"
@@ -64,7 +76,7 @@ remove_local() {
     read -r -p "$(echo -e "  ${CYAN}➤ Подтверждение: ${RESET}")" confirm
     
     if [ "$confirm" = "DELETE-LOCAL" ]; then
-        rm -rf "$repo"
+        rm -rf "$real_repo"
         print_success "  ✓ Локальный каталог удалён"
         log_to_host "local" "remove local: $slug"
         return 0

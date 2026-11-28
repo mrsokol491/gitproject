@@ -13,6 +13,7 @@
 + ✅ Сodeberg (codeberg.org) — международный Git-хостинг
 + ✅ AltLinux Space (altlinux.space) — платформа от Alt Linux (реестр ПО РФ)
 + ✅ Gitea (gitea.com) — международный Git-хостинг
++ ✅ Forgejo (Forgejo.org) — международный Git-хостинг
 + ❌ GOSH (gosh.sh) — Git Open Source Hodler, международный Git-хостинг
 + ❌ Bitbucket (bitbucket.org) — международный Git-хостинг
 + ⚠️ КОД'ОК (kodok.dev) — Российский Git-хостинг
@@ -40,10 +41,11 @@
 + ✅ Сodeberg: https://codeberg.org/mrsokol491/gitproject
 + ✅ Gitea: https://gitea.com/mrsokol491/gitproject
 + ✅ AltLinux Space: https://altlinux.space/mrsokol491/gitproject
++ ✅ Forgejo: https://v17.next.forgejo.org/sokol491/gitproject
 
 ## Установка (новое устройство / новый пользователь)
 
-Требования: PHP 8.1+, git 2.30+, curl, systemd (опционально).
+Требования: PHP 8.3+, git 2.30+, curl, systemd (опционально).
 
 1. Клонирование хаба (из GitVerse)
 ```

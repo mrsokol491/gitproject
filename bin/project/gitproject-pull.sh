@@ -8,6 +8,9 @@
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/common.sh"
 
+# Валидация slug
+validate_slug "${1:-}" || exit 2
+
 set -uo pipefail
 
 HUB="${HUB_ROOT}"

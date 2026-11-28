@@ -20,6 +20,9 @@ set -uo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/common.sh"
 
+# Валидация slug
+validate_slug "${1:-}" || exit 2
+
 print_hint() {
     echo -e "${GRAY}   💡 $1${RESET}" >&2
 }
@@ -37,7 +40,7 @@ collect() {
 
     # Обновляем кеш всех remote
     local r; for r in $(git -C "$REPO" remote 2>/dev/null); do
-        git -C "$REPO" fetch "$r" >/dev/null 2>&1 || true
+        git -C "$REPO" fetch -- "$r" >/dev/null 2>&1 || true
     done
     NAMES=("local"); DOMAINS=("💻 на компьютере"); SHAS=("$(git -C "$REPO" rev-parse HEAD 2>/dev/null)")
     DATES=("$(git -C "$REPO" log -1 --format='%ci' HEAD 2>/dev/null | cut -d' ' -f1,2 | tr ' ' 'T')")
@@ -181,8 +184,8 @@ do_migrate() {
     # Приёмник пуст: публикация истории источника
     if [ -z "$tgt_sha" ]; then
         print_info "    Приёмник пуст: публикация истории $src"
-        git -C "$REPO" push "$tgt" "$src_sha:refs/heads/$BRANCH" || { print_error "    push не удался"; return 4; }
-        git -C "$REPO" fetch "$tgt" >/dev/null 2>&1 || true
+        git -C "$REPO" push -- "$tgt" "$src_sha:refs/heads/$BRANCH" || { print_error "    push не удался"; return 4; }
+        git -C "$REPO" fetch -- "$tgt" >/dev/null 2>&1 || true
         print_success "    ✓ УСПЕХ: $tgt инициализирован версией ${src_sha:0:7}"
         return 0
     fi
@@ -202,11 +205,11 @@ do_migrate() {
     # Fast-forward
     if [ "$mb" = "$tgt_sha" ]; then
         print_info "    Fast-forward: $tgt ${tgt_sha:0:7} -> ${src_sha:0:7}"
-        git -C "$REPO" push "$tgt" "$src_sha:refs/heads/$BRANCH" || { print_error "    push не удался"; return 4; }
-        git -C "$REPO" fetch "$tgt" >/dev/null 2>&1 || true
+        git -C "$REPO" push -- "$tgt" "$src_sha:refs/heads/$BRANCH" || { print_error "    push не удался"; return 4; }
+        git -C "$REPO" fetch -- "$tgt" >/dev/null 2>&1 || true
         print_success "    ✓ УСПЕХ: $tgt обновлён до ${src_sha:0:7}"
         # Обновляем кеш remote после push
-        git -C "$REPO" fetch "$tgt" >/dev/null 2>&1 || true
+        git -C "$REPO" fetch -- "$tgt" >/dev/null 2>&1 || true
         return 0
     fi
 
@@ -221,7 +224,7 @@ do_migrate() {
         git -C "$REPO" checkout "$orig_branch" 2>/dev/null || true
         return 3
     fi
-    if ! git -C "$REPO" push "$tgt" "HEAD:refs/heads/$BRANCH"; then
+    if ! git -C "$REPO" push -- "$tgt" "HEAD:refs/heads/$BRANCH"; then
         print_error "    push не удался — возврат на $orig_branch"
         git -C "$REPO" checkout "$orig_branch" 2>/dev/null || true
         return 4
@@ -236,7 +239,7 @@ do_migrate() {
         git -C "$REPO" checkout "$orig_branch" >/dev/null 2>&1
         print_warn "    ⚠ Локальная ветка осталась прежней (обновите синхронизацией)"
     fi
-    git -C "$REPO" fetch "$tgt" >/dev/null 2>&1 || true
+    git -C "$REPO" fetch -- "$tgt" >/dev/null 2>&1 || true
     print_success "    ✓ УСПЕХ: $tgt получил слияние с приоритетом $src"
     return 0
 }

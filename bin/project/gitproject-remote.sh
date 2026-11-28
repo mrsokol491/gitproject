@@ -12,6 +12,9 @@ set -uo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/common.sh"
 
+# Валидация slug
+validate_slug "${1:-}" || exit 2
+
 cmd_list() {
     local slug="$1" repo="$PROJECTS_DIR/$1"
     if [ ! -d "$repo/.git" ]; then
@@ -102,7 +105,7 @@ cmd_add() {
     local id remote_name url
     id="$(host_id_by_domain "$domain")"
     remote_name="$id"
-    git -C "$repo" remote get-url "$remote_name" >/dev/null 2>&1 \
+    git -C "$repo" remote get-url -- "$remote_name" >/dev/null 2>&1 \
         && { print_error "Remote $remote_name уже существует"; exit 2; }
 
     url="$(build_repo_url "$domain" "$owner" "$slug")" || { print_error "Нет шаблона URL для $domain"; exit 2; }
@@ -116,7 +119,7 @@ cmd_add() {
     if git -C "$repo" remote add "$remote_name" "$url"; then
         print_success "✓ Remote $remote_name добавлен ($url)"
         print_info "Fetch из $remote_name..."
-        git -C "$repo" fetch "$remote_name" >/dev/null 2>&1 \
+        git -C "$repo" fetch -- "$remote_name" >/dev/null 2>&1 \
             && print_success "✓ Fetch успешен" \
             || print_warn "⚠ Fetch пуст или не удался (репозиторий пуст?)"
         log_to_host "$domain" "remote add: $owner/$slug -> проект $slug (remote: $remote_name)"

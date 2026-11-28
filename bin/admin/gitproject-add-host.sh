@@ -20,6 +20,9 @@ set -uo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/common.sh"
 
+# Валидация slug
+validate_slug "${1:-}" || exit 2
+
 CONFIG_FILE="${HUB_ROOT}/config/hosts.json"
 ENV_FILE="${HUB_ROOT}/.env"
 
@@ -302,12 +305,10 @@ write_to_env() {
         sed -i "/^${token_var}=/d" "$ENV_FILE"
     fi
     
-    cat >> "$ENV_FILE" <<EOF
-
-# $scope токены для $HOST_DOMAIN (добавлено $(date +%Y-%m-%d))
-${user_var}=$user
-${token_var}=$token
-EOF
+    printf '\n# %s токены для %s (добавлено %s)\n%s=%s\n%s=%s\n' \
+        "$scope" "$HOST_DOMAIN" "$(date +%Y-%m-%d)" \
+        "$user_var" "$user" \
+        "$token_var" "$token" >> "$ENV_FILE"
     
     print_success "  ✓ Записано в .env: $user_var, $token_var"
     return 0
@@ -330,7 +331,7 @@ update_hosts_json() {
         
         local temp_file
         temp_file="$(mktemp)"
-        sed "s/\"${host_id}\": *{[^}]*\"status\": *\"[^\"]*\"/\"${host_id}\": {\"status\": \"${new_status}\"/" "$CONFIG_FILE" > "$temp_file"
+        jq --arg id "$host_id" --arg st "$new_status" '.[$id].status = $st' "$CONFIG_FILE" > "$temp_file"
         mv "$temp_file" "$CONFIG_FILE"
         
         print_success "  ✓ Статус обновлён: $new_status"
