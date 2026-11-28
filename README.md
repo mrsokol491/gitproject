@@ -1,7 +1,7 @@
 # GitProject Workspace Hub
 > Централизованный хаб для управления, проксирования и изоляции проектов Git.
 
-![PHP](https://img.shields.io/badge/PHP-8.1%2B-blue)
+![PHP](https://img.shields.io/badge/PHP-8.3%2B-blue)
 ![Git](https://img.shields.io/badge/Git-2.30%2B-orange)
 ![License](https://img.shields.io/badge/License-Apache%202.0-green)
 
@@ -10,16 +10,12 @@
 ## 📌 О проекте
 Универсальная оболочка-хаб для работы с репозиториями на нескольких Git-хостах. Поддерживает российские и международные платформы, включая GitVerse, GitFlic, SourceCraft, Mos.hub, GitHub, GitLab и другие.
 
-**Локальный путь:**
-+ ~/gitproject
-
-
 ## 🚀 Быстрый старт
 **Требования:** PHP 8.3+, git 2.30+, curl, systemd (опционально).
 
 **Локальный путь:** `~/gitproject`
 
-**Основной репозиторий:** ✅ [GitVerse](https://gitverse.ru/Sokol491/gitproject)
+**Основной репозиторий:** 🇷🇺 [GitVerse](https://gitverse.ru/Sokol491/gitproject)
 
 ### 1. Клонирование хаба (из GitVerse)
 ```bash
@@ -59,7 +55,7 @@ sudo loginctl enable-linger $USER
 
 ### 6. Клонирование проектов в контейнер
 ```bash
-git clone https://gitverse.ru//.git ~/gitproject/projects/
+git clone https://gitverse.ru/<owner>/<slug>.git ~/gitproject/projects/<slug>
 ~/gitproject/bin/git-project-sync.sh fix
 ```
 
@@ -99,64 +95,46 @@ tail -n 20 ~/gitproject/data/workspace-error.log
 
 | Платформа | Статус |
 |-----------|--------|
-| GitVerse (gitverse.ru) — платформа от Сбера (реестр ПО РФ) | ✅ Интегрирована |
-| GitFlic (gitflic.ru) — платформа от Астра (реестр ПО РФ) | ✅ Интегрирована |
-| SourceCraft (sourcecraft.dev) — платформа от Яндекса (реестр ПО РФ) | ✅ Интегрирована |
-| Mos.hub (hub.mos.ru) — Московская облачная платформа с ИИ-ассистентом «КоДИТ» и антивирусным сканированием (реестр ПО РФ) | ✅ Интегрирована |
-| GitHub (github.com) — международный Git-хостинг | ✅ Интегрирована |
-| GitLab (gitlab.com) — международный Git-хостинг | ✅ Интегрирована |
-| Codeberg (codeberg.org) — международный Git-хостинг | ✅ Интегрирована |
-| AltLinux Space (altlinux.space) — платформа от Alt Linux (реестр ПО РФ) | ✅ Интегрирована |
-| Gitea (gitea.com) — международный Git-хостинг | ✅ Интегрирована |
-| GOSH (gosh.sh) — Git Open Source Hodler, международный Git-хостинг | ❌ Не планируется |
-| Bitbucket (bitbucket.org) — международный Git-хостинг | ❌ Не планируется |
-| КОД'ОК (kodok.dev) — Российский Git-хостинг | ⚠️ В процессе |
-| AppSec.Code (appsec.global/appseccode) — Российский Git-хостинг | ⚠️ В процессе |
-| Fenix (РТК) — (rtk-market.ru/product/fenix) — Российский Git-хостинг | ⚠️ В процессе |
-| КОД (Сфера) — (sferaplatform.ru/kod) — Российский Git-хостинг | ⚠️ В процессе |
+|  🇷🇺 GitVerse (gitverse.ru) — платформа от Сбера| ✅ Интегрирована |
+|  🇷🇺 GitFlic (gitflic.ru) — платформа от Астра| ✅ Интегрирована |
+|  🇷🇺 SourceCraft (sourcecraft.dev) — платформа от Яндекса| ✅ Интегрирована |
+|  🇷🇺 Mos.hub (hub.mos.ru) — Московская облачная платформа с ИИ-ассистентом «КоДИТ» и антивирусным сканированием| ✅ Интегрирована |
+|  🇷🇺 AltLinux Space (altlinux.space) — платформа от Alt Linux| ✅ Интегрирована |
+| 🌐 GitHub (github.com)| ✅ Интегрирована |
+| 🌐 GitLab (gitlab.com)| ✅ Интегрирована |
+| 🌐 Codeberg (codeberg.org)| ✅ Интегрирована |
+| 🌐 Gitea (gitea.com)| ✅ Интегрирована |
+| 🌐 Forgejo (Forgejo.org)| ✅ Интегрирована |
+| 🌐 GOSH (gosh.sh) — Git Open Source Hodler| ❌ Не планируется |
+| 🌐 Bitbucket (bitbucket.org)| ❌ Не планируется |
+| 🇷🇺 КОД'ОК (kodok.dev)| ⚠️ В процессе |
+| 🇷🇺 AppSec.Code (appsec.global/appseccode)| ⚠️ В процессе |
+| 🇷🇺 Fenix (РТК) — (rtk-market.ru/product/fenix)| ⚠️ В процессе |
+| 🇷🇺 КОД (Сфера) — (sferaplatform.ru/kod)| ⚠️ В процессе |
 
 **Обозначения:**
-+ ✅ 🇷🇺 GitVerse (gitverse.ru) — платформа от Сбера
-+ ✅ 🇷🇺 GitFlic (gitflic.ru) — платформа от Астра
-+ ✅ 🇷🇺 SourceCraft (sourcecraft.dev) — платформа от Яндекса
-+ ✅ 🇷🇺 Mos.hub (hub.mos.ru) — Московская облачная платформа с ИИ-ассистентом «КоДИТ» и антивирусным сканированием
-+ ✅ 🇷🇺 AltLinux Space (altlinux.space) — платформа от Alt Linux
-+ ✅ 🌐 GitHub (github.com)
-+ ✅ 🌐 GitLab (gitlab.com)
-+ ✅ 🌐 Сodeberg (codeberg.org)
-+ ✅ 🌐 Gitea (gitea.com)
-+ ✅ 🌐 Forgejo (Forgejo.org)
-+ ❌ 🌐 GOSH (gosh.sh) — Git Open Source Hodler
-+ ❌ 🌐 Bitbucket (bitbucket.org)
-+ ⚠️ 🇷🇺 КОД'ОК (kodok.dev)
-+ ⚠️ 🇷🇺 AppSec.Code (appsec.global/appseccode)
-+ ⚠️ 🇷🇺 Fenix (РТК) — (rtk-market.ru/product/fenix)
-+ ⚠️ 🇷🇺 КОД (Сфера) — (sferaplatform.ru/kod)
-
-
     + ✅ - Интегрирован
     + ⚠️ - В процессе интеграции
     + ❌ - На данный момент интеграция не планируется
     + 🇷🇺 - Российский Git-хостинг
     + 🌐 - международный Git-хостинг
-
 </details>
 
 ## 🔗 Зеркала проекта
-**Основной репозиторий:** ✅ [GitVerse](https://gitverse.ru/Sokol491/gitproject)
+**Основной репозиторий:** 🇷🇺 [GitVerse](https://gitverse.ru/Sokol491/gitproject)
 
 <details>
 <summary>Показать все зеркала (список постоянно пополняется)</summary>
 
-- ✅ [GitFlic](https://gitflic.ru/project/sokol491/gitproject)
-- ✅ [SourceCraft](https://sourcecraft.dev/sokol491/gitproject)
-- ✅ [GitHub](https://github.com/mrsokol491/gitproject)
-- ✅ [Mos.hub](https://hub.mos.ru/mrsokol491/gitproject)
-- ✅ [GitLab](https://gitlab.com/sokol491/gitproject)
-- ✅ [Codeberg](https://codeberg.org/mrsokol491/gitproject)
-- ✅ [Gitea](https://gitea.com/mrsokol491/gitproject)
-- ✅ [AltLinux Space](https://altlinux.space/mrsokol491/gitproject)
-- ✅ [Forgejo](https://v17.next.forgejo.org/sokol491/gitproject)
+- 🇷🇺 [GitFlic](https://gitflic.ru/project/sokol491/gitproject)
+- 🇷🇺 [SourceCraft](https://sourcecraft.dev/sokol491/gitproject)
+- 🇷🇺 [Mos.hub](https://hub.mos.ru/mrsokol491/gitproject)
+- 🇷🇺 [AltLinux Space](https://altlinux.space/mrsokol491/gitproject)
+- 🌐 [GitHub](https://github.com/mrsokol491/gitproject)
+- 🌐 [GitLab](https://gitlab.com/sokol491/gitproject)
+- 🌐 [Codeberg](https://codeberg.org/mrsokol491/gitproject)
+- 🌐 [Gitea](https://gitea.com/mrsokol491/gitproject)
+- 🌐 [Forgejo](https://v17.next.forgejo.org/sokol491/gitproject)
 
 </details>
 
